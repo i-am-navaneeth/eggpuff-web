@@ -1,0 +1,87 @@
+'use client'
+
+import '../style.css'
+import { useEffect } from 'react'
+
+export default function CareerPage() {
+  useEffect(() => {
+    const mediaList = [
+      { type: 'video', src: '/valentinesday-special/media/career-video.mp4' },
+      { type: 'audio', src: '/valentinesday-special/media/career-audio.mp3' },
+    ]
+
+    const container = document.getElementById('media-container')
+    if (!container) return
+
+    // prevent duplicates (Strict Mode safe)
+    container.innerHTML = ''
+
+    const chosen = mediaList[Math.floor(Math.random() * mediaList.length)]
+    let el: HTMLElement
+
+    if (chosen.type === 'video') {
+  const wrapper = document.createElement('div')
+  wrapper.style.position = 'relative'
+  wrapper.style.display = 'inline-block'
+
+  const v = document.createElement('video')
+  v.src = chosen.src
+  v.autoplay = true
+  v.muted = true
+  v.loop = true
+  v.playsInline = true
+  v.className = 'media'
+
+  const icon = document.createElement('div')
+  icon.innerText = '🔊'
+  icon.style.position = 'absolute'
+  icon.style.bottom = '12px'
+  icon.style.right = '12px'
+  icon.style.fontSize = '22px'
+  icon.style.background = 'rgba(0,0,0,0.55)'
+  icon.style.borderRadius = '50%'
+  icon.style.padding = '6px'
+  icon.style.cursor = 'pointer'
+
+  wrapper.appendChild(v)
+  wrapper.appendChild(icon)
+
+  const enableSound = () => {
+    v.muted = false
+    v.play()
+    icon.remove()
+  }
+
+  wrapper.addEventListener('click', enableSound)
+
+  el = wrapper
+
+    } else {
+      const audio = document.createElement('audio')
+      audio.src = chosen.src
+      audio.controls = true
+      audio.className = 'media audio'
+      el = audio
+    }
+
+    container.appendChild(el)
+  }, [])
+
+  return (
+    <div className="container">
+      <div id="media-container"></div>
+
+      <div className="text">
+        Focus on career mawa 😘<br />
+        Life lo clarity important.
+      </div>
+
+      <button
+        className="cta"
+        onClick={() => (window.location.href = 'https://eggpuff.in')}
+      >
+        Join EggPuff 🥐
+      </button>
+    </div>
+  )
+}
