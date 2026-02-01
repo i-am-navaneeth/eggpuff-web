@@ -1,9 +1,9 @@
 'use client'
 
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useRef, useState } from 'react'
 
 type Notification = {
-  id: number
+  id: string
   message: string
 }
 
@@ -17,13 +17,16 @@ export function NotificationProvider({
   children: React.ReactNode
 }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const counterRef = useRef(0) // ✅ ensures uniqueness
 
   const notify = (message: string) => {
-    const id = Date.now()
-    setNotifications((n) => [...n, { id, message }])
+    counterRef.current += 1
+    const id = `${Date.now()}-${counterRef.current}`
+
+    setNotifications(n => [...n, { id, message }])
 
     setTimeout(() => {
-      setNotifications((n) => n.filter((x) => x.id !== id))
+      setNotifications(n => n.filter(x => x.id !== id))
     }, 3000)
   }
 
@@ -32,16 +35,18 @@ export function NotificationProvider({
       {children}
 
       {/* Toast container */}
-      <div style={{
-        position: 'fixed',
-        bottom: 20,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-        zIndex: 100
-      }}>
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 20,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          zIndex: 100,
+        }}
+      >
         {notifications.map(n => (
           <div
             key={n.id}
@@ -64,6 +69,10 @@ export function NotificationProvider({
 
 export function useNotify() {
   const ctx = useContext(NotificationContext)
-  if (!ctx) throw new Error('useNotify must be used inside NotificationProvider')
+  if (!ctx) {
+    throw new Error(
+      'useNotify must be used inside NotificationProvider'
+    )
+  }
   return ctx.notify
 }

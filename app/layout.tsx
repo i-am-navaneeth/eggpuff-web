@@ -3,7 +3,7 @@ import UserProvider from '../components/UserProvider'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'EggPuff 🥐',
+  title: 'EggPuff',
   icons: {
     icon: '/eggpuff.favicon.png',
   },

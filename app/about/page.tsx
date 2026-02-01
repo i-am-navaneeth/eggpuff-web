@@ -11,8 +11,9 @@ type QA = {
 const FAQ: QA[] = [
   {
     q: 'What is EggPuff 🥐?',
-    a: `EggPuff is a campus Q&A platform.
-Ask questions, help others with answers, and earn 🥐 (EggPuffs) for good participation.`,
+    a: `EggPuff is a campus Q&A platform. Ask questions, help others with answers, and earn 🥐 (EggPuffs) for good participation.
+
+EggPuffs are internal points used only inside the app — for things like PYP (Promote Your Profile: Instagram, YouTube, etc.). They have no real-world cash value.`,
   },
   {
     q: 'How does asking a question work?',
@@ -53,84 +54,110 @@ export default function AboutPage() {
   const [openIndex, setOpenIndex] = useState<number | null>(null)
 
   return (
-    <div style={{ padding: 20, maxWidth: 720, margin: '0 auto' }}>
-      {/* HEADER */}
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ marginBottom: 6 }}>About EggPuff 🥐</h2>
-        <p style={{ color: '#6B7280', fontSize: 14 }}>
-          Everything you need to know, explained simply.
-        </p>
+    <>
+      {/* FULL-WIDTH APP HEADER */}
+      <div
+        style={{
+          width: '100%',
+          padding: '12px 16px',
+          borderBottom: '1px solid rgba(0,0,0,0.05)',
+        }}
+      >
+        <h2 style={{ margin: 0 }}>EggPuff 🥐</h2>
       </div>
 
-      {/* FAQ */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {FAQ.map((item, i) => {
-          const open = openIndex === i
+      {/* CENTERED CONTENT */}
+      <div style={{ padding: 20, maxWidth: 720, margin: '0 auto' }}>
+        {/* PAGE HEADER */}
+        <div style={{ marginBottom: 24 }}>
+          <h2 style={{ marginBottom: 6 }}>About EggPuff 🥐</h2>
+          <p style={{ color: '#6B7280', fontSize: 14 }}>
+            Everything you need to know, explained simply.
+          </p>
+        </div>
 
-          return (
-            <div
-              key={i}
-              style={{
-                border: '1px solid #e5e7eb',
-                borderRadius: 12,
-                overflow: 'hidden',
-              }}
-            >
-              {/* QUESTION */}
-              <button
-                onClick={() =>
-                  setOpenIndex(open ? null : i)
-                }
+        {/* FAQ */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {FAQ.map((item, i) => {
+            const open = openIndex === i
+
+            return (
+              <div
+                key={i}
                 style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: 14,
-                  background: '#f9fafb',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  fontSize: 15,
-                  fontWeight: 500,
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 12,
+                  overflow: 'hidden',
                 }}
               >
-                <span>{item.q}</span>
-                <span
+                {/* QUESTION */}
+                <button
+                  onClick={() => setOpenIndex(open ? null : i)}
                   style={{
-                    transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.15s ease',
-                  }}
-                >
-                  ▾
-                </span>
-              </button>
-
-              {/* ANSWER */}
-              {open && (
-                <div
-                  style={{
+                    width: '100%',
+                    textAlign: 'left',
                     padding: 14,
-                    background: '#fff',
-                    fontSize: 14,
-                    color: '#374151',
-                    lineHeight: 1.6,
+                    background: '#f9fafb',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: 15,
+                    fontWeight: 500,
                   }}
                 >
-                  {item.a}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
+                  <span>{item.q}</span>
+                  <span
+                    style={{
+                      transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.15s ease',
+                    }}
+                  >
+                    ▾
+                  </span>
+                </button>
 
-      {/* FOOTER */}
-      <div style={{ marginTop: 32 }}>
-        <Link href="/feed">
-          <button>← Back to feed</button>
-        </Link>
+                {/* ANSWER */}
+                {open && (
+                  <div
+                    style={{
+                      padding: 14,
+                      background: '#fff',
+                      fontSize: 14,
+                      color: '#374151',
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {item.a}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* BACK BUTTON */}
+        <div style={{ marginTop: 32 }}>
+          <Link href="/feed">
+            <button>← Back to feed</button>
+          </Link>
+        </div>
+
+        {/* SUPPORT FOOTER */}
+        <div
+          style={{
+            marginTop: 40,
+            paddingTop: 16,
+            borderTop: '1px solid rgba(0,0,0,0.08)',
+            textAlign: 'center',
+            opacity: 0.8,
+          }}
+        >
+          Need help or feedback? Contact us 📩{' '}
+          <a href="mailto:support@eggpuff.in">support@eggpuff.in</a>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
