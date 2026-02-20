@@ -1,6 +1,8 @@
 /* Import Inter font */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+@import "tailwindcss";
+
 :root {
   /* 🎨 Colors */
   --brand: #F4B860;          /* Croissant Gold */
@@ -18,10 +20,20 @@
   --text-lg: 1.5rem;   /* 24px */
   --text-md: 1rem;     /* 16px */
   --text-sm: 0.875rem; /* 14px */
+
+  /* 🌀 Elastic curve */
+  --elastic: cubic-bezier(.34, 1.56, .64, 1);
 }
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent; /* smoother mobile tap */
 }
 
 body {
@@ -39,11 +51,25 @@ button {
   padding: 10px 14px;
   font-weight: 600;
   cursor: pointer;
+
+  /* ✨ Elastic tap animation */
+  transition: transform 0.28s var(--elastic);
+}
+
+/* 👇 Press in */
+button:active:not(:disabled) {
+  transform: scale(0.88);
+}
+
+/* 👆 Release bounce */
+button:not(:active) {
+  transform: scale(1);
 }
 
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
 }
 
 /* Cards */
@@ -52,4 +78,23 @@ button:disabled {
   border-radius: var(--radius-lg);
   padding: 14px;
   box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+}
+
+/* Skeleton animation (unchanged) */
+@keyframes skeleton-loading {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}
+
+/* Hide horizontal scrollbar (mobile categories) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

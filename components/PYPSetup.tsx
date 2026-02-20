@@ -13,7 +13,7 @@ export default function PYPSetup({ userId, onDone }: Props) {
   const [link, setLink] = useState('')
   const [caption, setCaption] = useState('')
   const [loading, setLoading] = useState(false)
-  const notify = useNotify()
+  const { notify } = useNotify()
 
   const startPYP = async () => {
     if (loading) return
@@ -69,9 +69,9 @@ export default function PYPSetup({ userId, onDone }: Props) {
 
       notify('✨ Promotion started!')
       onDone()
-    } catch (err) {
-      console.error(err)
-      notify('Something went wrong. Please try again.')
+    } catch (err: any) {
+    console.error('PYP START ERROR:', JSON.stringify(err, null, 2))
+    notify('Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }

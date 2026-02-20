@@ -1,24 +1,40 @@
 'use client'
 
-import { createContext, useContext, useRef, useState } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
+import { supabase } from '../lib/supabase'
 
 type Notification = {
   id: string
   message: string
 }
 
-const NotificationContext = createContext<{
+type NotificationContextType = {
   notify: (msg: string) => void
-} | null>(null)
+  notifyComingSoon: () => void
+}
+
+const NotificationContext =
+  createContext<NotificationContextType | null>(
+    null
+  )
 
 export function NotificationProvider({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const counterRef = useRef(0) // ✅ ensures uniqueness
+  const [notifications, setNotifications] = useState<
+    Notification[]
+  >([])
+  const counterRef = useRef(0)
 
+  /* 🔔 BASE NOTIFY */
   const notify = (message: string) => {
     counterRef.current += 1
     const id = `${Date.now()}-${counterRef.current}`
@@ -26,15 +42,69 @@ export function NotificationProvider({
     setNotifications(n => [...n, { id, message }])
 
     setTimeout(() => {
-      setNotifications(n => n.filter(x => x.id !== id))
+      setNotifications(n =>
+        n.filter(x => x.id !== id)
+      )
     }, 3000)
   }
 
+  /* 🚧 MVP / COMING SOON NOTIFY */
+  const notifyComingSoon = () => {
+    notify('🚧 Coming soon — shipping in next updates')
+  }
+
+  /* 🟢 AUTO NOTIFY: NEW QUESTIONS */
+  useEffect(() => {
+    let channel: any
+    let mounted = true
+
+    const init = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user || !mounted) return
+
+      channel = supabase
+        .channel('notify-new-questions')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'questions',
+          },
+          payload => {
+            // 🔕 skip own question
+            if (
+              payload.new.user_id === user.id
+            )
+              return
+
+            notify(
+              '📢 New campus question posted'
+            )
+          }
+        )
+        .subscribe()
+    }
+
+    init()
+
+    return () => {
+      mounted = false
+      if (channel)
+        supabase.removeChannel(channel)
+    }
+  }, [])
+
   return (
-    <NotificationContext.Provider value={{ notify }}>
+    <NotificationContext.Provider
+      value={{ notify, notifyComingSoon }}
+    >
       {children}
 
-      {/* Toast container */}
+      {/* 🔔 TOAST CONTAINER */}
       <div
         style={{
           position: 'fixed',
@@ -45,6 +115,7 @@ export function NotificationProvider({
           flexDirection: 'column',
           gap: 8,
           zIndex: 100,
+          pointerEvents: 'none',
         }}
       >
         {notifications.map(n => (
@@ -56,7 +127,9 @@ export function NotificationProvider({
               padding: '10px 16px',
               borderRadius: 999,
               fontSize: 14,
-              boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
+              boxShadow:
+                '0 4px 10px rgba(0,0,0,0.2)',
+              pointerEvents: 'auto',
             }}
           >
             {n.message}
@@ -67,6 +140,7 @@ export function NotificationProvider({
   )
 }
 
+/* 🎯 HOOK */
 export function useNotify() {
   const ctx = useContext(NotificationContext)
   if (!ctx) {
@@ -74,5 +148,5 @@ export function useNotify() {
       'useNotify must be used inside NotificationProvider'
     )
   }
-  return ctx.notify
+  return ctx
 }

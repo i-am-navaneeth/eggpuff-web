@@ -5,11 +5,22 @@ import Link from 'next/link'
 import { supabase } from '../lib/supabase'
 import { getEggPuffBalance } from '../lib/rewards'
 import BuyPuffModal from './BuyPuffModal'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import FeedbackDropdown from '@/components/FeedbackDropdown'
+
 
 export default function TopBar() {
   const [balance, setBalance] = useState<number>(0)
   const [buyOpen, setBuyOpen] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  const isAskPage = pathname === '/ask'
+
+  /* ---------------- LOAD USER + BALANCE ---------------- */
 
   useEffect(() => {
     let mounted = true
@@ -20,7 +31,13 @@ export default function TopBar() {
         data: { user },
       } = await supabase.auth.getUser()
 
-      if (!user) return
+      if (!user) {
+        if (mounted) {
+          setUserId(null)
+          setBalance(0)
+        }
+        return
+      }
 
       if (mounted) setUserId(user.id)
 
@@ -51,82 +68,112 @@ export default function TopBar() {
 
     return () => {
       mounted = false
-      listener.subscription.unsubscribe()
+      listener?.subscription?.unsubscribe()
       if (ledgerChannel) supabase.removeChannel(ledgerChannel)
     }
   }, [])
 
+  /* ---------------- ASK BUTTON CATEGORY PREFILL ---------------- */
+
+  const selectedCategory =
+    searchParams.get('category') || 'general'
+
+  const askHref = `/ask?category=${selectedCategory}`
+
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+
+
+  /* ---------------- UI ---------------- */
+
   return (
     <>
-      {/* TOP BAR */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '12px 0',
-          marginBottom: 16,
-          borderBottom: '1px solid rgba(0,0,0,0.06)',
-        }}
+      {/* ===================== TOP BAR ===================== */}
+     <div
+  style={{
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px 0',
+  }}
+>
+
+
+        {/* LEFT — LOGO */}
+        <h2
+       onClick={() => router.push('/feed')}
+       className="text-lg sm:text-xl font-semibold cursor-pointer select-none flex items-center gap-1"
+        >
+        EggPuff
+       </h2>
+
+        {/* RIGHT SIDE */}
+<div className="flex items-center gap-2 sm:gap-3 ml-auto pr-1 sm:pr-2">
+
+  {/* BALANCE */}
+  <button
+  onClick={() => setBuyOpen(true)}
+  title="Buy or PYP"
+  className="px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium
+             bg-gray-100 border border-gray-200
+             text-gray-800
+             shadow-sm"
+             style={{
+    padding: '6px 14px',
+    borderRadius: 999,
+    background: '#F3F4F6',        // soft grey capsule
+    border: '1px solid #E5E7EB',  // subtle outline
+    fontSize: 14,
+    fontWeight: 500,
+    color: '#111827',
+    cursor: 'pointer',
+    lineHeight: 1,
+    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+  }}
+>
+  {balance} 
+</button>
+
+  {/* ASK */}
+  {!isAskPage && (
+    <Link href={askHref} title="Ask a question">
+      <button
+        className="px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium border border-amber-400 bg-amber-400 text-gray-900"
       >
-        {/* LEFT */}
-        <h2 style={{ margin: 0 }}>EggPuff 🥐</h2>
+        Ask
+      </button>
+    </Link>
+  )}
 
-        {/* RIGHT */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          {/* BALANCE PILL (opens Buy / Promote modal) */}
-          <span
-            onClick={() => setBuyOpen(true)}
-            title="Buy or use EggPuffs"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 10px',
-              borderRadius: 999,
-              background: '#F9FAFB',
-              border: '1px solid #E5E7EB',
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: 'pointer',
-              lineHeight: 1,
-            }}
-          >
-            {balance}
-            <span style={{ fontSize: 16 }}>🥐</span>
-          </span>
+  {/* FEEDBACK */}
+  <div className="relative">
+    <button
+  onClick={() => setFeedbackOpen((prev) => !prev)}
+  className="px-3 sm:px-4 py-1.5 rounded-full border border-gray-300 text-xs sm:text-sm font-medium text-gray-700"
+  style={{ backgroundColor: '#FFFFFF' }}
+>
+  Feedback
+</button>
 
-          {/* ASK */}
-          <Link href="/ask">
-            <button style={{ padding: '6px 14px' }}>
-              Ask
-            </button>
-          </Link>
+    {feedbackOpen && (
+  <div
+    style={{
+      position: 'absolute',
+      top: 48,
+      right: 0,
+      zIndex: 1000,
+      width: '320px',
+      maxWidth: '90vw',
+    }}
+  >
+    <FeedbackDropdown onClose={() => setFeedbackOpen(false)} />
+  </div>
+)}
+  </div>
 
-          {/* ABOUT */}
-          <Link href="/about" title="About EggPuff">
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: '50%',
-                background: '#f3f4f6',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 16,
-                fontWeight: 600,
-                cursor: 'pointer',
-                userSelect: 'none',
-              }}
-            >
-              ?
-            </div>
-          </Link>
-        </div>
+</div>
       </div>
 
-      {/* BUY / PROMOTE MODAL */}
+      {/* ===================== BUY / PROMOTE MODAL ===================== */}
       <BuyPuffModal
         open={buyOpen}
         onClose={() => setBuyOpen(false)}

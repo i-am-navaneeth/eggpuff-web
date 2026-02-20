@@ -1,6 +1,8 @@
 import './globals.css'
 import UserProvider from '../components/UserProvider'
+import { NotificationProvider } from '../components/NotificationProvider'
 import type { Metadata } from 'next'
+import TopBar from '@/components/TopBar'
 
 export const metadata: Metadata = {
   title: 'EggPuff',
@@ -17,9 +19,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body suppressHydrationWarning>
-        <UserProvider>
-          {children}
-        </UserProvider>
+        <NotificationProvider>
+          <UserProvider>
+              {children}
+          </UserProvider>
+        </NotificationProvider>
       </body>
     </html>
   )

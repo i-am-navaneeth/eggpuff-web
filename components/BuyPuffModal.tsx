@@ -28,173 +28,200 @@ export default function BuyPuffModal({
 }: Props) {
   const [utr, setUtr] = useState('')
   const [step, setStep] = useState<Step>('choose')
-  const notify = useNotify()
+  const { notify } = useNotify()
 
-  /* ✅ RESET MODAL STATE ON EVERY OPEN */
+  /* ---------------- RESET EVERY TIME MODAL OPENS ---------------- */
   useEffect(() => {
-    if (open) {
-      setStep('choose')
-      setUtr('')
-    }
+    if (!open) return
+    setStep('choose')
+    setUtr('')
   }, [open])
 
-  useEffect(() => {
-    if (!open || !userId) return
+  
 
-    const checkExistingPayment = async () => {
-      const { data } = await supabase
-        .from('payments')
-        .select('status')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
+  if (!open) return null  
 
-      if (data?.status === 'pending') {
-        setStep('pending')
-      }
-    }
+  /* ---------------- BUY CLICK ---------------- */
+  const handleBuyClick = async () => {
+  if (!userId) return
 
-    checkExistingPayment()
-  }, [open, userId])
+  const { data } = await supabase
+    .from('payments')
+    .select('status')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
-  if (!open) return null
+  if (data?.status === 'pending') {
+    setStep('pending')
+    return
+  }
 
-  const submitUTR = async () => {
-    if (!utr.trim()) {
-      notify('Enter valid UTR number')
-      return
-    }
+  setStep('pay')
+}
 
-    if (!userId) return
 
-    const { error } = await supabase.from('payments').insert({
+  /* ---------------- SUBMIT UTR ---------------- */
+const submitUTR = async () => {
+  if (utr.length !== 12) {
+  notify('⚠️ UTR must be exactly 12 digits')
+  return
+}
+
+
+  if (!userId) return
+
+  const { error } = await supabase
+    .from('payments')
+    .insert({
       user_id: userId,
       utr,
-      amount: 30,
-      egg_puffs: 3,
+      amount: 9,
+      egg_puffs: 5,
       status: 'pending',
     })
 
-    if (error) {
-      notify('UTR already submitted or invalid')
-      return
+  if (error) {
+    if (error.code === '23505') {
+      notify('This UTR was already submitted.')
+    } else {
+      notify('Payment submission failed.')
     }
-
-    notify('Payment submitted. Waiting for approval.')
-    setStep('pending')
+    return
   }
 
-  return (
-    <div style={overlay}>
-      <div style={modal}>
-        <h3>EggPuff 🥐</h3>
+  notify('Payment submitted. Waiting for approval.')
+  setStep('pending')
+}
 
-        {/* STEP: CHOOSE */}
-        {step === 'choose' && (
-          <>
-            <button style={primaryBtn} onClick={() => setStep('pay')}>
-              Buy 🥐
-            </button>
 
-            {/* ✅ ALWAYS ENABLED (curiosity-first) */}
-            <button
-              style={secondaryBtn}
-              onClick={() => setStep('pyp')}
-            >
-              ✨ Promote (PYP)
-            </button>
-          </>
-        )}
+ return (
+  <div
+    style={overlay}
+    onClick={() => {
+      setStep('choose')
+      onClose()
+    }}
+  >
+    
+    <div
+      style={modal}
+      onClick={e => e.stopPropagation()} // prevent close when clicking inside
+    >
+      <h2
+  style={{
+    fontSize: 22,
+    fontWeight: 800,
+    color: '#000000',
+    letterSpacing: 0.4,
+    marginBottom: 18,
+  }}
+>
+  EggPuff
+</h2>
 
-        {/* STEP: BUY */}
-        {step === 'pay' && (
-          <>
-            <p style={priceRow}>
-              <strong>Get 5 🥐 for ₹30</strong>
-              <span style={bonus}>+2 BONUS</span>
+
+      {/* STEP: CHOOSE */}
+      {step === 'choose' && (
+        <>
+          <button style={primaryBtn} onClick={handleBuyClick}>
+            Buy 🥐
+          </button>
+
+          <button
+            style={secondaryBtn}
+            onClick={() => setStep('pyp')}
+          >
+            ✨ Promote (PYP)
+          </button>
+        </>
+      )}
+
+      {/* STEP: PAY */}
+      {step === 'pay' && (
+        <>
+          <p style={priceRow}>
+            <strong>Get 5 🥐 for ₹9</strong>
+            <span style={bonus}>+2 BONUS</span>
+          </p>
+
+          <p style={subText}>Scan & pay using any UPI app</p>
+
+          <img
+            src="/eggpuff.paymentQR.jpeg"
+            alt="UPI QR"
+            style={qr}
+          />
+
+          <button onClick={() => setStep('utr')}>
+            Payment done →
+          </button>
+        </>
+      )}
+
+      {/* STEP: UTR */}
+      {step === 'utr' && (
+        <>
+          <input
+            placeholder="Enter 12-digit UTR number"
+            value={utr}
+            onChange={e => {
+              const onlyDigits = e.target.value.replace(/\D/g, '')
+              setUtr(onlyDigits.slice(0, 12))
+            }}
+            maxLength={12}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            style={input}
+          />
+
+          <button onClick={submitUTR}>Submit</button>
+        </>
+      )}
+
+      {/* STEP: PYP SETUP */}
+      {step === 'pyp' && userId && (
+        <>
+          {balance < 14 && (
+            <p style={{ color: '#B45309', fontSize: 13 }}>
+              You need <b>14 🥐</b> to publish this promotion.
             </p>
+          )}
 
-            <p style={subText}>Scan & pay using any UPI app</p>
+          <PYPSetup
+            userId={userId}
+            onDone={() => {
+              notify('✨ Promotion started!')
+              onClose()
+            }}
+          />
+        </>
+      )}
 
-            <img
-              src="/eggpuff.paymentQR.jpeg"
-              alt="UPI QR"
-              style={qr}
-            />
+      {/* STEP: PENDING */}
+      {step === 'pending' && (
+        <>
+          <p>⏳ Payment under verification</p>
+          <p style={subText}>
+            You’ll get 🥐 once approved
+          </p>
+        </>
+      )}
 
-            <button onClick={() => setStep('utr')}>
-              Payment done →
-            </button>
-          </>
-        )}
+      <button
+        onClick={() => {
+          setStep('choose')
+          onClose()
+        }}
+        style={closeBtn}
+      >
+        Close
+      </button>
 
-        {/* STEP: UTR */}
-        {step === 'utr' && (
-          <>
-            <input
-              placeholder="Enter UTR number"
-              value={utr}
-              onChange={e => setUtr(e.target.value)}
-              style={input}
-            />
-            <button onClick={submitUTR}>Submit</button>
-          </>
-        )}
-
-        {/* STEP: PYP INFO */}
-        {step === 'pyp' && (
-          <>
-            <h4>Promote Your Profile ✨</h4>
-
-            <p style={subText}>
-              Get featured in the feed for 24 hours
-            </p>
-
-            <p style={priceRow}>
-              <strong>Cost: 14 🥐</strong>
-              <span style={bonus}>+24 impressions</span>
-            </p>
-
-            <button onClick={() => setStep('pyp_setup')}>
-              Continue →
-            </button>
-          </>
-        )}
-
-        {/* STEP: PYP SETUP (FINAL GATE) */}
-        {step === 'pyp_setup' && userId && (
-          <>
-            {balance < 14 && (
-              <p style={{ color: '#B45309', fontSize: 13 }}>
-                You need <b>14 🥐</b> to publish this promotion.
-              </p>
-            )}
-
-            <PYPSetup
-              userId={userId}
-              onDone={() => {
-                notify('✨ Promotion started!')
-                onClose()
-              }}
-            />
-          </>
-        )}
-
-        {/* STEP: PENDING */}
-        {step === 'pending' && (
-          <>
-            <p>⏳ Payment under verification</p>
-            <p style={subText}>You’ll get 🥐 once approved</p>
-          </>
-        )}
-
-        <button onClick={onClose} style={closeBtn}>
-          Close
-        </button>
-      </div>
     </div>
-  )
+  </div>
+)
 }
 
 /* ---------- styles ---------- */
@@ -202,19 +229,26 @@ export default function BuyPuffModal({
 const overlay = {
   position: 'fixed' as const,
   inset: 0,
-  background: 'rgba(0,0,0,0.4)',
+  width: '100vw',
+  height: '100vh',
+  background: 'rgba(0,0,0,0.35)',
+  backdropFilter: 'blur(8px)',
+  WebkitBackdropFilter: 'blur(8px)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  zIndex: 50,
+  zIndex: 9999,
 }
 
 const modal = {
   background: '#fff',
-  borderRadius: 16,
-  padding: 20,
-  width: 320,
+  borderRadius: 20,
+  padding: 24,
+  width: '100%',
+  maxWidth: 380,
   textAlign: 'center' as const,
+  boxShadow: '0 25px 60px rgba(0,0,0,0.18)',
+  transform: 'translateY(-10px)', // small lift effect
 }
 
 const primaryBtn = {
