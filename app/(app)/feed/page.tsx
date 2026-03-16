@@ -1,4 +1,4 @@
-'use client' 
+'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -9,6 +9,8 @@ import QuestionCard from '../../../components/QuestionCard'
 import QuestionCardSkeleton from '@/components/QuestionCardSkeleton'
 import Skeleton from '@/components/Skeleton'
 import { useNotify } from '../../../components/NotificationProvider'
+
+import IPLScoreCard from '@/components/IPLScoreCard'
 
 type Category = {
   id: string
@@ -45,7 +47,6 @@ export default function FeedPage() {
   const [questions, setQuestions] = useState<QuestionRow[]>([])
   const [loading, setLoading] = useState(true)
 
-  // 🔥 SINGLE SOURCE OF TRUTH = SLUG
   const [activeCategorySlug, setActiveCategorySlug] =
     useState<string>('all')
 
@@ -162,15 +163,11 @@ export default function FeedPage() {
       return false
     }
 
-    // ALL
     if (activeCategorySlug === 'all') {
-      // show all
     }
-    // GENERAL
     else if (activeCategorySlug === 'general') {
       if (q.category_id !== null) return false
     }
-    // REAL CATEGORY
     else {
       const cat = categories.find(
         c => c.slug === activeCategorySlug
@@ -206,146 +203,24 @@ export default function FeedPage() {
       : 'Answered'
 
   /* -------------------- UI -------------------- */
-return (
-  <div className="pt-9">
 
-    {/* ====================== RESPONSIVE GRID ====================== */}
-   <div className="min-h-screen grid grid-cols-1 lg:grid-cols-[260px_640px_300px] w-full max-w-[1200px] mx-auto">
+  return (
+    <div className="pt-1">
 
-      {/* ========================================================= */}
-      {/* ====================== LEFT PANEL ======================= */}
-      {/* ========================================================= */}
-<aside className="hidden lg:block sticky top-6 self-start h-fit pr-6 border-r border-gray-200">
+      <div className="min-h-screen grid grid-cols-1 lg:grid-cols-[260px_minmax(50px,10fr)_200px] w-full max-w-[1200px] mx-auto pt-0 gap-6">
 
-        {/* Loading State */}
-        {loading && (
-          <>
+        {/* LEFT PANEL */}
+        <aside className="hidden lg:block sticky top-6 self-start h-fit pr-6 border-r border-gray-200">
+
+          {loading && (
             <div style={{ marginTop: 16 }}>
               <Skeleton width={120} height={36} radius={999} />
             </div>
-          </>
-        )}
+          )}
 
-        {!loading && (
-          <div className="space-y-2">
-
-            {/* Filter */}
-            <button
-              onClick={openFilterSheet}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 999,
-                border: '1px solid #E5E7EB',
-                boxShadow: '0 1px 1px rgba(0,0,0,0.02)',
-                background: '#FFFFFF',
-                fontSize: 13,
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-                width: '100%',
-                textAlign: 'left',
-              }}
-            >
-              {filterLabel} ▾
-            </button>
-
-            {/* All */}
-            <button
-              onClick={() => handleCategoryClick('all')}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 999,
-                border:
-                  activeCategorySlug === 'all'
-                    ? '1px solid #F4B860'
-                    : '1px solid #E5E7EB',
-                background:
-                  activeCategorySlug === 'all'
-                    ? '#FFF7ED'
-                    : '#FFFFFF',
-                fontSize: 13,
-                fontWeight: 500,
-                width: '100%',
-                textAlign: 'left',
-              }}
-            >
-              All
-            </button>
-
-            {/* Categories */}
-            {categories.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => handleCategoryClick(cat.slug)}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 999,
-                  border:
-                    activeCategorySlug === cat.slug
-                      ? '1px solid #F4B860'
-                      : '1px solid #E5E7EB',
-                  background:
-                    activeCategorySlug === cat.slug
-                      ? '#FFF7ED'
-                      : '#FFFFFF',
-                  fontSize: 13,
-                  fontWeight: 500,
-                 whiteSpace:"nowrap",
-                 flexShrink:"0",
-                }}
-              >
-                {cat.label}
-                {cat.activeCount > 0 && (
-                  <span
-                    style={{
-                      marginLeft: 6,
-                      fontSize: 11,
-                      opacity: 0.6,
-                    }}
-                  >
-                    {cat.activeCount}
-                  </span>
-                )}
-              </button>
-            ))}
-
-            {/* Create */}
-            <button
-              onClick={handleCreateCategory}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 999,
-                border: '1px dashed #F4B860',
-                background: '#FFFFFF',
-                fontSize: 13,
-                fontWeight: 500,
-                width: '100%',
-                textAlign: 'left',
-              }}
-            >
-              + Create
-            </button>
-
-          </div>
-        )}
-      </aside>
-
-      {/* ========================================================= */}
-      {/* ====================== CENTER FEED ====================== */}
-      {/* ========================================================= */}
-      <main className="px-4 lg:px-10 lg:border-r lg:border-gray-300/40 space-y-8">
-
-        {/* Mobile Filter + Categories */}
-        <div className="lg:hidden mb-4">
           {!loading && (
-            <div
-              style={{
-                display: 'flex',
-                gap: 10,
-                alignItems: 'center',
-                overflowX: 'auto',
-                paddingBottom: 8,
-              }}
-            >
+            <div className="space-y-2">
+
               <button
                 onClick={openFilterSheet}
                 style={{
@@ -353,9 +228,11 @@ return (
                   borderRadius: 999,
                   border: '1px solid #E5E7EB',
                   background: '#FFFFFF',
-                  fontSize: 13,
+                  fontSize: 'clamp(13px,0.9vw,15px)',
                   fontWeight: 600,
                   whiteSpace: 'nowrap',
+                  width: '100%',
+                  textAlign: 'left',
                 }}
               >
                 {filterLabel} ▾
@@ -374,9 +251,10 @@ return (
                     activeCategorySlug === 'all'
                       ? '#FFF7ED'
                       : '#FFFFFF',
-                  fontSize: 13,
+                  fontSize: 'clamp(13px,0.9vw,15px)',
                   fontWeight: 500,
-                  whiteSpace: 'nowrap',
+                  width: '100%',
+                  textAlign: 'left',
                 }}
               >
                 All
@@ -397,102 +275,205 @@ return (
                       activeCategorySlug === cat.slug
                         ? '#FFF7ED'
                         : '#FFFFFF',
+                    fontSize: 'clamp(13px,0.9vw,15px)',
+                    fontWeight: 500,
+                    whiteSpace: 'nowrap',
+                    flexShrink: '0',
+                  }}
+                >
+                  {cat.label}
+
+                  {cat.activeCount > 0 && (
+                    <span
+                      style={{
+                        marginLeft: 6,
+                        fontSize: 12,
+                        opacity: 0.6,
+                      }}
+                    >
+                      {cat.activeCount}
+                    </span>
+                  )}
+                </button>
+              ))}
+
+              <button
+                onClick={handleCreateCategory}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 999,
+                  border: '1px dashed #F4B860',
+                  background: '#FFFFFF',
+                  fontSize: 'clamp(13px,0.9vw,15px)',
+                  fontWeight: 500,
+                  width: '100%',
+                  textAlign: 'left',
+                }}
+              >
+                + Create
+              </button>
+
+            </div>
+          )}
+
+        </aside>
+
+        {/* CENTER FEED */}
+        <main className="px-4 lg:px-10 lg:border-r lg:border-gray-300/40 space-y-8">
+
+          <div className="lg:hidden mb-4">
+            {!loading && (
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 10,
+                  alignItems: 'center',
+                  overflowX: 'auto',
+                  paddingBottom: 8,
+                }}
+              >
+
+                <button
+                  onClick={openFilterSheet}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: 999,
+                    border: '1px solid #E5E7EB',
+                    background: '#FFFFFF',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {filterLabel} ▾
+                </button>
+
+                <button
+                  onClick={() => handleCategoryClick('all')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: 999,
+                    border:
+                      activeCategorySlug === 'all'
+                        ? '1px solid #F4B860'
+                        : '1px solid #E5E7EB',
+                    background:
+                      activeCategorySlug === 'all'
+                        ? '#FFF7ED'
+                        : '#FFFFFF',
                     fontSize: 13,
                     fontWeight: 500,
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {cat.label}
+                  All
                 </button>
-              ))}
-            </div>
+
+                {categories.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => handleCategoryClick(cat.slug)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: 999,
+                      border:
+                        activeCategorySlug === cat.slug
+                          ? '1px solid #F4B860'
+                          : '1px solid #E5E7EB',
+                      background:
+                        activeCategorySlug === cat.slug
+                          ? '#FFF7ED'
+                          : '#FFFFFF',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+
+              </div>
+            )}
+          </div>
+
+          {/* IPL SCOREBOARD */}
+           {/* <IPLScoreCard /> */}
+
+          {loading &&
+            [1,2,3,4,5].map(i => (
+              <QuestionCardSkeleton key={i}/>
+            ))}
+
+          {!loading && promoted.length > 0 && (
+            <PromoteBanner links={promoted}/>
           )}
-        </div>
 
-        {/* Loading Skeletons */}
-        {loading &&
-          [1, 2, 3, 4, 5].map(i => (
-            <QuestionCardSkeleton key={i} />
-          ))}
+         
 
-        {/* Promoted */}
-        {!loading && promoted.length > 0 && (
-          <PromoteBanner links={promoted} />
-        )}
+          {filterSheetOpen && (
+            <QuestionFilterSheet
+              value={filter}
+              onChange={val=>{
+                setFilter(val)
+                setFilterSheetOpen(false)
+              }}
+              onClose={closeFilterSheet}
+            />
+          )}
 
-        {/* Filter Sheet */}
-        {filterSheetOpen && (
-          <QuestionFilterSheet
-            value={filter}
-            onChange={val => {
-              setFilter(val)
-              setFilterSheetOpen(false)
-            }}
-            onClose={closeFilterSheet}
-          />
-        )}
+          {!loading && visibleQuestions.length === 0 && (
+            <p style={{marginTop:40,textAlign:'center',opacity:0.6}}>
+              No questions here yet 👀
+            </p>
+          )}
 
-        {/* Empty State */}
-        {!loading && visibleQuestions.length === 0 && (
-          <p
-            style={{
-              marginTop: 32,
-              textAlign: 'center',
-              opacity: 0.6,
-            }}
-          >
-            No questions here yet 👀
-          </p>
-        )}
+          {!loading &&
+            visibleQuestions.map(q => (
+              <QuestionCard key={q.id} q={q}/>
+            ))}
 
-        {/* Questions */}
-        {!loading &&
-          visibleQuestions.map(q => (
-            <QuestionCard key={q.id} q={q} />
-          ))}
+        </main>
 
-      </main>
-
-      {/* ========================================================= */}
-      {/* ====================== RIGHT PANEL ====================== */}
-      {/* ========================================================= */}
-    <aside className="hidden lg:block sticky top-6 self-start pl-6 space-y-4">
+        {/* RIGHT PANEL */}
+        <aside className="hidden lg:block sticky top-6 self-start pl-6 space-y-4">
 
           <div
             style={{
-              border: '1px solid #E5E7EB',
-              borderRadius: 12,
-              padding: 16,
-              background: '#FFFFFF',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+              border:'1px solid #E5E7EB',
+              borderRadius:12,
+              padding:16,
+              background:'#FFFFFF',
+              boxShadow:'0 1px 2px rgba(0,0,0,0.04)',
             }}
           >
-            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+            <h3 style={{fontSize:'clamp(14px,1vw,16px)',fontWeight:600,marginBottom:8}}>
               EP Stats
             </h3>
-            <p style={{ fontSize: 12, opacity: 0.7 }}>
+            <p style={{fontSize:'clamp(12px,0.9vw,14px)',opacity:0.7}}>
               More stats coming soon.
             </p>
           </div>
 
           <div
             style={{
-              border: '1px solid #E5E7EB',
-              borderRadius: 12,
-              padding: 16,
-              background: '#FFFFFF',
+              border:'1px solid #E5E7EB',
+              borderRadius:12,
+              padding:16,
+              background:'#FFFFFF',
             }}
           >
-            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+            <h3 style={{fontSize:'clamp(14px,1vw,16px)',fontWeight:600,marginBottom:8}}>
               Tips
             </h3>
-            <p style={{ fontSize: 12, opacity: 0.7 }}>
+            <p style={{fontSize:'clamp(12px,0.9vw,14px)',opacity:0.7}}>
               Ask better questions to earn more EP.
             </p>
           </div>
-      </aside>
 
+        </aside>
+
+      </div>
     </div>
-  </div>
-)
+  )
 }

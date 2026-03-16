@@ -1,9 +1,16 @@
-/* Import Inter font */
+/* ========================================
+   Import Fonts
+======================================== */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @import "tailwindcss";
 
+
+/* ========================================
+   Root Variables
+======================================== */
 :root {
+
   /* 🎨 Colors */
   --brand: #F4B860;          /* Croissant Gold */
   --bg: #FAFAFA;
@@ -23,19 +30,28 @@
 
   /* 🌀 Elastic curve */
   --elastic: cubic-bezier(.34, 1.56, .64, 1);
+
 }
 
-html, body {
+
+/* ========================================
+   Global Reset
+======================================== */
+html,
+body {
   margin: 0;
   padding: 0;
 }
-
 
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent; /* smoother mobile tap */
 }
 
+
+/* ========================================
+   Body
+======================================== */
 body {
   margin: 0;
   font-family: 'Inter', system-ui, sans-serif;
@@ -43,7 +59,10 @@ body {
   color: var(--text);
 }
 
-/* Buttons */
+
+/* ========================================
+   Buttons
+======================================== */
 button {
   background: var(--brand);
   border: none;
@@ -72,7 +91,10 @@ button:disabled {
   transform: none;
 }
 
-/* Cards */
+
+/* ========================================
+   Card Component
+======================================== */
 .card {
   background: var(--card);
   border-radius: var(--radius-lg);
@@ -80,21 +102,47 @@ button:disabled {
   box-shadow: 0 4px 14px rgba(0,0,0,0.04);
 }
 
-/* Skeleton animation (unchanged) */
+
+/* ========================================
+   Skeleton Loading Animation
+======================================== */
 @keyframes skeleton-loading {
   0% {
     background-position: 100% 0;
   }
+
   100% {
     background-position: 0 0;
   }
 }
 
-/* Hide horizontal scrollbar (mobile categories) */
+
+/* ========================================
+   Hide Horizontal Scrollbar
+   (Used for mobile categories)
+======================================== */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* ================================
+   Desktop Typography Scaling
+================================ */
+
+@media (min-width: 1024px) {
+  :root {
+    --text-lg: 1.7rem;   /* was 1.5rem */
+    --text-md: 1.1rem;   /* was 1rem */
+    --text-sm: 0.95rem;  /* was 0.875rem */
+  }
+
+  body {
+    font-size: 18px; /* X desktop size */
+    line-height: 1.6;
+  }
 }

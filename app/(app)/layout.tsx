@@ -25,7 +25,7 @@ export default function AppLayout({
   return (
     <div className="min-h-screen bg-[#f5f5f5] flex flex-col">
 
-      {/* ===================== CAMPUS BANNER ===================== */}
+      {/* ===================== CAMPUS BANNER ===================== 
       {showCampusNote && (
         <div
           style={{
@@ -41,13 +41,19 @@ export default function AppLayout({
             borderBottom: '1px solid #FFE0B2',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
             <span>
               Available for{' '}
               <strong>Pydah College of Engineering, Patavala</strong> only.
             </span>
 
-            {/* Beta pill */}
+            {/* Beta pill 
             <span
               style={{
                 fontSize: 12,
@@ -80,20 +86,21 @@ export default function AppLayout({
           </button>
         </div>
       )}
-
+*/}
       {/* ===================== TOP BAR ===================== */}
-<div className="fixed top-0 left-0 right-0 z-50 bg-[#f5f5f5] shadow-sm">
-  <div className="max-w-\[1140px] mx-auto px-6">
-    <TopBar />
-  </div>
+      <div className="fixed top-0 left-0 right-0 z-50 bg-[#f5f5f5] shadow-sm">
+        <div className="max-w-[1140px] mx-auto px-6">
+          <TopBar />
+        </div>
+      </div>
+
+     {/* ===================== PAGE CONTENT ===================== */}
+<div className="pt-[55px] px-0 sm:px-6 max-w-[1140px] mx-auto w-full">
+  <main className="flex-1 py-4">
+    {children}
+  </main>
 </div>
 
-      {/* ===================== PAGE CONTENT ===================== */}
-      <div className="pt-\[72px] px-6 py-6 max-w-\[1140px] mx-auto">
-      <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6">
-        {children}
-      </main>
-      </div>
     </div>
   )
 }

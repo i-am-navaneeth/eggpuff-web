@@ -42,7 +42,7 @@ export default function QuestionCard({ q }: Props) {
       role="button"
       tabIndex={0}
       onClick={goToQuestion}
-      onKeyDown={e => {
+      onKeyDown={(e) => {
         if (e.key === 'Enter') goToQuestion()
       }}
       style={{
@@ -56,26 +56,26 @@ export default function QuestionCard({ q }: Props) {
         position: 'relative',
       }}
       onMouseEnter={(e) => {
-      e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)'
+        e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)'
       }}
       onMouseLeave={(e) => {
-       e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'
+        e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'
       }}
-
-      onMouseDown={e => {
+      onMouseDown={(e) => {
         e.currentTarget.style.transform = 'scale(0.98)'
       }}
-      onMouseUp={e => {
+      onMouseUp={(e) => {
         e.currentTarget.style.transform = 'scale(1)'
       }}
     >
+
       {/* QUESTION TEXT */}
       <p
         style={{
           marginBottom: 8,
-          fontSize: 16,
-          lineHeight: 1.6,
-          fontWeight:"500",
+          fontSize: 'clamp(16px, 1.1vw, 20px)',  // mobile 16px → desktop ~20px
+          lineHeight: 1.65,
+          fontWeight: 500,
           color: '#111827',
         }}
       >
@@ -88,13 +88,16 @@ export default function QuestionCard({ q }: Props) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-end',
-          fontSize: 13,
+          fontSize: 'clamp(13px, 0.9vw, 15px)',
           color: '#6B7280',
         }}
       >
+
         {/* LEFT: ANSWER INFO */}
         <span>
-          {hasAnswers ? `${q.answers_count} answers` : 'Be the first to answer'}
+          {hasAnswers
+            ? `${q.answers_count} answers`
+            : 'Be the first to answer'}
         </span>
 
         {/* RIGHT: CATEGORY + TIMER */}
@@ -107,25 +110,27 @@ export default function QuestionCard({ q }: Props) {
             marginTop: -6,
           }}
         >
+
+          {/* CATEGORY LABEL */}
           {q.category_label && (
-  <div
-    style={{
-      position: 'absolute',
-      top: 16,        // ⬆️ distance from top
-      right: 16,      // ⬅️ distance from right
-      padding: '4px 12px',
-      fontSize: 11,
-      borderRadius: 999,
-      background: '#FEF3C7',
-      color: '#92400E',
-      fontWeight: 600,
-    }}
-  >
-    {q.category_label}
-  </div>
-)}
+            <div
+              style={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                padding: '4px 12px',
+                fontSize: 'clamp(11px, 0.8vw, 13px)',
+                borderRadius: 999,
+                background: '#FEF3C7',
+                color: '#92400E',
+                fontWeight: 600,
+              }}
+            >
+              {q.category_label}
+            </div>
+          )}
 
-
+          {/* TIMER */}
           {remaining && (
             <span
               style={{
@@ -139,8 +144,10 @@ export default function QuestionCard({ q }: Props) {
               ⏳ {remaining}
             </span>
           )}
+
         </div>
       </div>
+
     </div>
   )
 }

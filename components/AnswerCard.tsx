@@ -74,11 +74,12 @@ export default function AnswerCard({ answer, isAsker }: Props) {
     const {
       data: { user },
     } = await supabase.auth.getUser()
+
     if (!user) return
 
     // optimistic UI
     setLiked(true)
-    setLikeCount(c => c + 1)
+    setLikeCount((c) => c + 1)
 
     const { error } = await supabase.from('answer_likes').insert({
       answer_id: answer.id,
@@ -88,7 +89,7 @@ export default function AnswerCard({ answer, isAsker }: Props) {
     // rollback if failed
     if (error) {
       setLiked(false)
-      setLikeCount(c => Math.max(0, c - 1))
+      setLikeCount((c) => Math.max(0, c - 1))
     }
   }
 
@@ -103,7 +104,7 @@ export default function AnswerCard({ answer, isAsker }: Props) {
       p_answer_id: answer.id,
     })
 
-    // UI will stay correct because DB updates `approved`
+    // UI stays correct because DB updates `approved`
     setApproved(true)
     setLoading(false)
   }
@@ -119,14 +120,26 @@ export default function AnswerCard({ answer, isAsker }: Props) {
         transition: 'all 0.2s ease',
       }}
     >
+      {/* ANSWER TEXT */}
       <p style={{ marginBottom: 10 }}>{answer.text}</p>
 
+      {/* APPROVED BADGE */}
       {approved && (
-        <strong style={{ color: '#16a34a' }}>✅ Approved</strong>
+        <strong style={{ color: '#16a34a' }}>
+          ✅ Approved
+        </strong>
       )}
 
+      {/* ACTIONS */}
       {!approved && (
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 12,
+            alignItems: 'center',
+          }}
+        >
+          {/* LIKE BUTTON */}
           <button
             onClick={like}
             disabled={liked}
@@ -144,9 +157,15 @@ export default function AnswerCard({ answer, isAsker }: Props) {
             👍
           </button>
 
+          {/* ASKER CONTROLS */}
           {isAsker && (
             <>
-              <span style={{ fontSize: 14, opacity: 0.6 }}>
+              <span
+                style={{
+                  fontSize: 14,
+                  opacity: 0.6,
+                }}
+              >
                 {likeCount} likes
               </span>
 

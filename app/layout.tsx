@@ -1,16 +1,38 @@
 import './globals.css'
+
+import type { Metadata, Viewport } from 'next'
+
 import UserProvider from '../components/UserProvider'
 import { NotificationProvider } from '../components/NotificationProvider'
-import type { Metadata } from 'next'
-import TopBar from '@/components/TopBar'
 
+import TopBar from '@/components/TopBar'
+import PWARegister from '@/components/PWARegister'
+import PWAInstall from '@/components/PWAInstall'
+
+
+/* ========================================
+   Metadata
+======================================== */
 export const metadata: Metadata = {
   title: 'EggPuff',
   icons: {
     icon: '/eggpuff.favicon.png',
   },
+  manifest: '/manifest.json',
 }
 
+
+/* ========================================
+   Viewport
+======================================== */
+export const viewport: Viewport = {
+  themeColor: '#F4B860',
+}
+
+
+/* ========================================
+   Root Layout
+======================================== */
 export default function RootLayout({
   children,
 }: {
@@ -19,11 +41,20 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body suppressHydrationWarning>
+
         <NotificationProvider>
           <UserProvider>
-              {children}
+
+            {/* PWA Setup */}
+            <PWARegister />
+            <PWAInstall />
+
+            {/* App Content */}
+            {children}
+
           </UserProvider>
         </NotificationProvider>
+
       </body>
     </html>
   )

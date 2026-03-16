@@ -14,7 +14,36 @@ export default function AdminPage() {
   const [animatedLive, setAnimatedLive] = useState(0)
   const [animatedTotal, setAnimatedTotal] = useState(0)
 
+  const [authorized, setAuthorized] = useState(false)
+
   const { notify } = useNotify()
+
+  /* ---------------- ADMIN GUARD ---------------- */
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const { data } = await supabase.auth.getUser()
+
+      if (!data.user) {
+        window.location.href = '/login'
+        return
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single()
+
+      if (!profile || profile.role !== 'admin') {
+        window.location.href = '/feed'
+        return
+      }
+
+      setAuthorized(true)
+    }
+
+    checkAdmin()
+  }, [])
 
   /* ---------------- LOAD PAYMENTS ---------------- */
   const loadPayments = async () => {
@@ -42,8 +71,10 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    loadPayments()
-  }, [])
+    if (authorized) {
+      loadPayments()
+    }
+  }, [authorized])
 
   /* ---------------- LOAD STATS ---------------- */
   const loadStats = async () => {
@@ -68,8 +99,10 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    loadStats()
-  }, [])
+    if (authorized) {
+      loadStats()
+    }
+  }, [authorized])
 
   /* ---------------- ANIMATE COUNTERS ---------------- */
   useEffect(() => {
@@ -187,6 +220,7 @@ export default function AdminPage() {
     }
   }
 
+  if (!authorized) return null
   if (loading) return <p style={{ padding: 20 }}>Loading…</p>
 
   return (

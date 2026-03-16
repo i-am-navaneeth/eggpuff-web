@@ -42,7 +42,10 @@ export default function QuestionPage({
     let channel: any
 
     const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
       setMe(user?.id || null)
 
       const { data: q } = await supabase
@@ -65,7 +68,11 @@ export default function QuestionPage({
         .channel('answers-' + id)
         .on(
           'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'answers' },
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'answers',
+          },
           payload => {
             const incoming = payload.new as Answer
             if (incoming.question_id !== id) return
@@ -91,11 +98,18 @@ export default function QuestionPage({
         )
         .on(
           'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'answers' },
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'answers',
+          },
           payload => {
             const updated = payload.new as Answer
+
             setAnswers(prev =>
-              prev.map(a => (a.id === updated.id ? updated : a))
+              prev.map(a =>
+                a.id === updated.id ? updated : a
+              )
             )
           }
         )
@@ -131,7 +145,10 @@ export default function QuestionPage({
     if (answers.length >= 2) return
     if (posting) return
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
     if (!user) return
 
     setPosting(true)
@@ -148,11 +165,13 @@ export default function QuestionPage({
     setAnswers(prev => [...prev, optimisticAnswer])
     setText('')
 
-    const { error } = await supabase.from('answers').insert({
-      text,
-      user_id: user.id,
-      question_id: id,
-    })
+    const { error } = await supabase
+      .from('answers')
+      .insert({
+        text,
+        user_id: user.id,
+        question_id: id,
+      })
 
     if (error) {
       setAnswers(prev =>
@@ -168,21 +187,34 @@ export default function QuestionPage({
   // ===============================
   if (!question) {
     return (
-      <div style={{ padding: 24, maxWidth: 680, margin: '0 auto' }}>
+      <div
+        style={{
+          padding: 20,
+          maxWidth: 680,
+          margin: '0 auto',
+        }}
+      >
         <p style={{ opacity: 0.6 }}>Loading…</p>
       </div>
     )
   }
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ maxWidth: 680, margin: '0 auto' }}>
+    <div style={{ padding: '16px 16px 20px' }}>
+      <div
+        style={{
+          maxWidth: 720,
+          margin: '0 auto',
+          width: '100%',
+        }}
+      >
+
         {/* QUESTION */}
         <h2
           style={{
             fontSize: 20,
             fontWeight: 600,
-            marginBottom: 8,
+            marginBottom: 2,
           }}
         >
           {question.text}
@@ -192,14 +224,20 @@ export default function QuestionPage({
           style={{
             color: '#6B7280',
             fontSize: 14,
-            marginBottom: 20,
+            marginBottom: 10,
           }}
         >
           Answers: {answers.length}/2
         </p>
 
         {/* ANSWERS */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+          }}
+        >
           {orderedAnswers.map(a => (
             <AnswerCard
               key={a.id}
@@ -211,7 +249,7 @@ export default function QuestionPage({
 
         {/* INPUT SECTION */}
         {!isClosed && answers.length < 2 && (
-          <div style={{ marginTop: 28 }}>
+          <div style={{ marginTop: 2 }}>
             <textarea
               value={text}
               disabled={posting}
@@ -220,13 +258,14 @@ export default function QuestionPage({
               style={{
                 width: '100%',
                 minHeight: 110,
-                padding: 14,
-                borderRadius: 14,
+                padding: '16px 18px',
+                borderRadius: 16,
                 border: '1px solid #E5E7EB',
-                fontSize: 15,
+                fontSize: 16,
                 lineHeight: 1.6,
                 resize: 'vertical',
                 background: '#FFFFFF',
+                boxSizing: 'border-box',
               }}
             />
 
@@ -236,19 +275,21 @@ export default function QuestionPage({
                 gap: 14,
                 marginTop: 16,
                 alignItems: 'center',
+                justifyContent: 'flex-start',
               }}
             >
+
               <button
                 onClick={submitAnswer}
                 disabled={posting}
                 style={{
-                  padding: '12px 22px',
+                  padding: '12px 24px',
                   borderRadius: 999,
                   border: 'none',
                   background: '#F4B860',
                   color: '#111827',
                   fontWeight: 600,
-                  fontSize: 14,
+                  fontSize: 15,
                   cursor: posting ? 'not-allowed' : 'pointer',
                   opacity: posting ? 0.7 : 1,
                   boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
@@ -262,13 +303,14 @@ export default function QuestionPage({
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  fontSize: 14,
+                  fontSize: 15,
                   color: '#374151',
                   cursor: 'pointer',
                 }}
               >
                 ← Back
               </button>
+
             </div>
           </div>
         )}
@@ -277,7 +319,7 @@ export default function QuestionPage({
         {isClosed && (
           <p
             style={{
-              marginTop: 24,
+              marginTop: 22,
               color: '#16a34a',
               fontWeight: 500,
             }}
@@ -285,6 +327,7 @@ export default function QuestionPage({
             🔒 Question closed
           </p>
         )}
+
       </div>
     </div>
   )
