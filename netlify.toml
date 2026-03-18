@@ -1,18 +1,12 @@
 [build]
   command = "npm run build"
-  publish = ".next"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-  [functions]
-  node_bundler = "esbuild"
-
-[functions."cron"]
-  schedule = "*/3 * * * *" # every 3 minutes
-
 [functions]
   directory = "netlify/functions"
+  node_bundler = "esbuild"
 
 [functions."ipl-notify"]
-  schedule = "*/1 * * * *"  # every 1 minute
+  schedule = "*/1 * * * *"
