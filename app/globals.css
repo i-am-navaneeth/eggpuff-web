@@ -45,7 +45,7 @@ body {
 
 * {
   box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent; /* smoother mobile tap */
+  -webkit-tap-highlight-color: transparent;
 }
 
 
@@ -71,16 +71,13 @@ button {
   font-weight: 600;
   cursor: pointer;
 
-  /* ✨ Elastic tap animation */
   transition: transform 0.28s var(--elastic);
 }
 
-/* 👇 Press in */
 button:active:not(:disabled) {
   transform: scale(0.88);
 }
 
-/* 👆 Release bounce */
 button:not(:active) {
   transform: scale(1);
 }
@@ -110,7 +107,6 @@ button:disabled {
   0% {
     background-position: 100% 0;
   }
-
   100% {
     background-position: 0 0;
   }
@@ -119,7 +115,6 @@ button:disabled {
 
 /* ========================================
    Hide Horizontal Scrollbar
-   (Used for mobile categories)
 ======================================== */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
@@ -130,19 +125,121 @@ button:disabled {
   scrollbar-width: none;
 }
 
+
 /* ================================
    Desktop Typography Scaling
 ================================ */
-
 @media (min-width: 1024px) {
   :root {
-    --text-lg: 1.7rem;   /* was 1.5rem */
-    --text-md: 1.1rem;   /* was 1rem */
-    --text-sm: 0.95rem;  /* was 0.875rem */
+    --text-lg: 1.7rem;
+    --text-md: 1.1rem;
+    --text-sm: 0.95rem;
   }
 
   body {
-    font-size: 18px; /* X desktop size */
+    font-size: 18px;
     line-height: 1.6;
+  }
+}
+
+
+/* ========================================
+   🏏 IPL Ball Animation (NEW)
+======================================== */
+.ball-wrapper {
+  position: relative;
+  width: 14px;
+  height: 16px;
+  display: inline-block;
+}
+
+/* 🔴 Ball */
+.ball {
+  position: absolute;
+  bottom: 2px; /* same level as ground */
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 50%;
+  z-index: 2;
+  animation: ballBounce 0.8s infinite ease-in-out;
+}
+
+/* 🟫 Ground */
+.ground {
+  position: absolute;
+  bottom: 0;
+  width: 14px;
+  height: 2px;
+  background: #6b7280;
+  border-radius: 2px;
+}
+
+/* 💨 Dust */
+.dust {
+  position: absolute;
+  bottom: 2px;
+  width: 8px;
+  height: 8px;
+  background: rgba(107, 114, 128, 0.4);
+  border-radius: 50%;
+  z-index: 1;
+  animation: dustPuff 0.8s infinite ease-in-out;
+}
+
+/* 🎯 PERFECT IMPACT ALIGNMENT */
+@keyframes ballBounce {
+  0% {
+    transform: translateY(0) scaleY(1);
+  }
+  40% {
+    transform: translateY(-10px) scaleY(1);
+  }
+  55% {
+    transform: translateY(0) scaleY(0.7); /* impact */
+  }
+  70% {
+    transform: translateY(-4px) scaleY(1); /* rebound */
+  }
+  100% {
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+/* 💨 Dust sync with impact */
+@keyframes dustPuff {
+  0%, 50%, 100% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.9);
+  }
+}
+
+/* ========================================
+   🔔 Toggle Smoothness (NEW)
+======================================== */
+.toggle-smooth {
+  transition: all 0.25s cubic-bezier(.4,1.6,.6,1);
+}
+
+
+/* ========================================
+   ✨ Subtle Fade Utility (NEW)
+======================================== */
+.fade-in {
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

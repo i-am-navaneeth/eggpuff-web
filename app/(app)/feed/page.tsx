@@ -398,7 +398,7 @@ export default function FeedPage() {
           </div>
 
           {/* IPL SCOREBOARD */}
-           {/* <IPLScoreCard /> */}
+            <IPLScoreCard />
 
           {loading &&
             [1,2,3,4,5].map(i => (
@@ -424,7 +424,7 @@ export default function FeedPage() {
 
           {!loading && visibleQuestions.length === 0 && (
             <p style={{marginTop:40,textAlign:'center',opacity:0.6}}>
-              No questions here yet 👀
+              No questions yet — be the first to ask 👀
             </p>
           )}
 
