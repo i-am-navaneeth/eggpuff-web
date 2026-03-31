@@ -42,7 +42,7 @@ export default function FeedPage() {
 
   /* -------------------- STATE -------------------- */
 
-  const [promoted, setPromoted] = useState<string[]>([])
+  const [promoted, setPromoted] = useState<any[]>([])
   const [categories, setCategories] = useState<CategoryWithCount[]>([])
   const [questions, setQuestions] = useState<QuestionRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -52,7 +52,11 @@ export default function FeedPage() {
 
   const [filter, setFilter] = useState<FilterType>('all')
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
+  
+  const [profile, setProfile] = useState<any>(null);
+  const isProfileComplete = !!profile?.college_id && !!profile?.batch_year;
 
+  const [now, setNow] = useState(new Date())
   /* ---------------- SYNC CATEGORY FROM URL ---------------- */
 
   useEffect(() => {
@@ -65,7 +69,14 @@ export default function FeedPage() {
 
     setActiveCategorySlug(param)
   }, [searchParams])
+  
+useEffect(() => {
+  const interval = setInterval(() => {
+    setNow(new Date())
+  }, 60000) // every 1 min
 
+  return () => clearInterval(interval)
+}, [])
   /* -------------------- LOAD DATA -------------------- */
 
   useEffect(() => {
@@ -76,37 +87,89 @@ export default function FeedPage() {
 
       const now = new Date().toISOString()
 
-      const { data: promoData } = await supabase
-        .from('pyp_promotions')
-        .select('link')
-        .gt('expires_at', now)
-        .order('started_at', { ascending: false })
-
-      const promoLinks: string[] =
-        promoData?.map((p: { link: string }) => p.link) || []
-
       const { data: cats } = await supabase
         .from('categories')
         .select('id, slug, label')
         .order('created_at', { ascending: true })
 
-      const { data: qs } = await supabase
-        .from('questions')
-        .select(`
-          id,
-          text,
-          created_at,
-          expires_at,
-          category_id,
-          approved_answer_id,
-          categories(label)
-        `)
-        .gt('expires_at', now)
-        .order('created_at', { ascending: false })
+      // 🧠 Get current user profile
+const {
+  data: { user },
+} = await supabase.auth.getUser()
+
+const { data: profileData } = await supabase
+  .from('profiles')
+  .select('college_id, batch_year')
+  .eq('id', user?.id)
+  .single();
+
+  // 🔥 STEP 1: get promotions
+const { data: promoData } = await supabase
+  .from('pyp_promotions')
+  .select('link, user_id')
+  .gt('expires_at', now)
+  .order('started_at', { ascending: false })
+
+// 🔥 STEP 2: get all user_ids
+const userIds = promoData?.map(p => p.user_id) || []
+
+// 🔥 STEP 3: fetch profiles separately
+const { data: profiles } = await supabase
+  .from('profiles')
+  .select('id, name, username, avatar_url, college_id')
+  .in('id', userIds)
+
+// 🔥 STEP 4: map profiles
+const profileMap: Record<string, any> = {}
+profiles?.forEach(p => {
+  profileMap[p.id] = p
+})
+
+// 🔥 STEP 5: filter + merge
+const promoItems =
+  promoData
+    ?.map(p => ({
+      link: p.link,
+      creator: profileMap[p.user_id],
+    }))
+    .filter(p =>
+      p.creator?.college_id === profileData?.college_id
+    ) || []
+
+setProfile(profileData);
+
+// 🚀 Fetch questions (same college only)
+const { data: qs } = await supabase
+  .from('questions')
+  .select(`
+    id,
+    text,
+    created_at,
+    expires_at,
+    category_id,
+    approved_answer_id,
+    categories(label),
+    college_id,
+    batch_year
+  `)
+  .eq('college_id', profileData?.college_id)
+  .gt('expires_at', now)
+  .order('created_at', { ascending: false })
 
       if (!mounted) return
 
       const questionsData = qs || []
+      // 🔥 Batch priority boost
+const sortedQuestions = questionsData.sort((a, b) => {
+  if (a.batch_year === profileData?.batch_year && b.batch_year !== profile?.batch_year) {
+    return -1
+  }
+  if (a.batch_year !== profileData?.batch_year && b.batch_year === profile?.batch_year) {
+    return 1
+  }
+  return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+})
+
       const categoriesData = cats || []
 
       const countsMap: Record<string, number> = {}
@@ -134,10 +197,10 @@ export default function FeedPage() {
         activeCount: generalCount,
       })
 
-      setPromoted(promoLinks)
+      setPromoted(promoItems)
 
       setQuestions(
-        questionsData.map(q => ({
+  sortedQuestions.map(q => ({
           ...q,
           category_label: q.categories?.[0]?.label,
         }))
@@ -157,9 +220,9 @@ export default function FeedPage() {
   /* -------------------- DERIVED -------------------- */
 
   const visibleQuestions = questions.filter(q => {
-    const now = new Date()
+    const currentTime = now
 
-    if (q.expires_at && new Date(q.expires_at) <= now) {
+    if (q.expires_at && new Date(q.expires_at) <= currentTime) {
       return false
     }
 
@@ -213,7 +276,7 @@ export default function FeedPage() {
         <aside className="hidden lg:block sticky top-6 self-start h-fit pr-6 border-r border-gray-200">
 
           {loading && (
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: 16  }}>
               <Skeleton width={120} height={36} radius={999} />
             </div>
           )}
@@ -398,7 +461,42 @@ export default function FeedPage() {
           </div>
 
           {/* IPL SCOREBOARD */}
-            <IPLScoreCard />
+           {/* <IPLScoreCard /> */} 
+
+            {!loading && !isProfileComplete && (
+  <div
+    style={{
+      padding: '12px 14px',
+      background: '#FEF3C7',
+      borderRadius: 12,
+      fontSize: 13,
+      marginBottom: 12,
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: 10,
+    }}
+  >
+    <span>
+      Complete your profile to unlock features 🚀
+    </span>
+
+    <button
+      onClick={() => router.push('/profile')}
+      style={{
+        padding: '6px 12px',
+        borderRadius: 999,
+        border: 'none',
+        background: '#F4B860',
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: 'pointer',
+      }}
+    >
+      Complete
+    </button>
+  </div>
+)}
 
           {loading &&
             [1,2,3,4,5].map(i => (
@@ -467,7 +565,7 @@ export default function FeedPage() {
               Tips
             </h3>
             <p style={{fontSize:'clamp(12px,0.9vw,14px)',opacity:0.7}}>
-              Ask better questions to earn more EP.
+              Answer more questions to earn more EP.
             </p>
           </div>
 

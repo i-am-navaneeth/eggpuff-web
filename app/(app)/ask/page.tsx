@@ -32,6 +32,8 @@ export default function AskPage() {
   const [loading, setLoading] = useState(false)
   const [pageLoading, setPageLoading] = useState(true)
 
+  const [isProfileComplete, setIsProfileComplete] = useState(true);
+
   /* ---------------- LOAD CATEGORIES ---------------- */
   useEffect(() => {
     const load = async () => {
@@ -107,6 +109,22 @@ export default function AskPage() {
 
     const balance = await getEggPuffBalance(user.id)
 
+    // 🧠 Get user profile (college + batch)
+const { data: profile } = await supabase
+  .from('profiles')
+  .select('college_id, batch_year')
+  .eq('id', user.id)
+  .single()
+
+  setIsProfileComplete(!!profile?.college_id && !!profile?.batch_year);
+
+  // 🚫 Block if profile incomplete
+if (!profile?.college_id || !profile?.batch_year) {
+  notify('⚠️ Complete your profile to ask questions');
+  router.push('/setup-profile');
+  return;
+}
+
     if (balance <= 0) {
       notify('🥐 You have 0 EggPuffs. Buy to ask a question!')
       return
@@ -125,13 +143,15 @@ export default function AskPage() {
       expiresAt.setMinutes(expiresAt.getMinutes() + hours * 60)
 
       const { error: insertError } = await supabase
-        .from('questions')
-        .insert({
-          text,
-          category_id: categoryId,
-          user_id: user.id,
-          expires_at: expiresAt.toISOString(),
-        })
+  .from('questions')
+  .insert({
+    text,
+    category_id: categoryId,
+    user_id: user.id,
+    expires_at: expiresAt.toISOString(),
+    college_id: profile?.college_id,
+    batch_year: profile?.batch_year,
+  })
 
       if (insertError) {
         console.error('QUESTION INSERT ERROR:', insertError)
@@ -151,11 +171,39 @@ export default function AskPage() {
     }
   }
 
+  useEffect(() => {
+  const checkProfile = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('college_id, batch_year')
+      .eq('id', user.id)
+      .single();
+
+    setIsProfileComplete(
+      !!profile?.college_id && !!profile?.batch_year
+    );
+  };
+
+  checkProfile();
+}, []);
+
   /* ---------------- UI ---------------- */
   return (
     <div>
       {pageLoading && (
-        <div style={{ maxWidth: 600, margin: '0 auto', marginTop: 24 }}>
+        <div
+        style={{
+          padding: 20,
+          maxWidth: 680,
+          margin: '0 auto',
+        }}
+      >
           <Skeleton width="40%" height={26} />
 
           <div style={{ marginTop: 24 }}>
@@ -238,18 +286,18 @@ export default function AskPage() {
 
           {/* QUESTION */}
           <textarea
-            placeholder="Is egg puff available in canteen?"
+            placeholder="Type your question here..."
             value={text}
             onChange={e => setText(e.target.value)}
             style={{
-              width: '100%',
-              minHeight: 90,
-              marginTop: 16,
-              padding: 12,
-              borderRadius: 14,
-              border: '1px solid #E5E7EB',
-              fontSize: 14,
-            }}
+  width: '100%',
+  minHeight: 90,
+  marginTop: 16,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid #E5E7EB',
+  fontSize: 14,
+}}
           />
 
           {/* TIMER */}
@@ -287,21 +335,37 @@ export default function AskPage() {
             }}
           >
             <button
-              onClick={submit}
-              disabled={loading}
-              style={{
-                padding: '12px 18px',
-                borderRadius: 999,
-                border: 'none',
-                background: '#FCD34D',
-                fontWeight: 600,
-                fontSize: 14,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.7 : 1,
-              }}
-            >
-              {loading ? 'Posting…' : 'Ask (1 🥐)'}
-            </button>
+  onClick={() => {
+    if (!isProfileComplete) {
+      notify('⚠️ Complete your profile to ask questions');
+      router.push('/setup-profile');
+      return;
+    }
+    submit();
+  }}
+  disabled={loading || !isProfileComplete}
+  style={{
+    padding: '12px 18px',
+    borderRadius: 999,
+    border: 'none',
+    background: !isProfileComplete ? '#E5E7EB' : '#FCD34D',
+    color: !isProfileComplete ? '#9CA3AF' : '#111827',
+    fontWeight: 600,
+    fontSize: 14,
+    cursor:
+      loading || !isProfileComplete
+        ? 'not-allowed'
+        : 'pointer',
+    opacity: loading ? 0.7 : 1,
+    transition: 'all 0.2s ease',
+  }}
+>
+  {!isProfileComplete
+    ? 'Complete profile to ask'
+    : loading
+    ? 'Posting…'
+    : 'Ask (1 🥐)'}
+</button>
 
             <Link href="/feed">
               <button
@@ -318,6 +382,40 @@ export default function AskPage() {
               </button>
             </Link>
           </div>
+          <div style={{ marginTop: 24 }}>
+
+  {/* 🔥 DIVIDER */}
+  <div
+    style={{
+      height: 1,
+      background: 'linear-gradient(to right, transparent, #E5E7EB, transparent)',
+      marginBottom: 12,
+      opacity: 0.6,
+    }}
+  />
+
+  {/* 🔥 FEEDBACK TEXT */}
+  <div
+    style={{
+      fontSize: 12,
+      color: '#6B7280',
+      textAlign: 'center',
+    }}
+  >
+    Help us improve ✨{' '}
+    <span
+      onClick={() => router.push('/feedback')}
+      style={{
+        fontWeight: 600,
+        color: '#111827',
+        cursor: 'pointer',
+      }}
+    >
+      Feedback
+    </span>
+  </div>
+
+</div>
         </div>
       )}
     </div>

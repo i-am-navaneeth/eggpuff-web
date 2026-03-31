@@ -77,3 +77,51 @@ export async function rewardSupporter(
     answer_id: answerId,
   })
 }
+
+// ===============================
+// PYP REWARD (STRICTLY ONCE PER PYP)
+// ===============================
+export async function rewardForPyp(
+  userId: string,
+  pypId: string
+) {
+  // ⛔ prevent duplicate reward per user per PYP
+  const { data: existing } = await supabase
+    .from('pyp_clicks')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('pyp_id', pypId)
+    .maybeSingle()
+
+  if (existing) {
+    return { success: false, alreadyClaimed: true }
+  }
+
+  // ✅ insert click record
+  const { error: clickError } = await supabase
+    .from('pyp_clicks')
+    .insert({
+      user_id: userId,
+      pyp_id: pypId,
+      rewarded: true,
+    })
+
+  if (clickError) {
+    return { success: false, error: clickError }
+  }
+
+  // ✅ reward EP
+  const { error: ledgerError } = await supabase
+    .from('egg_puff_ledger')
+    .insert({
+      user_id: userId,
+      amount: 0.5,
+      reason: 'PYP support reward',
+    })
+
+  if (ledgerError) {
+    return { success: false, error: ledgerError }
+  }
+
+  return { success: true }
+}

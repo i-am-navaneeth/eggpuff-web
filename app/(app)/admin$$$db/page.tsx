@@ -1,43 +1,48 @@
-import { redirect } from 'next/navigation'
-import { createSupabaseServer } from '@/lib/supabase/server'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 import AdminClient from './AdminClient'
+import { useRouter } from 'next/navigation'
 
-export default async function AdminPage() {
-  const supabase = await createSupabaseServer()
+export default function AdminPage() {
+  const [authorized, setAuthorized] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  // ---------------- GET USER ----------------
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
+  const router = useRouter()
 
-  if (userError) {
-    console.error('Admin auth error:', userError)
-    redirect('/login')
+useEffect(() => {
+  const checkAdmin = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      router.replace('/login')
+      return
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single()
+
+    console.log('PROFILE:', profile)
+
+    if (!profile || !profile.is_admin) {
+      router.replace('/feed')
+      return
+    }
+
+    setAuthorized(true)
+    setLoading(false)
   }
 
-  if (!user) {
-    redirect('/login')
-  }
+  checkAdmin()
+}, [])
 
-  // ---------------- GET PROFILE ----------------
-  const {
-    data: profile,
-    error: profileError,
-  } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  if (loading) return <p style={{ padding: 20 }}>Loading…</p>
 
-  if (profileError) {
-    console.error('Admin profile error:', profileError)
-    redirect('/feed')
-  }
-
-  if (!profile || profile.role !== 'admin') {
-    redirect('/feed')
-  }
+  if (!authorized) return null
 
   return <AdminClient />
 }

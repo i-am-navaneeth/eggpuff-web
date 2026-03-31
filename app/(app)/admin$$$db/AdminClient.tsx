@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { useNotify } from '../../../components/NotificationProvider'
+import { useRouter } from 'next/navigation'
 
 export default function AdminPage() {
   const [payments, setPayments] = useState<any[]>([])
@@ -18,26 +19,33 @@ export default function AdminPage() {
 
   const { notify } = useNotify()
 
+  const router = useRouter()
+  const [collegeRequests, setCollegeRequests] = useState<any[]>([])
+  
+
   /* ---------------- ADMIN GUARD ---------------- */
   useEffect(() => {
     const checkAdmin = async () => {
       const { data } = await supabase.auth.getUser()
+console.log("AUTH USER ID:", data.user?.id)
 
       if (!data.user) {
         window.location.href = '/login'
         return
       }
-
+      
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.user.id)
-        .single()
+  .from('profiles')
+  .select('is_admin')
+  .eq('id', data.user.id)
+  .maybeSingle()
 
-      if (!profile || profile.role !== 'admin') {
-        window.location.href = '/feed'
-        return
-      }
+console.log("PROFILE FOUND:", profile)
+
+      if (!profile || !profile.is_admin) {
+  router.replace('/feed')
+  return
+}
 
       setAuthorized(true)
     }
@@ -70,12 +78,67 @@ export default function AdminPage() {
     }
   }
 
-  useEffect(() => {
-    if (authorized) {
-      loadPayments()
-    }
-  }, [authorized])
+const loadCollegeRequests = async () => {
+  const { data, error } = await supabase
+    .from('college_requests')
+.select(`
+  *,
+  profiles:requested_by (
+    email
+  )
+`)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
 
+  if (error) {
+    console.error(error)
+    return
+  }
+
+  setCollegeRequests(data || [])
+}
+
+  useEffect(() => {
+  if (authorized) {
+    loadPayments()
+    loadCollegeRequests() // 🔥 added
+  }
+}, [authorized])
+
+const approveCollege = async (req: any) => {
+  // 1. insert into colleges
+  const { error: insertError } = await supabase
+    .from('colleges')
+    .insert({
+      name: req.name,
+    })
+
+  if (insertError) {
+    notify('❌ Failed to add college')
+    return
+  }
+
+  // 2. update request status
+  await supabase
+    .from('college_requests')
+    .update({ status: 'approved' })
+    .eq('id', req.id)
+
+  notify('🎓 College approved')
+
+  loadCollegeRequests()
+}
+
+const rejectCollege = async (req: any) => {
+  await supabase
+    .from('college_requests')
+    .update({ status: 'rejected' })
+    .eq('id', req.id)
+
+  notify('❌ College rejected')
+
+  loadCollegeRequests()
+}
   /* ---------------- LOAD STATS ---------------- */
   const loadStats = async () => {
     try {
@@ -220,6 +283,8 @@ export default function AdminPage() {
     }
   }
 
+  
+
   if (!authorized) return null
   if (loading) return <p style={{ padding: 20 }}>Loading…</p>
 
@@ -270,6 +335,41 @@ export default function AdminPage() {
         </div>
         <div style={{ fontSize: 20 }}>Total Users</div>
       </div>
+
+      {/* 🎓 COLLEGE REQUESTS */}
+<div style={{ marginBottom: 30 }}>
+  <h2>College Requests</h2>
+
+  {collegeRequests.length === 0 && (
+    <p>No pending requests 🎉</p>
+  )}
+
+  {collegeRequests.map(req => (
+    <div
+      key={req.id}
+      style={{
+        border: '1px solid #eee',
+        borderRadius: 12,
+        padding: 12,
+        marginTop: 12,
+        background: 'white',
+      }}
+    >
+      <p><strong>Email:</strong> {req.profiles?.email}</p>
+      <p><strong>Name:</strong> {req.name}</p>
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={() => approveCollege(req)}>
+          Approve
+        </button>
+
+        <button onClick={() => rejectCollege(req)}>
+          Reject
+        </button>
+      </div>
+    </div>
+  ))}
+</div>
 
       {/* PAYMENTS */}
       <div style={{ position: 'relative', zIndex: 2 }}>

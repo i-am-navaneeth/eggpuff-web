@@ -140,47 +140,47 @@ export default function QuestionPage({
   // ===============================
   // SUBMIT ANSWER (OPTIMISTIC)
   // ===============================
-  const submitAnswer = async () => {
-    if (!text.trim()) return
-    if (answers.length >= 2) return
-    if (posting) return
+ const submitAnswer = async () => {
+  if (!text.trim()) return
+  // ❌ removed limit restriction
+  if (posting) return
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-    if (!user) return
+  if (!user) return
 
-    setPosting(true)
+  setPosting(true)
 
-    const optimisticAnswer: Answer = {
-      id: `temp-${Date.now()}`,
+  const optimisticAnswer: Answer = {
+    id: `temp-${Date.now()}`,
+    text,
+    user_id: user.id,
+    question_id: id,
+    approved: false,
+    _optimistic: true,
+  }
+
+  setAnswers(prev => [...prev, optimisticAnswer])
+  setText('')
+
+  const { error } = await supabase
+    .from('answers')
+    .insert({
       text,
       user_id: user.id,
       question_id: id,
-      approved: false,
-      _optimistic: true,
-    }
+    })
 
-    setAnswers(prev => [...prev, optimisticAnswer])
-    setText('')
-
-    const { error } = await supabase
-      .from('answers')
-      .insert({
-        text,
-        user_id: user.id,
-        question_id: id,
-      })
-
-    if (error) {
-      setAnswers(prev =>
-        prev.filter(a => a.id !== optimisticAnswer.id)
-      )
-    }
-
-    setPosting(false)
+  if (error) {
+    setAnswers(prev =>
+      prev.filter(a => a.id !== optimisticAnswer.id)
+    )
   }
+
+  setPosting(false)
+}
 
   // ===============================
   // SAFE RENDER
@@ -221,14 +221,14 @@ export default function QuestionPage({
         </h2>
 
         <p
-          style={{
-            color: '#6B7280',
-            fontSize: 14,
-            marginBottom: 10,
-          }}
-        >
-          Answers: {answers.length}/2
-        </p>
+  style={{
+    color: '#6B7280',
+    fontSize: 14,
+    marginBottom: 10,
+  }}
+>
+  Answers: {answers.length}
+</p>
 
         {/* ANSWERS */}
         <div
@@ -248,7 +248,7 @@ export default function QuestionPage({
         </div>
 
         {/* INPUT SECTION */}
-        {!isClosed && answers.length < 2 && (
+        {!isClosed && (
           <div style={{ marginTop: 2 }}>
             <textarea
               value={text}
@@ -327,6 +327,41 @@ export default function QuestionPage({
             🔒 Question closed
           </p>
         )}
+
+        <div style={{ marginTop: 24 }}>
+
+  {/* 🔥 DIVIDER */}
+  <div
+    style={{
+      height: 1,
+      background: 'linear-gradient(to right, transparent, #E5E7EB, transparent)',
+      marginBottom: 12,
+      opacity: 0.6,
+    }}
+  />
+
+  {/* 🔥 FEEDBACK TEXT */}
+  <div
+    style={{
+      fontSize: 12,
+      color: '#6B7280',
+      textAlign: 'center',
+    }}
+  >
+    Help us improve ✨{' '}
+    <span
+      onClick={() => router.push('/feedback')}
+      style={{
+        fontWeight: 600,
+        color: '#111827',
+        cursor: 'pointer',
+      }}
+    >
+      Feedback
+    </span>
+  </div>
+
+</div>
 
       </div>
     </div>

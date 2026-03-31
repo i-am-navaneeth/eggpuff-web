@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 
 type Feedback = {
   id: string
@@ -12,6 +13,7 @@ type Feedback = {
 }
 
 export default function AdminFeedbackPage() {
+  const router = useRouter()
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -23,15 +25,14 @@ if (!user) return
 
 const { data: profile } = await supabase
   .from('profiles')
-  .select('role')
+  .select('is_admin')
   .eq('id', user.id)
   .single()
 
-if (!profile || profile.role !== 'admin') {
-  window.location.href = '/feed'
+if (!profile || !profile.is_admin) {
+  router.replace('/feed')
   return
 }
-
       const { data, error } = await supabase
         .from('feedback')
         .select('*')

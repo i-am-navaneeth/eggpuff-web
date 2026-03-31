@@ -8,6 +8,7 @@ import { NotificationProvider } from '../components/NotificationProvider'
 import TopBar from '@/components/TopBar'
 import PWARegister from '@/components/PWARegister'
 import PWAInstall from '@/components/PWAInstall'
+import AuthProvider from '@/components/AuthProvider'
 
 
 /* ========================================
@@ -43,6 +44,7 @@ export default function RootLayout({
       <body suppressHydrationWarning>
 
         <NotificationProvider>
+          <AuthProvider>
           <UserProvider>
 
             {/* PWA Setup */}
@@ -53,6 +55,7 @@ export default function RootLayout({
             {children}
 
           </UserProvider>
+          </AuthProvider>
         </NotificationProvider>
 
       </body>

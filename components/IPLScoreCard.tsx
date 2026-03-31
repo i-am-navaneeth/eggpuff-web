@@ -36,7 +36,33 @@ export default function IPLScoreCard() {
     if (saved) setHideToggle(true)
 
     audioRef.current = new Audio('/ipl.mp3')
+audioRef.current.preload = 'auto'
+audioRef.current.load()
   }, [])
+
+  useEffect(() => {
+  const saved = localStorage.getItem('ipl_notify') === 'true'
+  setNotifyEnabled(saved)
+  if (saved) setHideToggle(true)
+
+  const audio = new Audio('/ipl.mp3')
+  audio.preload = 'auto'
+  audio.load()
+
+  // 🔓 Unlock audio on first interaction
+  const unlock = () => {
+    audio.play().then(() => {
+      audio.pause()
+      audio.currentTime = 0
+    }).catch(() => {})
+
+    window.removeEventListener('click', unlock)
+  }
+
+  window.addEventListener('click', unlock)
+
+  audioRef.current = audio
+}, [])
 
   const toggleNotify = async () => {
     if (toggling) return
@@ -71,7 +97,7 @@ setToggling(true)
         if (audioRef.current) {
           const audio = audioRef.current
 
-          audio.currentTime = 0
+          audio.currentTime = 2
           audio.volume = 1
           audio.play()
 
@@ -101,7 +127,7 @@ setToggling(true)
         if ('vibrate' in navigator) navigator.vibrate(50)
 
         setJustEnabled(true)
-        setTimeout(() => setJustEnabled(false), 2500)
+        setTimeout(() => setJustEnabled(false), 4000)
 
         setTimeout(() => setHideToggle(true), 800)
       }
@@ -130,7 +156,10 @@ setToggling(true)
   }
 
   const subscribeUser = async () => {
+  try {
     const reg = await navigator.serviceWorker.ready
+
+    console.log('SW ready:', reg)
 
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
@@ -139,11 +168,20 @@ setToggling(true)
       ),
     })
 
-    await fetch('/api/subscribe', {
+    console.log('Subscription:', sub)
+
+    const res = await fetch('/api/subscribe', {
       method: 'POST',
       body: JSON.stringify(sub),
     })
+
+    const json = await res.json()
+    console.log('API response:', json)
+
+  } catch (err) {
+    console.error('SUBSCRIBE ERROR:', err)
   }
+}
 
   const fetchScore = async () => {
     try {

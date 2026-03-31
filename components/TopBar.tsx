@@ -18,59 +18,122 @@ export default function TopBar() {
   const router = useRouter()
 
   const isAskPage = pathname === '/ask'
+  const [isProfileComplete, setIsProfileComplete] = useState(true);
+  const [avatar, setAvatar] = useState<string | null>(null);
 
   /* ---------------- LOAD USER + BALANCE ---------------- */
 
   useEffect(() => {
-    let mounted = true
-    let ledgerChannel: any
+  let mounted = true
+  let ledgerChannel: any
 
-    const loadUserAndBalance = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+  const loadUserAndBalance = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-      if (!user) {
-        if (mounted) {
-          setUserId(null)
-          setBalance(0)
-        }
-        return
+    if (!user) {
+      if (mounted) {
+        setUserId(null)
+        setBalance(0)
       }
-
-      if (mounted) setUserId(user.id)
-
-      const b = await getEggPuffBalance(user.id)
-      if (mounted) setBalance(b)
+      return
     }
 
+    if (mounted) setUserId(user.id)
+
+    const b = await getEggPuffBalance(user.id)
+    if (mounted) setBalance(b)
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('college_id, batch_year')
+      .eq('id', user.id)
+      .single()
+
+    setIsProfileComplete(
+      !!profile?.college_id && !!profile?.batch_year
+    )
+
+    // 🔥 setup realtime INSIDE (so user is available)
+    if (!ledgerChannel) {
+      ledgerChannel = supabase
+        .channel('egg-puff-balance')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'egg_puff_ledger',
+            filter: `user_id=eq.${user?.id}`, // ✅ safe + correct
+          },
+          () => {
+            loadUserAndBalance()
+          }
+        )
+        .subscribe()
+    }
+  }
+
+  loadUserAndBalance()
+
+  const { data: listener } = supabase.auth.onAuthStateChange(() => {
     loadUserAndBalance()
+  })
 
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      loadUserAndBalance()
-    })
+  return () => {
+    mounted = false
+    listener?.subscription?.unsubscribe()
+    if (ledgerChannel) supabase.removeChannel(ledgerChannel)
+  }
+}, [])
 
-    ledgerChannel = supabase
-      .channel('egg-puff-balance')
+  useEffect(() => {
+  let channel: any;
+
+  const loadAvatar = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('avatar_url')
+      .eq('id', user.id)
+      .single();
+
+    if (data?.avatar_url) {
+      setAvatar(data.avatar_url);
+    }
+
+    // 🔥 LIVE SYNC (moved inside to access user)
+    channel = supabase
+      .channel('avatar-sync')
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: 'UPDATE',
           schema: 'public',
-          table: 'egg_puff_ledger',
+          table: 'profiles',
+          filter: `id=eq.${user?.id}`, // ✅ FIXED
         },
-        () => {
-          loadUserAndBalance()
+        (payload: any) => {
+          if (payload.new?.avatar_url) {
+            setAvatar(payload.new.avatar_url);
+          }
         }
       )
-      .subscribe()
+      .subscribe();
+  };
 
-    return () => {
-      mounted = false
-      listener?.subscription?.unsubscribe()
-      if (ledgerChannel) supabase.removeChannel(ledgerChannel)
-    }
-  }, [])
+  loadAvatar();
+
+  return () => {
+    if (channel) supabase.removeChannel(channel);
+  };
+}, []);
 
   /* ---------------- ASK BUTTON CATEGORY PREFILL ---------------- */
 
@@ -138,31 +201,47 @@ export default function TopBar() {
             </Link>
           )}
 
-          {/* FEEDBACK */}
-          <div className="relative">
-            <button
-              onClick={() => setFeedbackOpen((prev) => !prev)}
-              className="px-3 sm:px-4 py-1.5 rounded-full border border-gray-300 text-sm sm:text-base font-medium text-gray-700"
-              style={{ backgroundColor: '#FFFFFF' }}
-            >
-              Feedback
-            </button>
-
-            {feedbackOpen && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 48,
-                  right: 0,
-                  zIndex: 1000,
-                  width: '320px',
-                  maxWidth: '90vw',
-                }}
-              >
-                <FeedbackDropdown onClose={() => setFeedbackOpen(false)} />
-              </div>
-            )}
-          </div>
+          <button
+  onClick={() => router.push('/profile')}
+  title="Profile"
+  style={{
+    width: 44,
+    height: 44,
+    borderRadius: '50%',
+    border: '1px solid #E5E7EB',
+    background: '#FFFFFF',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    padding: 2, // 🔥 key for spacing
+  }}
+>
+  {avatar ? (
+    <img
+      src={avatar}
+      style={{
+        width: 40,
+        height: 40,
+        borderRadius: '50%',
+      }}
+    />
+  ) : (
+    <svg
+      width="26"
+      height="26"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#F4B860"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="8" r="4.2" />
+      <path d="M4 20c2.5-4.5 6.5-6.5 8-6.5s5.5 2 8 6.5" />
+    </svg>
+  )}
+</button>
 
         </div>
       </div>

@@ -1,6 +1,7 @@
 'use client'
+
 import { useEffect, useState } from 'react'
-import { signInWithGoogle } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
   const words = [
@@ -14,6 +15,7 @@ export default function LoginPage() {
 
   const [index, setIndex] = useState(0)
   const [animate, setAnimate] = useState(true)
+  const [loading, setLoading] = useState(false)
 
   const loopWords = [...words, ...words]
 
@@ -27,7 +29,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (index === words.length) {
-      setTimeout(() => {
+      const timeout = setTimeout(() => {
         setAnimate(false)
         setIndex(0)
 
@@ -37,8 +39,28 @@ export default function LoginPage() {
           })
         })
       }, 400)
+
+      return () => clearTimeout(timeout)
     }
   }, [index, words.length])
+
+  // 🔥 Handle Google login properly
+  const handleLogin = async () => {
+    setLoading(true)
+
+    const { error } = await supabase.auth.signInWithOAuth({
+  provider: 'google',
+  options: {
+    redirectTo: `${window.location.origin}/feed`,
+  },
+})
+
+    if (error) {
+      alert(error.message)
+      setLoading(false)
+    }
+    // ✅ On success → Supabase redirects → AuthProvider handles routing
+  }
 
   return (
     <div
@@ -58,7 +80,7 @@ export default function LoginPage() {
           fontSize: 34,
           fontWeight: 650,
           letterSpacing: '-0.6px',
-          marginBottom: 8, // tighter spacing
+          marginBottom: 8,
         }}
       >
         EggPuff <span>🥐</span>
@@ -68,11 +90,11 @@ export default function LoginPage() {
       <div
         style={{
           display: 'flex',
-          alignItems: 'baseline', // ✅ fixes vertical misalignment
+          alignItems: 'baseline',
           gap: 6,
           height: 24,
           overflow: 'hidden',
-          marginBottom: 28, // reduced gap before button
+          marginBottom: 28,
           fontSize: 16,
           color: '#6B7280',
           fontWeight: 500,
@@ -93,10 +115,11 @@ export default function LoginPage() {
             style={{
               transform: `translateY(-${index * 24}px)`,
               transition: animate ? 'transform 0.4s ease' : 'none',
+              willChange: 'transform',
             }}
           >
             {loopWords.map((word, i) => (
-              <div key={i} style={{ height: 24 }}>
+              <div key={`${word}-${i}`} style={{ height: 24 }}>
                 {word}
               </div>
             ))}
@@ -106,7 +129,8 @@ export default function LoginPage() {
 
       {/* Google Button */}
       <button
-        onClick={signInWithGoogle}
+        onClick={handleLogin}
+        disabled={loading}
         style={{
           width: 280,
           padding: '14px 20px',
@@ -116,20 +140,25 @@ export default function LoginPage() {
           color: '#111827',
           fontSize: 15,
           fontWeight: 600,
-          cursor: 'pointer',
+          cursor: loading ? 'not-allowed' : 'pointer',
           transition: 'all 0.15s ease',
           boxShadow: '0 4px 14px rgba(0,0,0,0.08)',
+          opacity: loading ? 0.7 : 1,
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = '#E9A94F'
-          e.currentTarget.style.transform = 'translateY(-2px)'
+          if (!loading) {
+            e.currentTarget.style.background = '#E9A94F'
+            e.currentTarget.style.transform = 'translateY(-2px)'
+          }
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = '#F4B860'
-          e.currentTarget.style.transform = 'translateY(0)'
+          if (!loading) {
+            e.currentTarget.style.background = '#F4B860'
+            e.currentTarget.style.transform = 'translateY(0)'
+          }
         }}
       >
-        Continue with Google
+        {loading ? 'Connecting...' : 'Continue with Google'}
       </button>
     </div>
   )
