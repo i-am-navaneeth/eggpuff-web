@@ -3,9 +3,15 @@ import type { NextRequest } from 'next/server'
 
 export function middleware(req: NextRequest) {
   const hasSession = req.cookies.get('sb-access-token')
-  const isAuthPage = req.nextUrl.pathname.startsWith('/login')
 
-  if (!hasSession && !isAuthPage) {
+  const pathname = req.nextUrl.pathname
+
+  // Public routes (no auth required)
+  const isAuthPage = pathname.startsWith('/login')
+  const isLandingPage = pathname === '/'
+
+  // If user is NOT logged in and trying to access protected routes
+  if (!hasSession && !isAuthPage && !isLandingPage) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
@@ -13,5 +19,10 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/feed/:path*', '/ask', '/question/:path*', '/profile']
+  matcher: [
+    '/feed/:path*',
+    '/ask',
+    '/question/:path*',
+    '/profile',
+  ],
 }

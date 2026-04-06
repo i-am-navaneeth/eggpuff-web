@@ -6,9 +6,10 @@ import { supabase } from '@/lib/supabase';
 
 type Props = {
   children: ReactNode;
+  skipRedirect?: boolean; // ✅ NEW (optional)
 };
 
-export default function AuthProvider({ children }: Props) {
+export default function AuthProvider({ children, skipRedirect }: Props) {
   const router = useRouter();
 
   useEffect(() => {
@@ -26,17 +27,24 @@ export default function AuthProvider({ children }: Props) {
 
       // 🔐 Not logged in → go login
       if (!session?.user) {
-        if (path !== '/login') {
-          router.replace('/login');
-        }
-        return;
-      }
+  const publicRoutes = ['/', '/login', '/what-is-eggpuff']
 
-      // ✅ Logged in → allow access everywhere
-      // Only prevent staying on login page
-      if (path === '/login') {
-        router.replace('/feed');
-      }
+  const isPublicRoute =
+    publicRoutes.includes(path) ||
+    path.startsWith('/what-is-eggpuff')
+
+  if (!skipRedirect && !isPublicRoute) {
+    router.replace('/login')
+  }
+
+  return
+}
+
+// ✅ Logged in → allow access everywhere
+// Only prevent staying on login page
+if (path === '/login') {
+  router.replace('/feed')
+}
     };
 
     init();
@@ -54,7 +62,7 @@ export default function AuthProvider({ children }: Props) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [router]);
+  }, [router, skipRedirect]); // ✅ added dependency
 
   return <>{children}</>;
 }
