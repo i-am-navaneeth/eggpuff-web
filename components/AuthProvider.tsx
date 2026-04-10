@@ -1,16 +1,17 @@
 'use client';
 
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 type Props = {
   children: ReactNode;
-  skipRedirect?: boolean; // ✅ NEW (optional)
+  skipRedirect?: boolean;
 };
 
 export default function AuthProvider({ children, skipRedirect }: Props) {
   const router = useRouter();
+  const [loading, setLoading] = useState(true); // 🔥 NEW
 
   useEffect(() => {
     const init = async () => {
@@ -23,28 +24,32 @@ export default function AuthProvider({ children, skipRedirect }: Props) {
       const path = window.location.pathname;
 
       // 🛑 Ignore during OAuth callback
-      if (path.includes('auth/callback')) return;
+      if (path.includes('auth/callback')) {
+        setLoading(false);
+        return;
+      }
 
-      // 🔐 Not logged in → go login
+      const publicRoutes = ['/', '/login', '/what-is-eggpuff'];
+
+      const isPublicRoute =
+        publicRoutes.includes(path) ||
+        path.startsWith('/what-is-eggpuff');
+
+      // 🔐 Not logged in
       if (!session?.user) {
-  const publicRoutes = ['/', '/login', '/what-is-eggpuff']
+        if (!skipRedirect && !isPublicRoute) {
+          router.replace('/login');
+        }
+        setLoading(false);
+        return;
+      }
 
-  const isPublicRoute =
-    publicRoutes.includes(path) ||
-    path.startsWith('/what-is-eggpuff')
+      // ✅ Logged in → prevent staying on login page
+      if (path === '/login') {
+        router.replace('/feed');
+      }
 
-  if (!skipRedirect && !isPublicRoute) {
-    router.replace('/login')
-  }
-
-  return
-}
-
-// ✅ Logged in → allow access everywhere
-// Only prevent staying on login page
-if (path === '/login') {
-  router.replace('/feed')
-}
+      setLoading(false);
     };
 
     init();
@@ -52,7 +57,6 @@ if (path === '/login') {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
-      // 🛑 Prevent unstable redirects
       if (event === 'INITIAL_SESSION') return;
       if (event === 'SIGNED_OUT') return;
 
@@ -62,7 +66,10 @@ if (path === '/login') {
     return () => {
       subscription.unsubscribe();
     };
-  }, [router, skipRedirect]); // ✅ added dependency
+  }, [router, skipRedirect]);
+
+  // 🔥 Prevent UI flicker / wrong redirects
+  if (loading) return null;
 
   return <>{children}</>;
 }

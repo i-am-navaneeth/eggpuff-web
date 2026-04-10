@@ -46,21 +46,21 @@ export default function LoginPage() {
 
   // 🔥 Handle Google login properly
   const handleLogin = async () => {
-    setLoading(true)
+  setLoading(true)
 
-    const { error } = await supabase.auth.signInWithOAuth({
-  provider: 'google',
-  options: {
-    redirectTo: `${window.location.origin}/feed`,
-  },
-})
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: 'https://eggpuff.in/auth/callback', // 🔥 FIXED
+    },
+  })
 
-    if (error) {
-      alert(error.message)
-      setLoading(false)
-    }
-    // ✅ On success → Supabase redirects → AuthProvider handles routing
+  if (error) {
+    alert(error.message)
+    setLoading(false)
   }
+}
+    // ✅ On success → Supabase redirects → AuthProvider handles routing
 
   return (
     <div

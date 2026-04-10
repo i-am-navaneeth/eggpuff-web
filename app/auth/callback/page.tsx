@@ -9,10 +9,18 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const handleAuth = async () => {
-      const { data } = await supabase.auth.getSession()
+      // 🔥 This is the FIX
+      const { data, error } = await supabase.auth.exchangeCodeForSession(
+        window.location.href
+      )
+
+      if (error) {
+        router.replace('/login')
+        return
+      }
 
       if (data.session) {
-        router.replace('/feed') // ✅ after login go here
+        router.replace('/feed')
       } else {
         router.replace('/login')
       }
@@ -21,5 +29,9 @@ export default function AuthCallback() {
     handleAuth()
   }, [router])
 
-  return <p className="text-center mt-10">Logging you in...</p>
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      Logging you in...
+    </div>
+  )
 }
