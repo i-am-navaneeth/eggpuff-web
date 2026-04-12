@@ -8,9 +8,13 @@ export const supabase = createClient(
   supabaseAnonKey,
   {
     auth: {
-      persistSession: true,      
-      autoRefreshToken: true,   
-      detectSessionInUrl: true,   
+      flowType: 'pkce', // 🔥 CRITICAL
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storageKey: 'eggpuff-auth',
+      // 🔥 THIS IS THE MISSING PIECE
+      debug: true,
     },
   }
 )

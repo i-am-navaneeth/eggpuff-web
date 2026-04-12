@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 
 type Props = {
   q: {
@@ -8,31 +9,44 @@ type Props = {
     text: string
     created_at: string
     expires_at?: string
+    type?: 'normal' | 'bubble'
     answers_count?: number
     category_label?: string
   }
 }
 
-/* ⏳ TIME LEFT */
-function timeLeft(expiresAt?: string) {
-  if (!expiresAt) return null
+function formatTime(dateString: string) {
+  const now = new Date()
+  const date = new Date(dateString)
 
-  const diff = new Date(expiresAt).getTime() - Date.now()
-  if (diff <= 0) return 'Expired'
+  const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
 
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(minutes / 60)
+  if (diff < 60) return 'Just now'
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
 
-  if (hours > 0) return `${hours}h left`
-  return `${minutes}m left`
+  return `${date.getMonth() + 1}/${date.getDate()}`
 }
 
 export default function QuestionCard({ q }: Props) {
   const router = useRouter()
-  const remaining = timeLeft(q.expires_at)
+  const [popped, setPopped] = useState(false)
 
   const goToQuestion = () => {
-    router.push(`/question/${q.id}`)
+    if (q.type === 'bubble') {
+      setPopped(true)
+
+      // 🔊 POP SOUND
+      const audio = new Audio('/pop.mp3')
+      audio.volume = 0.4
+      audio.play().catch(() => {})
+
+      setTimeout(() => {
+        router.push(`/question/${q.id}`)
+      }, 250)
+    } else {
+      router.push(`/question/${q.id}`)
+    }
   }
 
   const hasAnswers = (q.answers_count ?? 0) > 0
@@ -49,31 +63,69 @@ export default function QuestionCard({ q }: Props) {
         marginBottom: 14,
         padding: 20,
         borderRadius: 16,
-        border: '1px solid #E5E7EB',
-        background: '#FFFFFF',
+        background: q.type === 'bubble' ? '#F3F4F6' : '#FFFFFF',
+border:
+  q.type === 'bubble'
+    ? '1px dashed #111827'
+    : '1px solid #E5E7EB',
         cursor: 'pointer',
-        transition: 'box-shadow 0.15s ease, transform 0.1s ease',
         position: 'relative',
+        transition: 'all 0.2s ease',
+        boxShadow: 'none',
+
+        // 💥 POP EFFECT
+        transform: popped ? 'scale(0.85)' : 'scale(1)',
+        opacity: popped ? 0 : 1,
+
+        // 🫧 FLOAT EFFECT
+        animation:
+          q.type === 'bubble'
+            ? 'floatBubble 3s ease-in-out infinite'
+            : undefined,
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'
-      }}
-      onMouseDown={(e) => {
-        e.currentTarget.style.transform = 'scale(0.98)'
-      }}
-      onMouseUp={(e) => {
-        e.currentTarget.style.transform = 'scale(1)'
-      }}
+      onMouseEnter={() => {}}
+      onMouseLeave={() => {}}
     >
+
+      {/* 🕒 TIME TOP RIGHT */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 14,
+          right: 16,
+          fontSize: 12,
+          color: '#6B7280',
+          fontWeight: 500,
+        }}
+      >
+        {formatTime(q.created_at)}
+      </div>
+
+      {/* CATEGORY LABEL */}
+      {q.category_label && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 14,
+            left: 16,
+            padding: '4px 10px',
+            fontSize: 11,
+            borderRadius: 999,
+            background: '#F3F4F6',
+            color: '#374151',
+            fontWeight: 500,
+          }}
+        >
+          {q.category_label}
+        </div>
+      )}
 
       {/* QUESTION TEXT */}
       <p
         style={{
-          marginBottom: 8,
-          fontSize: 'clamp(16px, 1.1vw, 20px)',  // mobile 16px → desktop ~20px
+          marginBottom: 10,
+          marginTop: q.category_label ? 24 : 0,
+          fontSize: 'clamp(16px, 1.1vw, 20px)',
           lineHeight: 1.65,
           fontWeight: 500,
           color: '#111827',
@@ -93,61 +145,45 @@ export default function QuestionCard({ q }: Props) {
         }}
       >
 
-        {/* LEFT: ANSWER INFO */}
+        {/* LEFT: ANSWERS MINIMAL */}
         <span>
-          {hasAnswers
-            ? `${q.answers_count} answers`
-            : 'Be the first to answer'}
+          {hasAnswers ? `${q.answers_count}` : 'Be the first to answer'}
         </span>
 
-        {/* RIGHT: CATEGORY + TIMER */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            gap: 4,
-            marginTop: -6,
-          }}
-        >
-
-          {/* CATEGORY LABEL */}
-          {q.category_label && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 16,
-                right: 16,
-                padding: '4px 12px',
-                fontSize: 'clamp(11px, 0.8vw, 13px)',
-                borderRadius: 999,
-                background: '#FEF3C7',
-                color: '#92400E',
-                fontWeight: 600,
-              }}
-            >
-              {q.category_label}
-            </div>
-          )}
-
-          {/* TIMER */}
-          {remaining && (
-            <span
-              style={{
-                fontWeight: 600,
-                color:
-                  remaining === 'Expired'
-                    ? '#9CA3AF'
-                    : '#B45309',
-              }}
-            >
-              ⏳ {remaining}
-            </span>
-          )}
-
-        </div>
+        {/* 🫧 BUBBLE LABEL BOTTOM RIGHT */}
+        {q.type === 'bubble' && (
+          <span
+            style={{
+              position: 'absolute',
+              bottom: 14,
+              right: 16,
+              padding: '4px 10px',
+              borderRadius: 999,
+              background: '#FEF3C7',
+              color: '#92400E',
+              fontSize: 11,
+              fontWeight: 600,
+            }}
+          >
+            🫧 Expires in 24h
+          </span>
+        )}
       </div>
 
+      {/* 💫 FLOAT ANIMATION */}
+      <style jsx>{`
+        @keyframes floatBubble {
+          0% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-4px);
+          }
+          100% {
+            transform: translateY(0px);
+          }
+        }
+      `}</style>
     </div>
   )
 }

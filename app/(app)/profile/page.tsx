@@ -81,10 +81,10 @@ const [dangerFade, setDangerFade] = useState(true);
       }
 
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+  .from('profiles')
+  .select('*')
+  .eq('id', user.id)
+  .maybeSingle()
 
       if (profile) {
         setName(profile.name || '');
@@ -101,12 +101,12 @@ const [dangerFade, setDangerFade] = useState(true);
   setIsSetupMode(true); // 🔥 first-time user
 }
       }
-      if (profile.college_id) {
+      if (profile && profile.college_id) {
   const { data: college } = await supabase
     .from('colleges')
     .select('name')
     .eq('id', profile.college_id)
-    .single();
+    .maybeSingle();
 
   setCollegeName(college?.name || '');
   setCollegeSearch(college?.name || '');
@@ -449,7 +449,7 @@ useEffect(() => {
 
         {/* COLLEGE */}
         <input
-        value={collegeSearch || collegeName}
+  value={collegeSearch}
   onChange={(e) => setCollegeSearch(e.target.value)}
   placeholder="Search college"
   style={input(isLocked)}
@@ -525,6 +525,10 @@ useEffect(() => {
       </span>
     </div>
 )}
+  {!isLocked &&
+  collegeSearch &&
+  colleges.length > 0 &&
+  collegeSearch !== collegeName && (
   <div
     style={{
       background: '#fff',
@@ -541,10 +545,10 @@ useEffect(() => {
       <div
         key={c.id}
         onClick={() => {
-          setCollegeId(c.id);
-          setCollegeName(c.name);
-          setCollegeSearch(c.name);
-          setColleges([]);
+          setCollegeId(c.id)
+          setCollegeName(c.name)
+          setCollegeSearch(c.name)
+          setColleges([])
         }}
         style={{
           padding: '10px 12px',
@@ -563,6 +567,7 @@ useEffect(() => {
       </div>
     ))}
   </div>
+)}
 
 
         {/* BATCH */}

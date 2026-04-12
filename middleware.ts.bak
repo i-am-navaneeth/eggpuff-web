@@ -25,10 +25,12 @@ export function middleware(req: NextRequest) {
   // 🔥 IMPORTANT: Allow callback route
   const isCallback = pathname.startsWith('/auth/callback')
 
-  // If user is NOT logged in and trying to access protected routes
-  if (!hasSession && !isAuthPage && !isLandingPage && !isCallback) {
-    return NextResponse.redirect(new URL('/login', req.url))
-  }
+  const isOAuthCallback = req.nextUrl.search.includes('code=')
+
+// If user is NOT logged in and trying to access protected routes
+if (!hasSession && !isAuthPage && !isLandingPage && !isCallback && !isOAuthCallback) {
+  return NextResponse.redirect(new URL('/login', req.url))
+}
 
   return NextResponse.next()
 }

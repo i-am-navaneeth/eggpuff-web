@@ -18,23 +18,27 @@ function UserLogic({ children }: { children: ReactNode }) {
 
     const init = async () => {
       const {
-        data: { session },
-      } = await supabase.auth.getSession()
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        setReady(true)
+        return
+      }
+
+      const userId = user.id
+      const email = user.email
 
       setReady(true)
-
-      if (!session?.user) return
-
-      const userId = session.user.id
 
       /* ------------------------------------------------ */
       /* 🎉 WELCOME BONUS CHECK                          */
       /* ------------------------------------------------ */
-      const { data: profile, error: profileError } = await supabase
+      let { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('welcome_shown')
+        .select('id, welcome_shown')
         .eq('id', userId)
-        .single()
+        .maybeSingle()
 
       if (profileError) {
         console.error('Profile fetch error:', {
@@ -45,6 +49,27 @@ function UserLogic({ children }: { children: ReactNode }) {
         })
       }
 
+      // 🔥 CREATE PROFILE IF NOT EXISTS
+      if (!profile) {
+        const { data: newProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: userId,
+            email: email,
+            welcome_shown: false,
+          })
+          .select()
+          .single()
+
+        if (insertError) {
+          console.error('Profile create error:', insertError)
+          return
+        }
+
+        profile = newProfile
+      }
+
+      // 🎉 WELCOME BONUS
       if (profile && profile.welcome_shown === false) {
         notify('🎉 Welcome to EggPuff! You received 5 free 🥐 EP.')
 
@@ -52,6 +77,18 @@ function UserLogic({ children }: { children: ReactNode }) {
           .from('profiles')
           .update({ welcome_shown: true })
           .eq('id', userId)
+
+        const { error } = await supabase
+          .from('egg_puff_ledger')
+          .insert({
+            user_id: userId,
+            amount: 5,
+            reason: 'Welcome bonus',
+          })
+
+        if (error) {
+          console.error('Welcome bonus error:', error)
+        }
       }
 
       /* ------------------------------------------------ */

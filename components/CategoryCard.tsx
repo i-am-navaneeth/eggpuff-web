@@ -2,13 +2,11 @@
 
 type Props = {
   label: string
-  activeCount?: number
   onClick: () => void
 }
 
 export default function CategoryCard({
   label,
-  activeCount = 0,
   onClick,
 }: Props) {
   return (
@@ -40,28 +38,6 @@ export default function CategoryCard({
     >
       {/* LABEL */}
       <span>{label}</span>
-
-      {/* ACTIVE COUNT */}
-      {activeCount > 0 && (
-        <span
-          style={{
-            minWidth: 22,
-            height: 22,
-            padding: '0 6px',
-            borderRadius: 999,
-            background: '#EF4444',
-            color: '#fff',
-            fontSize: 11,
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            lineHeight: 1,
-          }}
-        >
-          {activeCount}
-        </span>
-      )}
     </button>
   )
 }

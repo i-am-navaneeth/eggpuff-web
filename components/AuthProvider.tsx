@@ -14,20 +14,40 @@ export default function AuthProvider({ children, skipRedirect }: Props) {
   const [loading, setLoading] = useState(true); // 🔥 NEW
 
   useEffect(() => {
+  const handleSession = async () => {
+    await supabase.auth.getUser()
+  }
+
+  handleSession()
+}, [])
+
+  useEffect(() => {
     const init = async () => {
       if (typeof window === 'undefined') return;
 
       const {
-        data: { session },
-      } = await supabase.auth.getSession();
+  data: { user },
+} = await supabase.auth.getUser();
 
       const path = window.location.pathname;
 
-      // 🛑 Ignore during OAuth callback
-      if (path.includes('auth/callback')) {
-        setLoading(false);
-        return;
-      }
+// 🔥 Handle OAuth redirect properly (FINAL FIX)
+if (window.location.search.includes('code=')) {
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((event, newSession) => {
+    if (event === 'SIGNED_IN' && newSession?.user) {
+      window.history.replaceState({}, document.title, '/feed');
+      router.replace('/feed');
+    }
+  });
+
+  setLoading(false);
+
+  return () => {
+    subscription.unsubscribe();
+  };
+}
 
       const publicRoutes = ['/', '/login', '/what-is-eggpuff'];
 
@@ -35,8 +55,15 @@ export default function AuthProvider({ children, skipRedirect }: Props) {
         publicRoutes.includes(path) ||
         path.startsWith('/what-is-eggpuff');
 
+        // 🔥 ALWAYS redirect if logged in (FINAL FIX)
+if (user) {
+  if (path !== '/feed') {
+    router.replace('/feed')
+    return // ❌ DO NOT setLoading(false) here
+  }
+}
       // 🔐 Not logged in
-      if (!session?.user) {
+      if (!user) {
         if (!skipRedirect && !isPublicRoute) {
           router.replace('/login');
         }

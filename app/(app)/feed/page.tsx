@@ -9,6 +9,7 @@ import QuestionCard from '../../../components/QuestionCard'
 import QuestionCardSkeleton from '@/components/QuestionCardSkeleton'
 import Skeleton from '@/components/Skeleton'
 import { useNotify } from '../../../components/NotificationProvider'
+import { getSeen } from '@/lib/seen'
 
 import IPLScoreCard from '@/components/IPLScoreCard'
 
@@ -29,6 +30,7 @@ type QuestionRow = {
   text: string
   created_at: string
   expires_at?: string
+  type?: 'normal' | 'bubble' // 🔥 ADD THIS
   category_id: string | null
   approved_answer_id?: string | null
   categories?: { label: string }[]
@@ -57,6 +59,8 @@ export default function FeedPage() {
   const isProfileComplete = !!profile?.college_id && !!profile?.batch_year;
 
   const [now, setNow] = useState(new Date())
+
+  
   /* ---------------- SYNC CATEGORY FROM URL ---------------- */
 
   useEffect(() => {
@@ -77,6 +81,30 @@ useEffect(() => {
 
   return () => clearInterval(interval)
 }, [])
+
+// 🔥 ADD THIS HERE
+const createProfileIfNotExists = async () => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', user.id)
+    .single()
+
+  if (profile) return
+
+  await supabase.from('profiles').upsert({
+    id: user.id,
+    name: user.user_metadata?.name || null,
+    email: user.email,
+    avatar_url: user.user_metadata?.avatar_url || null,
+  })
+}
   /* -------------------- LOAD DATA -------------------- */
 
   useEffect(() => {
@@ -84,6 +112,8 @@ useEffect(() => {
 
     const load = async () => {
       setLoading(true)
+
+       await createProfileIfNotExists()
 
       const now = new Date().toISOString()
 
@@ -146,6 +176,7 @@ const { data: qs } = await supabase
     text,
     created_at,
     expires_at,
+    type,
     category_id,
     approved_answer_id,
     categories(label),
@@ -153,7 +184,6 @@ const { data: qs } = await supabase
     batch_year
   `)
   .eq('college_id', profileData?.college_id)
-  .gt('expires_at', now)
   .order('created_at', { ascending: false })
 
       if (!mounted) return
@@ -219,13 +249,18 @@ const sortedQuestions = questionsData.sort((a, b) => {
 
   /* -------------------- DERIVED -------------------- */
 
-  const visibleQuestions = questions.filter(q => {
+  const seenIds = getSeen()
+
+const visibleQuestions = questions
+  .filter(q => {
     const currentTime = now
 
+    // ❌ remove expired
     if (q.expires_at && new Date(q.expires_at) <= currentTime) {
       return false
     }
 
+    // ✅ category filter
     if (activeCategorySlug === 'all') {
     }
     else if (activeCategorySlug === 'general') {
@@ -238,11 +273,18 @@ const sortedQuestions = questionsData.sort((a, b) => {
       if (!cat || q.category_id !== cat.id) return false
     }
 
+    // ✅ answer filter
     if (filter === 'answered') return !!q.approved_answer_id
     if (filter === 'unanswered') return !q.approved_answer_id
 
     return true
   })
+  // 🔥 ALWAYS NEWEST FIRST
+  .sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() -
+      new Date(a.created_at).getTime()
+  )
 
   /* -------------------- HANDLERS -------------------- */
 
@@ -345,18 +387,6 @@ const sortedQuestions = questionsData.sort((a, b) => {
                   }}
                 >
                   {cat.label}
-
-                  {cat.activeCount > 0 && (
-                    <span
-                      style={{
-                        marginLeft: 6,
-                        fontSize: 12,
-                        opacity: 0.6,
-                      }}
-                    >
-                      {cat.activeCount}
-                    </span>
-                  )}
                 </button>
               ))}
 

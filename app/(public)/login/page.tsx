@@ -46,21 +46,31 @@ export default function LoginPage() {
 
   // 🔥 Handle Google login properly
   const handleLogin = async () => {
-  setLoading(true)
+    setLoading(true)
 
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: 'https://eggpuff.in/auth/callback', // 🔥 FIXED
-    },
-  })
+    const hostname =
+      typeof window !== 'undefined' ? window.location.hostname : ''
 
-  if (error) {
-    alert(error.message)
-    setLoading(false)
+    const isLocalhost =
+      hostname === 'localhost' || hostname === '127.0.0.1'
+
+    const redirectUrl = isLocalhost
+  ? 'http://localhost:3000'
+  : 'https://eggpuff.in'
+  
+    const { error } = await supabase.auth.signInWithOAuth({
+  provider: 'google',
+  options: {
+    redirectTo: redirectUrl,
+  },
+})
+
+    if (error) {
+      alert(error.message)
+      setLoading(false)
+    }
   }
-}
-    // ✅ On success → Supabase redirects → AuthProvider handles routing
+  // ✅ On success → Supabase redirects → AuthProvider handles routing
 
   return (
     <div

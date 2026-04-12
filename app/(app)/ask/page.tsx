@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
-import { deductForQuestion, getEggPuffBalance } from '../../../lib/rewards'
+import { getEggPuffBalance } from '../../../lib/rewards'
 import Skeleton from '@/components/Skeleton'
 import { useNotify } from '../../../components/NotificationProvider'
 
@@ -33,6 +33,7 @@ export default function AskPage() {
   const [pageLoading, setPageLoading] = useState(true)
 
   const [isProfileComplete, setIsProfileComplete] = useState(true);
+  const [type, setType] = useState<'normal' | 'bubble'>('normal')
 
   /* ---------------- LOAD CATEGORIES ---------------- */
   useEffect(() => {
@@ -139,27 +140,38 @@ if (!profile?.college_id || !profile?.batch_year) {
         categoryId = category
       }
 
-      const expiresAt = new Date()
-      expiresAt.setMinutes(expiresAt.getMinutes() + hours * 60)
+      let expiresAt: string | null = null
+
+if (type === 'bubble') {
+  const temp = new Date()
+  temp.setHours(temp.getHours() + 24)
+  expiresAt = temp.toISOString()
+} else {
+  expiresAt = null // 🔥 normal should NEVER expire
+}
 
       const { error: insertError } = await supabase
   .from('questions')
   .insert({
-    text,
-    category_id: categoryId,
-    user_id: user.id,
-    expires_at: expiresAt.toISOString(),
-    college_id: profile?.college_id,
-    batch_year: profile?.batch_year,
-  })
+  text,
+  user_id: user.id,
+  category_id: categoryId,
+  type: type || 'normal',
+  expires_at: expiresAt || null,
+  college_id: profile?.college_id,
+  batch_year: profile?.batch_year,
+})
 
       if (insertError) {
-        console.error('QUESTION INSERT ERROR:', insertError)
+        console.error('QUESTION INSERT ERROR:', {
+  message: insertError?.message,
+  details: insertError?.details,
+  hint: insertError?.hint,
+  code: insertError?.code,
+})
         notify('❌ Failed to post question.')
         return
       }
-
-      await deductForQuestion(user.id)
 
       notify('✅ Question posted!')
       router.push('/feed')
@@ -300,30 +312,58 @@ if (!profile?.college_id || !profile?.batch_year) {
 }}
           />
 
-          {/* TIMER */}
-          <div style={{ marginTop: 16 }}>
-            <label style={{ fontSize: 13, opacity: 0.7 }}>
-              My question should stay for... 
-            </label>
+          <div
+  style={{
+    marginTop: 16,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+   padding: '12px 14px',
+    borderRadius: 14,
+    border: '1px solid #E5E7EB', // 🔥 outline added
+    background: '#FFFFFF',
+  }}
+>
+  {/* LABEL */}
+  <div>
+    <div style={{ fontSize: 14, fontWeight: 600 }}>
+      🫧 Bubble
+    </div>
+    <div style={{ fontSize: 12, color: '#6B7280' }}>
+      Disappears in 24 hours
+    </div>
+  </div>
 
-            <select
-              value={hours}
-              onChange={e => setHours(Number(e.target.value))}
-              style={{
-                width: '100%',
-                marginTop: 6,
-                padding: '12px 14px',
-                borderRadius: 14,
-                border: '1px solid #E5E7EB',
-                background: '#FFFFFF',
-                fontSize: 14,
-                appearance: 'none',
-              }}
-            >
-              <option value={1}>1 hour</option>
-              <option value={2}>2 hours</option>
-            </select>
-          </div>
+  {/* TOGGLE SWITCH */}
+  <div
+    onClick={() =>
+      setType(type === 'bubble' ? 'normal' : 'bubble')
+    }
+    style={{
+      width: 44,
+      height: 24,
+      borderRadius: 999,
+      background: type === 'bubble' ? '#FCD34D' : '#E5E7EB',
+      position: 'relative',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+    }}
+  >
+    <div
+      style={{
+        width: 20,
+        height: 20,
+        borderRadius: '50%',
+        background: '#FFFFFF',
+        position: 'absolute',
+        top: 2,
+        left: type === 'bubble' ? 22 : 2,
+        transition: 'all 0.2s ease',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+      }}
+    />
+  </div>
+</div>
 
           {/* ACTIONS */}
           <div
