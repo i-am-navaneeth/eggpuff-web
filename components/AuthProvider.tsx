@@ -56,10 +56,26 @@ if (window.location.search.includes('code=')) {
         path.startsWith('/what-is-eggpuff');
 
         // 🔥 ALWAYS redirect if logged in (FINAL FIX)
-if (user) {
+const isAdminRoute = path.startsWith('/admin$$$db')
+
+// 🔐 fetch admin status (you already have profiles table)
+const { data: profile } = await supabase
+  .from('profiles')
+  .select('is_admin')
+  .eq('id', user?.id)
+  .maybeSingle()
+
+const isAdmin = profile?.is_admin === true
+
+if (isAdminRoute && !isAdmin) {
+  router.replace('/feed')
+  return
+}
+
+if (user && !isAdminRoute) {
   if (path !== '/feed') {
     router.replace('/feed')
-    return // ❌ DO NOT setLoading(false) here
+    return
   }
 }
       // 🔐 Not logged in

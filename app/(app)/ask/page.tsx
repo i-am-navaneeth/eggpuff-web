@@ -100,13 +100,15 @@ export default function AskPage() {
     if (!text.trim()) return
 
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+  data: { user },
+} = await supabase.auth.getUser()
 
-    if (!user) {
-      router.push('/login')
-      return
-    }
+if (!user) {
+  console.error('User not found')
+  return
+}
+
+const userId = user.id
 
     const balance = await getEggPuffBalance(user.id)
 
@@ -114,7 +116,7 @@ export default function AskPage() {
 const { data: profile } = await supabase
   .from('profiles')
   .select('college_id, batch_year')
-  .eq('id', user.id)
+  .eq('user_id', userId)
   .single()
 
   setIsProfileComplete(!!profile?.college_id && !!profile?.batch_year);
@@ -154,7 +156,7 @@ if (type === 'bubble') {
   .from('questions')
   .insert({
   text,
-  user_id: user.id,
+  user_id: userId,
   category_id: categoryId,
   type: type || 'normal',
   expires_at: expiresAt || null,
@@ -194,7 +196,7 @@ if (type === 'bubble') {
     const { data: profile } = await supabase
       .from('profiles')
       .select('college_id, batch_year')
-      .eq('id', user.id)
+      .eq('user_id', user.id)
       .single();
 
     setIsProfileComplete(
@@ -404,7 +406,7 @@ if (type === 'bubble') {
     ? 'Complete profile to ask'
     : loading
     ? 'Posting…'
-    : 'Ask (1 🥐)'}
+    : 'Ask'}
 </button>
 
             <Link href="/feed">

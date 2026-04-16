@@ -51,7 +51,7 @@ export default function QuestionPage({
       const { data: q } = await supabase
         .from('questions')
         .select('*')
-        .eq('id', id)
+        .eq('user_id', id)
         .single()
 
       setQuestion(q)
@@ -166,13 +166,28 @@ export default function QuestionPage({
   setText('')
 
   const { error } = await supabase
-    .from('answers')
-    .insert({
-      text,
-      user_id: user.id,
-      question_id: id,
-    })
+  .from('answers')
+  .insert({
+    text,
+    user_id: user.id,
+    question_id: id,
+  })
 
+// 🔔 PUSH VIA API (SERVER SAFE)
+if (!error && question && question.user_id !== user.id) {
+  await fetch('/api/push/send', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      userId: question.user_id,
+      title: '💬 New answer',
+      message: 'New activity on your question',
+      url: `/question/${id}`,
+    }),
+  })
+}
   if (error) {
     setAnswers(prev =>
       prev.filter(a => a.id !== optimisticAnswer.id)

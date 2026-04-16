@@ -35,6 +35,24 @@ type QuestionRow = {
   approved_answer_id?: string | null
   categories?: { label: string }[]
   category_label?: string
+  is_verified?: boolean
+}
+
+type Question = {
+  user_id: string
+  created_at: string
+  batch_year?: string
+  category_id?: string
+  categories?: { label: string }[]
+}
+
+type Profile = {
+  user_id: string
+  name: string | null
+  username: string | null
+  avatar_url: string | null
+  college_id?: string
+  is_verified?: boolean
 }
 
 export default function FeedPage() {
@@ -91,19 +109,13 @@ const createProfileIfNotExists = async () => {
   if (!user) return
 
   const { data: profile } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('id', user.id)
-    .single()
+  .from('profiles')
+  .select('user_id, name, username, avatar_url')
+  .eq('user_id', user?.id)
+  .maybeSingle()
 
   if (profile) return
 
-  await supabase.from('profiles').upsert({
-    id: user.id,
-    name: user.user_metadata?.name || null,
-    email: user.email,
-    avatar_url: user.user_metadata?.avatar_url || null,
-  })
 }
   /* -------------------- LOAD DATA -------------------- */
 
@@ -130,7 +142,7 @@ const {
 const { data: profileData } = await supabase
   .from('profiles')
   .select('college_id, batch_year')
-  .eq('id', user?.id)
+  .eq('user_id', user?.id)
   .single();
 
   // 🔥 STEP 1: get promotions
@@ -140,26 +152,11 @@ const { data: promoData } = await supabase
   .gt('expires_at', now)
   .order('started_at', { ascending: false })
 
-// 🔥 STEP 2: get all user_ids
-const userIds = promoData?.map(p => p.user_id) || []
-
-// 🔥 STEP 3: fetch profiles separately
-const { data: profiles } = await supabase
-  .from('profiles')
-  .select('id, name, username, avatar_url, college_id')
-  .in('id', userIds)
-
-// 🔥 STEP 4: map profiles
-const profileMap: Record<string, any> = {}
-profiles?.forEach(p => {
-  profileMap[p.id] = p
-})
-
 // 🔥 STEP 5: filter + merge
 const promoItems =
   promoData
     ?.map(p => ({
-      link: p.link,
+      link: p.link, 
       creator: profileMap[p.user_id],
     }))
     .filter(p =>
@@ -169,7 +166,7 @@ const promoItems =
 setProfile(profileData);
 
 // 🚀 Fetch questions (same college only)
-const { data: qs } = await supabase
+let query = supabase
   .from('questions')
   .select(`
     id,
@@ -181,23 +178,98 @@ const { data: qs } = await supabase
     approved_answer_id,
     categories(label),
     college_id,
-    batch_year
+    batch_year,
+    user_id
   `)
-  .eq('college_id', profileData?.college_id)
   .order('created_at', { ascending: false })
+
+// 🔥 APPLY COLLEGE FILTER ONLY IF AVAILABLE
+if (profileData?.college_id) {
+  query = query.or(
+    `college_id.eq.${profileData.college_id},college_id.is.null`
+  )
+}
+
+const { data: qs, error } = await query
+
+if (error) {
+  console.error('❌ FETCH ERROR:', error)
+}
+console.log('QUESTION USER IDS:', (qs ?? []).map(q => q.user_id))
 
       if (!mounted) return
 
-      const questionsData = qs || []
-      // 🔥 Batch priority boost
+      // ✅ STEP 0: questions data
+const questionsData: Question[] = (qs ?? []) as Question[]
+
+// 🔥 STEP 1: sort questions
 const sortedQuestions = questionsData.sort((a, b) => {
-  if (a.batch_year === profileData?.batch_year && b.batch_year !== profile?.batch_year) {
+  if (a.batch_year === profileData?.batch_year && b.batch_year !== profileData?.batch_year) {
     return -1
   }
-  if (a.batch_year !== profileData?.batch_year && b.batch_year === profile?.batch_year) {
+  if (a.batch_year !== profileData?.batch_year && b.batch_year === profileData?.batch_year) {
     return 1
   }
   return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+})
+
+// 🔥 STEP 2: collect ALL userIds
+const userIds: string[] = Array.from(
+  new Set(
+    sortedQuestions
+      .map((q: any) => String(q.user_id))
+      .filter((id: string) => id.length > 0)
+  )
+)
+
+
+// 🔥 STEP 3: fetch profiles
+let profiles: Profile[] = []
+
+if (userIds.length > 0) {
+  const { data, error } = await supabase
+  .from('profiles')
+  .select('user_id, name, username, avatar_url, is_verified')
+  .in('user_id', userIds)
+
+  if (error) {
+    console.error('profiles fetch error FULL:', JSON.stringify(error, null, 2))
+  } else {
+    profiles = (data ?? []) as Profile[]
+  }
+}
+
+console.log('PROFILES:', profiles)
+console.log('USER IDS USED FOR FETCH:', userIds)
+
+// ✅ PROFILE MAP (FIXED)
+const profileMap: Record<string, Profile> = {}
+
+profiles.forEach((p: Profile) => {
+  if (p?.user_id) {
+    const key = String(p.user_id).trim()
+
+    profileMap[key] = {
+  user_id: key,
+  name: p.name,
+  username: p.username,
+  avatar_url: p.avatar_url,
+  is_verified: p.is_verified,
+}
+  }
+})
+
+// ✅ STEP 4: fallback (no crash)
+userIds.forEach(id => {
+  if (!profileMap[id]) {
+    profileMap[id] = {
+  user_id: id, // ✅ REQUIRED
+  name: 'User',
+  username: 'user',
+  avatar_url: null,
+  college_id: undefined,
+}
+  }
 })
 
       const categoriesData = cats || []
@@ -229,13 +301,23 @@ const sortedQuestions = questionsData.sort((a, b) => {
 
       setPromoted(promoItems)
 
-      setQuestions(
-  sortedQuestions.map(q => ({
-          ...q,
-          category_label: q.categories?.[0]?.label,
-        }))
-      )
+// 🔥 FINAL MAPPING
+setQuestions(
+  sortedQuestions.map((q: Question) => {
+    const profile = profileMap[String(q.user_id)] || null
 
+    return {
+      ...q,
+
+      category_label: q.categories?.[0]?.label ?? null,
+
+      user_name: profile?.name || 'User',
+      username: profile?.username || 'user',
+      avatar_url: profile?.avatar_url || null,
+      is_verified: profile?.is_verified ?? false,
+    }
+  }) as any
+)
       setCategories(categoriesWithCount)
       setLoading(false)
     }

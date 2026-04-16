@@ -25,7 +25,7 @@ export default function TopBar() {
 
   useEffect(() => {
   let mounted = true
-  let ledgerChannel: any
+ let ledgerChannel: any = null
 
   const loadUserAndBalance = async () => {
     const {
@@ -57,7 +57,7 @@ export default function TopBar() {
 
     // 🔥 setup realtime INSIDE (so user is available)
     if (!ledgerChannel) {
-      ledgerChannel = supabase
+    ledgerChannel = supabase
         .channel('egg-puff-balance')
         .on(
           'postgres_changes',

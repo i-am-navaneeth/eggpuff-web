@@ -84,8 +84,9 @@ const loadCollegeRequests = async () => {
 .select(`
   *,
   profiles:requested_by (
-    email
-  )
+  id,
+  email
+)
 `)
     .eq('status', 'pending')
     .order('created_at', { ascending: false })
@@ -124,9 +125,21 @@ const approveCollege = async (req: any) => {
     .update({ status: 'approved' })
     .eq('id', req.id)
 
-  notify('🎓 College approved')
+  // 🔔 PUSH TO USER WHO REQUESTED
+await fetch('/api/push/send', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    userId: req.requested_by,
+    title: '🎓 College Approved',
+    message: 'Your college request has been accepted',
+    url: '/feed',
+  }),
+})
 
-  loadCollegeRequests()
+notify('🎓 College approved')
+
+loadCollegeRequests()
 }
 
 const rejectCollege = async (req: any) => {
@@ -247,8 +260,20 @@ const rejectCollege = async (req: any) => {
         console.error('MAIL ERROR:', mailErr)
       }
 
-      await loadPayments()
-      notify('✅ Approved & credited 5 EP')
+      // 🔔 PUSH AFTER SUCCESS
+await fetch('/api/push/send', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    userId: p.user_id,
+    title: '🥐 EP Credited',
+    message: 'Your payment was approved & EP added to your account',
+    url: '/feed',
+  }),
+})
+
+await loadPayments()
+notify('✅ Approved & credited 5 EP')
     } catch (err) {
       console.error('APPROVE ERROR:', err)
     }

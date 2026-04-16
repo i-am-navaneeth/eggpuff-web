@@ -44,12 +44,30 @@ export async function rewardAnswer(
 
   if (existing) return
 
-  return supabase.from('egg_puff_ledger').insert({
-    user_id: userId,
-    amount: 1,
-    reason: 'Answer approved',
-    answer_id: answerId,
-  })
+const { error } = await supabase.from('egg_puff_ledger').insert({
+  user_id: userId,
+  amount: 1,
+  reason: 'Answer approved',
+  answer_id: answerId,
+})
+
+if (!error) {
+  // ⏳ small delay (grouping)
+  await new Promise(res => setTimeout(res, 8000))
+
+  await fetch('/api/push/send', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    userId,
+    title: '✅ Answer approved',
+    message: 'Your answer was accepted 🎉',
+    url: '/feed',
+  }),
+})
+}
+
+return { error }
 }
 
 // ===============================
@@ -70,12 +88,30 @@ export async function rewardSupporter(
 
   if (existing) return
 
-  return supabase.from('egg_puff_ledger').insert({
-    user_id: userId,
-    amount: 0.5,
-    reason: 'Supported correct answer',
-    answer_id: answerId,
-  })
+const { error } = await supabase.from('egg_puff_ledger').insert({
+  user_id: userId,
+  amount: 0.5,
+  reason: 'Supported correct answer',
+  answer_id: answerId,
+})
+
+// 🔔 PUSH AFTER SUCCESS
+if (!error) {
+  await new Promise(res => setTimeout(res, 8000))
+
+  await fetch('/api/push/send', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    userId,
+    title: '👍 Supported',
+    message: 'New activity on your answer',
+    url: '/feed',
+  }),
+})
+}
+
+return { error }
 }
 
 // ===============================
@@ -120,8 +156,22 @@ export async function rewardForPyp(
     })
 
   if (ledgerError) {
-    return { success: false, error: ledgerError }
-  }
+  return { success: false, error: ledgerError }
+}
 
-  return { success: true }
+// 🔔 PUSH AFTER SUCCESS
+await new Promise(res => setTimeout(res, 8000))
+
+await fetch('/api/push/send', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    userId,
+    title: '🥐 EP Added',
+    message: 'You received EP in your account',
+    url: '/feed',
+  }),
+})
+
+return { success: true }
 }
