@@ -49,10 +49,10 @@ export default function QuestionPage({
       setMe(user?.id || null)
 
       const { data: q } = await supabase
-        .from('questions')
-        .select('*')
-        .eq('user_id', id)
-        .single()
+  .from('questions')
+  .select('*')
+  .eq('id', id)
+  .single()
 
       setQuestion(q)
 
