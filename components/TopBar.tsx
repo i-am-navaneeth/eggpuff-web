@@ -190,17 +190,6 @@ export default function TopBar() {
             {balance}
           </button>
 
-          {/* ASK */}
-          {!isAskPage && (
-            <Link href={askHref} title="Ask a question">
-              <button
-                className="px-3 sm:px-4 py-1.5 rounded-full text-sm sm:text-base font-medium border border-amber-400 bg-amber-400 text-gray-900"
-              >
-                Ask
-              </button>
-            </Link>
-          )}
-
           <button
   onClick={() => router.push('/profile')}
   title="Profile"

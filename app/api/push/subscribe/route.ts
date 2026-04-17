@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+
+export const runtime = 'nodejs'
+
+// 🔥 ADMIN CLIENT (bypasses RLS)
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export async function POST(req: Request) {
   try {
@@ -16,15 +25,26 @@ export async function POST(req: Request) {
       })
     }
 
-    // ✅ Insert into DB
-    const { data, error } = await supabase
+    // ✅ Get user (optional but useful)
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    // ✅ Insert into DB (refined + ADMIN CLIENT)
+    const { data, error } = await supabaseAdmin
       .from('push_subscriptions')
       .insert([
         {
-          subscription: sub,
+          user_id: sub.user_id ?? null,
+          endpoint: sub.endpoint,
+          p256dh: sub.keys?.p256dh ?? null,
+          auth: sub.keys?.auth ?? null,
         },
       ])
-      .select() // 👈 helps debug + confirms insert
+      .select()
+
+    console.log('INSERT RESULT:', data)
+    console.log('INSERT ERROR:', error)
 
     if (error) {
       console.error(

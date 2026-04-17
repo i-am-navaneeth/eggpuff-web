@@ -2,7 +2,8 @@ import './globals.css'
 
 import type { Metadata, Viewport } from 'next'
 
-import ClientWrapper from '@/components/ClientWrapper' // ✅ NEW
+import ClientWrapper from '@/components/ClientWrapper' 
+import PushInit from '@/components/PushInit'
 
 /* ========================================
    Metadata
@@ -52,7 +53,7 @@ export const metadata: Metadata = {
 
   /* 🔥 GOOGLE VERIFICATION */
   verification: {
-    google: '1sGCbWbrj8S_brZa2g6_ewVDyOCXXbnmcoBX6lKfvYg', // 🔁 replace this
+    google: '1sGCbWbrj8S_brZa2g6_ewVDyOCXXbnmcoBX6lKfvYg', 
   },
 }
 
@@ -74,6 +75,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body suppressHydrationWarning>
+      <PushInit />
         <ClientWrapper>{children}</ClientWrapper>
       </body>
     </html>

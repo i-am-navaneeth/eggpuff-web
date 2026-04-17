@@ -24,7 +24,7 @@ useEffect(() => {
       .from('profiles')
       .select('is_admin')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
     console.log('PROFILE:', profile)
 

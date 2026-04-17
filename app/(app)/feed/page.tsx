@@ -195,7 +195,6 @@ const { data: qs, error } = await query
 if (error) {
   console.error('❌ FETCH ERROR:', error)
 }
-console.log('QUESTION USER IDS:', (qs ?? []).map(q => q.user_id))
 
       if (!mounted) return
 
@@ -238,9 +237,6 @@ if (userIds.length > 0) {
     profiles = (data ?? []) as Profile[]
   }
 }
-
-console.log('PROFILES:', profiles)
-console.log('USER IDS USED FOR FETCH:', userIds)
 
 // ✅ PROFILE MAP (FIXED)
 const profileMap: Record<string, Profile> = {}
@@ -682,6 +678,33 @@ const visibleQuestions = questions
           </div>
 
         </aside>
+        <div
+  style={{
+    position: 'fixed',
+    bottom: 24,
+    right: 24,
+    zIndex: 50,
+  }}
+>
+  <button
+    onClick={() => router.push('/ask')}
+    style={{
+      width: 72,
+      height: 72,
+      borderRadius: '50%',
+      background: '#F4B860',
+      border: 'none',
+      boxShadow: '0 6px 16px rgba(0,0,0,0.2)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 32,
+      cursor: 'pointer',
+    }}
+  >
+    +
+  </button>
+</div>
 
       </div>
     </div>

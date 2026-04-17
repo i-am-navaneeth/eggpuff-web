@@ -1,19 +1,11 @@
 self.addEventListener('install', (event) => {
-  console.log('Service Worker Installed')
-
-  // Activate immediately
+  console.log('SW installing...')
   self.skipWaiting()
 })
 
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker Activated')
-
-  // Take control immediately
-  event.waitUntil(self.clients.claim())
-})
-
-self.addEventListener('fetch', () => {
-  // (kept as is — no caching logic yet)
+  console.log('SW activating...')
+  event.waitUntil(self.clients.claim()) // 🔥 THIS IS CRITICAL
 })
 
 // 🔔 PUSH EVENT
