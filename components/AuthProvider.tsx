@@ -3,6 +3,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { usePathname } from 'next/navigation';
 
 type Props = {
   children: ReactNode;
@@ -11,42 +12,45 @@ type Props = {
 
 export default function AuthProvider({ children, skipRedirect }: Props) {
   const router = useRouter();
-  const [loading, setLoading] = useState(true); // 🔥 NEW
+  const [loading, setLoading] = useState(true);
+  const pathname = usePathname();
 
   useEffect(() => {
-  const handleSession = async () => {
-    await supabase.auth.getUser()
-  }
+    const handleSession = async () => {
+      await supabase.auth.getUser();
+    };
 
-  handleSession()
-}, [])
+    handleSession();
+  }, []);
 
   useEffect(() => {
     const init = async () => {
       if (typeof window === 'undefined') return;
 
       const {
-  data: { user },
-} = await supabase.auth.getUser();
+        data: { user },
+      } = await supabase.auth.getUser();
 
-      const path = window.location.pathname;
+      const path = pathname;
 
-// 🔥 Handle OAuth redirect properly (FINAL FIX)
-if (window.location.search.includes('code=')) {
-  const {
-    data: { subscription },
-  } = supabase.auth.onAuthStateChange((event, newSession) => {
-    if (event === 'SIGNED_IN' && newSession?.user) {
-      window.history.replaceState({}, document.title, '/feed');
-      router.replace('/feed');
-    }
-  });
+      // 🔥 Handle OAuth redirect properly
+      if (typeof window !== 'undefined' && window.location.search.includes('code=')) {
+  if (path !== '/feed') {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (event === 'SIGNED_IN' && newSession?.user) {
+        window.history.replaceState({}, document.title, '/feed');
+        router.replace('/feed');
+      }
+    });
 
-  setLoading(false);
+    setLoading(false);
 
-  return () => {
-    subscription.unsubscribe();
-  };
+    return () => {
+      subscription.unsubscribe();
+    };
+  }
 }
 
       const publicRoutes = ['/', '/login', '/what-is-eggpuff'];
@@ -55,29 +59,24 @@ if (window.location.search.includes('code=')) {
         publicRoutes.includes(path) ||
         path.startsWith('/what-is-eggpuff');
 
-        // 🔥 ALWAYS redirect if logged in (FINAL FIX)
-const isAdminRoute = path.startsWith('/admin$$$db')
+      const isAdminRoute = path.startsWith('/admin$$$db');
 
-// 🔐 fetch admin status (you already have profiles table)
-const { data: profile } = await supabase
-  .from('profiles')
-  .select('is_admin')
-  .eq('id', user?.id)
-  .maybeSingle()
+      // 🔐 fetch admin status
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('user_id', user?.id)
+        .maybeSingle();
 
-const isAdmin = profile?.is_admin === true
+      const isAdmin = profile?.is_admin === true;
 
-if (isAdminRoute && !isAdmin) {
-  router.replace('/feed')
-  return
-}
+      // 🔥 Admin protection (KEEP)
+      if (isAdminRoute && !isAdmin) {
+        router.replace('/feed');
+        setLoading(false);
+        return;
+      }
 
-if (user && !isAdminRoute) {
-  if (path !== '/feed') {
-    router.replace('/feed')
-    return
-  }
-}
       // 🔐 Not logged in
       if (!user) {
         if (!skipRedirect && !isPublicRoute) {
@@ -87,10 +86,15 @@ if (user && !isAdminRoute) {
         return;
       }
 
-      // ✅ Logged in → prevent staying on login page
+      // ✅ Logged in → only redirect from login page
       if (path === '/login') {
         router.replace('/feed');
+        setLoading(false);
+        return;
       }
+
+      // ✅ IMPORTANT: DO NOT force redirect to /feed everywhere
+      // (this was causing your bug)
 
       setLoading(false);
     };
@@ -98,20 +102,29 @@ if (user && !isAdminRoute) {
     init();
 
     const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'INITIAL_SESSION') return;
-      if (event === 'SIGNED_OUT') return;
+  data: { subscription },
+} = supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'INITIAL_SESSION') return;
+  if (event === 'SIGNED_OUT') return;
 
-      init();
-    });
+  // 🔥 LOGIN SUCCESS → FORCE FEED
+ if (event === 'SIGNED_IN' && session?.user) {
+  // 🔥 ONLY redirect if coming from login page
+  if (pathname === '/login') {
+    router.replace('/feed');
+  }
+  return;
+}
+
+  init();
+});
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [router, skipRedirect]);
+  }, [router, skipRedirect, pathname]);
 
-  // 🔥 Prevent UI flicker / wrong redirects
+  // 🔥 Prevent UI flicker
   if (loading) return null;
 
   return <>{children}</>;

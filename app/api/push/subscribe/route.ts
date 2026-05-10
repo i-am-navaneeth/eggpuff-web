@@ -32,25 +32,27 @@ export async function POST(req: Request) {
 
     // ✅ Insert into DB (refined + ADMIN CLIENT)
     const { data, error } = await supabaseAdmin
-      .from('push_subscriptions')
-      .insert([
-        {
-          user_id: sub.user_id ?? null,
-          endpoint: sub.endpoint,
-          p256dh: sub.keys?.p256dh ?? null,
-          auth: sub.keys?.auth ?? null,
-        },
-      ])
-      .select()
+  .from('push_subscriptions')
+  .upsert(
+    [
+      {
+        user_id: sub.user_id ?? null,
+        endpoint: sub.endpoint,
+        p256dh: sub.keys?.p256dh ?? null,
+        auth: sub.keys?.auth ?? null,
+      },
+    ],
+    {
+      onConflict: 'endpoint', // 🔥 prevents duplicate error
+    }
+  )
+  .select()
 
-    console.log('INSERT RESULT:', data)
-    console.log('INSERT ERROR:', error)
-
-    if (error) {
-      console.error(
-        '❌ Supabase error FULL:',
-        JSON.stringify(error, null, 2)
-      )
+// 🔍 keep your logging/debug (if any)
+if (error) {
+  console.error('❌ Supabase error FULL:', JSON.stringify(error, null, 2))
+} else {
+  console.log('✅ INSERT/UPSERT RESULT:', data)
 
       return NextResponse.json({
         success: false,

@@ -55,8 +55,8 @@ export default function LoginPage() {
       hostname === 'localhost' || hostname === '127.0.0.1'
 
     const redirectUrl = isLocalhost
-  ? 'http://localhost:3000'
-  : 'https://eggpuff.in'
+  ? 'http://localhost:3000/feed'
+  : 'https://eggpuff.in/feed'
   
     const { error } = await supabase.auth.signInWithOAuth({
   provider: 'google',
@@ -156,17 +156,17 @@ export default function LoginPage() {
           opacity: loading ? 0.7 : 1,
         }}
         onMouseEnter={(e) => {
-          if (!loading) {
-            e.currentTarget.style.background = '#E9A94F'
-            e.currentTarget.style.transform = 'translateY(-2px)'
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!loading) {
-            e.currentTarget.style.background = '#F4B860'
-            e.currentTarget.style.transform = 'translateY(0)'
-          }
-        }}
+  if (!loading) {
+    e.currentTarget.style.backgroundColor = '#E9A94F'
+    e.currentTarget.style.transform = 'translateY(-2px)'
+  }
+}}
+onMouseLeave={(e) => {
+  if (!loading) {
+    e.currentTarget.style.backgroundColor = '#F4B860'
+    e.currentTarget.style.transform = 'translateY(0)'
+  }
+}}
       >
         {loading ? 'Connecting...' : 'Continue with Google'}
       </button>

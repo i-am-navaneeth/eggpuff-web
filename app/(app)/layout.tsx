@@ -1,106 +1,81 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import TopBar from '@/components/TopBar'
+import Sidebar from '@/components/sidebar'
+import MobileNavbar from '@/components/mobile-navbar'
+import FloatingAskButton from '@/components/FloatingAskButton'
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { usePathname } from 'next/navigation'
 
-const CAMPUS_BANNER_KEY = 'campusBannerDismissed'
 
-export default function AppLayout({
+export default function Layout({
   children,
+  modal,
 }: {
   children: React.ReactNode
+  modal: React.ReactNode
 }) {
-  const [showCampusNote, setShowCampusNote] = useState(false)
+
+  const [userId, setUserId] = useState<string | null>(null)
+  const pathname = usePathname()
+  const isSearch = pathname.startsWith('/search')
+  const onRefreshFeed = () => {
+  window.dispatchEvent(
+    new CustomEvent('ep-refresh-feed')
+  )
+}
 
   useEffect(() => {
-    const dismissed = localStorage.getItem(CAMPUS_BANNER_KEY)
-    if (!dismissed) setShowCampusNote(true)
-  }, [])
-
-  const dismissCampusBanner = () => {
-    localStorage.setItem(CAMPUS_BANNER_KEY, 'true')
-    setShowCampusNote(false)
+  const loadUser = async () => {
+    const { data } = await supabase.auth.getSession()
+    const user = data?.session?.user
+    if (user) setUserId(user.id)
   }
 
+  loadUser()
+}, [])
+
   return (
-    <div className="min-h-screen bg-[#f5f5f5] flex flex-col">
+    <div className="min-h-screen bg-[#f5f5f5] flex">
 
-      {/* ===================== CAMPUS BANNER ===================== 
-      {showCampusNote && (
-        <div
-          style={{
-            position: 'relative',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '8px 16px',
-            fontSize: 13,
-            background: '#FFF3E0',
-            color: '#111827',
-            textAlign: 'center',
-            borderBottom: '1px solid #FFE0B2',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            <span>
-              Available for{' '}
-              <strong>Pydah College of Engineering, Patavala</strong> only.
-            </span>
-
-            {/* Beta pill 
-            <span
-              style={{
-                fontSize: 12,
-                padding: '2px 8px',
-                borderRadius: 999,
-                background: '#F1D6A8',
-                color: '#7A4E00',
-                fontWeight: 600,
-              }}
-            >
-              Beta
-            </span>
-          </div>
-
-          <button
-            onClick={dismissCampusBanner}
-            style={{
-              position: 'absolute',
-              right: 8,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              opacity: 0.5,
-              fontSize: 16,
-            }}
-          >
-            ×
-          </button>
-        </div>
-      )}
-*/}
-      {/* ===================== TOP BAR ===================== */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-[#f5f5f5] shadow-sm">
-        <div className="max-w-[1140px] mx-auto px-6">
-          <TopBar />
-        </div>
+      {/* ===================== SIDEBAR (DESKTOP ONLY) ===================== 
+      <div className="hidden lg:flex">
+        <Sidebar />
       </div>
+*/}
+      {/* ===================== MAIN CONTENT ===================== */}
+      <div className="flex-1 flex flex-col">
 
-     {/* ===================== PAGE CONTENT ===================== */}
-<div className="pt-[55px] px-0 sm:px-6 max-w-[1140px] mx-auto w-full">
-  <main className="flex-1 py-4">
-    {children}
-  </main>
-</div>
+        {/* ===================== TOP BAR ===================== */}
+      {!pathname.startsWith('/search') && (
+  <div className="fixed top-0 left-0 right-0 z-50 bg-[#f5f5f5] shadow-sm lg:pl-[80px]">
+    <div className="max-w-[1140px] mx-auto px-6">
+      <TopBar
+  currentUserId={userId}
+  onRefreshFeed={onRefreshFeed}
+/>
+    </div>
+  </div>
+)}
+        {/* ===================== PAGE CONTENT ===================== */}
+        <div
+  className={`${
+    pathname.startsWith('/search') ? 'pt-0 mt-0' : 'pt-[55px]'
+  } px-0 sm:px-6 max-w-[1140px] mx-auto w-full lg:pl-[80px]`}
+>
+          <main className="flex-1 py-4">
+            {children}
+            {modal}
+          </main>
+          
+            <MobileNavbar userId={userId || undefined} />
+            <FloatingAskButton />
+            
+          
+        </div>
 
+      </div>
     </div>
   )
 }

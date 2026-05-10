@@ -8,28 +8,48 @@ type Answer = {
   text: string
   user_id: string
   approved: boolean
+  created_at?: string
+  avatar_url?: string
+  username?: string
 }
 
 type Props = {
   answer: Answer
   isAsker: boolean
+  isLast?: boolean
 }
 
-export default function AnswerCard({ answer, isAsker }: Props) {
+// ===============================
+// TIME FORMAT
+// ===============================
+function formatTimeAgo(dateString?: string) {
+  if (!dateString) return ''
+
+  const now = Date.now()
+  const time = new Date(dateString).getTime()
+  const diff = Math.floor((now - time) / 1000)
+
+  if (diff < 60) return 'now'
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`
+  return `${Math.floor(diff / 86400)}d`
+}
+
+export default function AnswerCard({ answer, isAsker, isLast }: Props) {
   const [liked, setLiked] = useState(false)
   const [likeCount, setLikeCount] = useState(0)
   const [approved, setApproved] = useState(answer.approved)
   const [loading, setLoading] = useState(false)
 
   // ===============================
-  // SYNC APPROVAL STATE FROM DB
+  // SYNC APPROVAL STATE
   // ===============================
   useEffect(() => {
     setApproved(answer.approved)
   }, [answer.approved])
 
   // ===============================
-  // LOAD LIKE STATE + COUNT (DB = SOURCE OF TRUTH)
+  // LOAD LIKE STATE + COUNT
   // ===============================
   useEffect(() => {
     let mounted = true
@@ -66,7 +86,7 @@ export default function AnswerCard({ answer, isAsker }: Props) {
   }, [answer.id])
 
   // ===============================
-  // LIKE (ONCE PER USER)
+  // LIKE
   // ===============================
   const like = async () => {
     if (liked) return
@@ -77,7 +97,6 @@ export default function AnswerCard({ answer, isAsker }: Props) {
 
     if (!user) return
 
-    // optimistic UI
     setLiked(true)
     setLikeCount((c) => c + 1)
 
@@ -86,7 +105,6 @@ export default function AnswerCard({ answer, isAsker }: Props) {
       user_id: user.id,
     })
 
-    // rollback if failed
     if (error) {
       setLiked(false)
       setLikeCount((c) => Math.max(0, c - 1))
@@ -94,7 +112,7 @@ export default function AnswerCard({ answer, isAsker }: Props) {
   }
 
   // ===============================
-  // APPROVE (STRICTLY ONCE — DB FUNCTION)
+  // APPROVE
   // ===============================
   const approve = async () => {
     if (approved || loading) return
@@ -104,7 +122,6 @@ export default function AnswerCard({ answer, isAsker }: Props) {
       p_answer_id: answer.id,
     })
 
-    // UI stays correct because DB updates `approved`
     setApproved(true)
     setLoading(false)
   }
@@ -112,81 +129,145 @@ export default function AnswerCard({ answer, isAsker }: Props) {
   return (
     <div
       style={{
-        border: approved ? '2px solid #16a34a' : '1px solid #e5e7eb',
-        background: approved ? '#f0fdf4' : '#fff',
-        padding: 14,
+        display: 'flex',
+        gap: 12,
         marginTop: 12,
-        borderRadius: 12,
-        transition: 'all 0.2s ease',
       }}
     >
-      {/* ANSWER TEXT */}
-      <p style={{ marginBottom: 10 }}>{answer.text}</p>
+      {/* LEFT: Avatar + Thread */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          width: 36,
+        }}
+      >
+        <img
+          src={answer.avatar_url || '/default-avatar.png'}
+          alt=""
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            objectFit: 'cover',
+          }}
+        />
 
-      {/* APPROVED BADGE */}
-      {approved && (
-        <strong style={{ color: '#16a34a' }}>
-          ✅ Approved
-        </strong>
-      )}
+        {!isLast && (
+          <div
+            style={{
+              width: 2,
+              flex: 1,
+              background: '#E5E7EB',
+              marginTop: 4,
+            }}
+          />
+        )}
+      </div>
 
-      {/* ACTIONS */}
-      {!approved && (
+      {/* RIGHT: Content */}
+      <div style={{ flex: 1 }}>
         <div
           style={{
-            display: 'flex',
-            gap: 12,
-            alignItems: 'center',
+            border: approved ? '2px solid #16a34a' : '1px solid #e5e7eb',
+            background: approved ? '#f0fdf4' : '#fff',
+            padding: 14,
+            borderRadius: 12,
+            transition: 'all 0.2s ease',
           }}
         >
-          {/* LIKE BUTTON */}
-          <button
-            onClick={like}
-            disabled={liked}
+          {/* USERNAME */}
+          <div
             style={{
-              border: 'none',
-              background: liked ? '#111' : '#f3f4f6',
-              color: liked ? '#fff' : '#111',
-              borderRadius: 999,
-              padding: '6px 14px',
-              cursor: liked ? 'default' : 'pointer',
-              fontSize: 16,
-              transition: 'all 0.15s ease',
+              fontSize: 13,
+              fontWeight: 600,
+              marginBottom: 4,
             }}
           >
-            👍
-          </button>
+            {answer.username || '@user'}
+          </div>
 
-          {/* ASKER CONTROLS */}
-          {isAsker && (
-            <>
-              <span
-                style={{
-                  fontSize: 14,
-                  opacity: 0.6,
-                }}
-              >
-                {likeCount} likes
-              </span>
+          {/* TIMESTAMP */}
+          {answer.created_at && (
+            <div
+              style={{
+                fontSize: 12,
+                color: '#6B7280',
+                marginBottom: 6,
+              }}
+            >
+              {formatTimeAgo(answer.created_at)}
+            </div>
+          )}
 
+          {/* TEXT */}
+          <p style={{ marginBottom: 10 }}>{answer.text}</p>
+
+          {/* APPROVED */}
+          {approved && (
+            <strong style={{ color: '#16a34a' }}>
+              ✅ Approved
+            </strong>
+          )}
+
+          {/* ACTIONS */}
+          {!approved && (
+            <div
+              style={{
+                display: 'flex',
+                gap: 12,
+                alignItems: 'center',
+              }}
+            >
               <button
-                onClick={approve}
-                disabled={loading}
+                onClick={like}
+                disabled={liked}
                 style={{
-                  fontSize: 14,
-                  background: '#fde68a',
                   border: 'none',
-                  borderRadius: 8,
-                  padding: '6px 12px',
-                  cursor: loading ? 'default' : 'pointer',
+                  background: liked ? '#111' : '#f3f4f6',
+                  color: liked ? '#fff' : '#111',
+                  borderRadius: 999,
+                  padding: '6px 14px',
+                  cursor: liked ? 'default' : 'pointer',
+                  fontSize: 16,
+                  transition: 'all 0.15s ease',
                 }}
               >
-                Approve
+                👍
               </button>
-            </>
+
+              {isAsker && (
+                <>
+                  <span
+                    style={{
+                      fontSize: 14,
+                      opacity: 0.6,
+                    }}
+                  >
+                    {likeCount} likes
+                  </span>
+
+                  <button
+                    onClick={approve}
+                    disabled={loading}
+                    style={{
+                      fontSize: 14,
+                      background: '#fde68a',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '6px 12px',
+                      cursor: loading ? 'default' : 'pointer',
+                    }}
+                  >
+                    Approve
+                  </button>
+                </>
+              )}
+            </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   )
 }

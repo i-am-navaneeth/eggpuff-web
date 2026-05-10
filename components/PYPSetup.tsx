@@ -77,57 +77,177 @@ export default function PYPSetup({ userId, onDone }: Props) {
     }
   }
 
-  return (
-    <div style={{ marginTop: 8 }}>
-      <h3 style={{ marginBottom: 8 }}>
-        Promote your profile ✨
-      </h3>
+ return (
+  <div
+    style={{
+      marginTop: 10,
+    }}
+  >
+    <div
+      style={{
+        fontSize: 18,
+        fontWeight: 600,
 
-      <input
-        placeholder="Instagram / YouTube / Portfolio link"
-        value={link}
-        onChange={e => setLink(e.target.value)}
+        letterSpacing: '-0.8px',
+
+        marginBottom: 18,
+
+        color: '#111827',
+      }}
+    >
+      Promote Your Profile ✨
+    </div>
+
+    <input
+      placeholder="Instagram / YouTube / Link"
+      value={link}
+      onChange={(e) =>
+        setLink(e.target.value)
+      }
+      style={{
+        width: '100%',
+
+        padding: '16px 18px',
+
+        borderRadius: 18,
+
+        border: '1px solid #E5E7EB',
+
+        fontSize: 16,
+
+        outline: 'none',
+
+        marginBottom: 10,
+
+        background: '#FFFFFF',
+      }}
+    />
+
+    <input
+      placeholder="Caption (optional)"
+      value={caption}
+      onChange={(e) =>
+        setCaption(e.target.value)
+      }
+      style={{
+        width: '100%',
+
+        padding: '16px 18px',
+
+        borderRadius: 18,
+
+        border: '1px solid #E5E7EB',
+
+        fontSize: 16,
+
+        outline: 'none',
+
+        marginBottom: 18,
+
+        background: '#FFFFFF',
+      }}
+    />
+
+    <div
+      style={{
+        textAlign: 'center',
+
+        marginBottom: 20,
+
+        lineHeight: 1.7,
+      }}
+    >
+      <div
         style={{
-          width: '100%',
-          padding: 10,
-          borderRadius: 10,
-          border: '1px solid #ddd',
-          marginBottom: 8,
-        }}
-      />
+          fontSize: 16,
+          fontWeight: 700,
 
-      <input
-        placeholder="Short caption (optional)"
-        value={caption}
-        onChange={e => setCaption(e.target.value)}
-        style={{
-          width: '100%',
-          padding: 10,
-          borderRadius: 10,
-          border: '1px solid #ddd',
-          marginBottom: 12,
-        }}
-      />
-
-      <p style={{ fontSize: 14, opacity: 0.8, marginBottom: 12 }}>
-        Duration: <b>24 hours</b>
-        <br />
-        Cost: <b>14 🥐</b>
-        <br />
-        Bonus: <b>+24 extra impressions</b>
-      </p>
-
-      <button
-        onClick={startPYP}
-        disabled={loading}
-        style={{
-          width: '100%',
-          padding: 12,
-          borderRadius: 12,
+          color: '#111827',
         }}
       >
-        {loading ? 'Starting…' : 'Confirm'}
-      </button>
+        24h • 14 🥐
+      </div>
+
+      <div
+        style={{
+          fontSize: 14,
+
+          color: '#059669',
+
+          fontWeight: 600,
+        }}
+      >
+        +24 bonus impressions
+      </div>
     </div>
-  )
-}
+
+    <button
+      onClick={startPYP}
+      disabled={loading}
+      onMouseDown={(e) => {
+        if (!loading) {
+          e.currentTarget.style.transform =
+            'scale(0.94)'
+        }
+      }}
+      onMouseUp={(e) => {
+        e.currentTarget.style.transform =
+          'scale(1)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform =
+          'scale(1)'
+      }}
+      onTouchStart={(e) => {
+        if (!loading) {
+          e.currentTarget.style.transform =
+            'scale(0.94)'
+        }
+      }}
+      onTouchEnd={(e) => {
+        e.currentTarget.style.transform =
+          'scale(1)'
+      }}
+      style={{
+        width: '100%',
+
+        padding: '18px 18px',
+
+        borderRadius: 22,
+
+        border: 'none',
+
+        background: loading
+          ? '#FDE7BF'
+          : '#F4B860',
+
+        color: '#121212',
+
+        fontSize: 18,
+
+        fontWeight: 800,
+
+        letterSpacing: '-0.3px',
+
+        cursor: loading
+          ? 'not-allowed'
+          : 'pointer',
+
+        opacity: loading ? 0.75 : 1,
+
+        boxShadow:
+          '0 10px 26px rgba(244,184,96,0.22)',
+
+        transition:
+          'transform 0.16s cubic-bezier(.34,1.56,.64,1)',
+
+        WebkitTapHighlightColor:
+          'transparent',
+      }}
+    >
+      {loading
+        ? 'Starting…'
+        : 'Start Promotion'}
+    </button>
+  </div>
+)}

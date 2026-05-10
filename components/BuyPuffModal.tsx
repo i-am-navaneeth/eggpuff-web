@@ -125,9 +125,41 @@ const submitUTR = async () => {
       {/* STEP: CHOOSE */}
       {step === 'choose' && (
         <>
-          <button style={primaryBtn} onClick={handleBuyClick}>
-            Buy 🥐
-          </button>
+          <button
+  onClick={handleBuyClick}
+  style={{
+    width: '100%',
+
+    padding: '14px 18px',
+
+    borderRadius: 16,
+
+    background: '#F4B860',
+
+color: '#121212',
+
+border: 'none',
+
+    fontSize: 18,
+
+    fontWeight: 700,
+
+    letterSpacing: '-0.2px',
+
+    cursor: 'pointer',
+
+    transition:
+      'all 0.15s ease',
+
+    boxShadow:
+      '0 4px 14px rgba(244,184,96,0.18)',
+
+    WebkitTapHighlightColor:
+      'transparent',
+  }}
+>
+  Buy 🥐
+</button>
 
           <button
             style={secondaryBtn}
@@ -154,9 +186,12 @@ const submitUTR = async () => {
             style={qr}
           />
 
-          <button onClick={() => setStep('utr')}>
-            Payment done →
-          </button>
+          <button
+  onClick={() => setStep('utr')}
+  style={actionBtn}
+>
+  Payment done →
+</button>
         </>
       )}
 
@@ -176,7 +211,12 @@ const submitUTR = async () => {
             style={input}
           />
 
-          <button onClick={submitUTR}>Submit</button>
+          <button
+  onClick={submitUTR}
+  style={actionBtn}
+>
+  Submit
+</button>
         </>
       )}
 
@@ -251,18 +291,65 @@ const modal = {
   transform: 'translateY(-10px)', // small lift effect
 }
 
-const primaryBtn = {
+const actionBtn = {
   width: '100%',
-  padding: 12,
-  borderRadius: 12,
-  marginBottom: 10,
+
+  padding: '16px 18px',
+
+  borderRadius: 20,
+
+  border: 'none',
+
+  background: '#F4B860',
+
+  color: '#121212',
+
+  fontSize: 17,
+
+  fontWeight: 700,
+
+  letterSpacing: '-0.2px',
+
+  cursor: 'pointer',
+
+  marginTop: 10,
+
+  boxShadow:
+    '0 10px 26px rgba(244,184,96,0.22)',
+
+  transition:
+    'transform 0.18s cubic-bezier(.34,1.56,.64,1)',
+
+  WebkitTapHighlightColor:
+    'transparent',
 }
 
 const secondaryBtn = {
   width: '100%',
-  padding: 12,
-  borderRadius: 12,
-  background: '#f9fafb',
+
+  padding: '16px 18px',
+
+  borderRadius: 20,
+
+  border: 'none',
+
+  background: '#F3F4F6',
+
+  color: '#111827',
+
+  fontSize: 17,
+
+  fontWeight: 700,
+
+  cursor: 'pointer',
+
+  marginTop: 12,
+
+  transition:
+    'transform 0.18s cubic-bezier(.34,1.56,.64,1)',
+
+  WebkitTapHighlightColor:
+    'transparent',
 }
 
 const priceRow = {

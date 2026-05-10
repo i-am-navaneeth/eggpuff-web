@@ -201,14 +201,14 @@ export default function NotificationBell() {
                 background: n.read ? '#fff' : '#F9FAFB',
                 transition: 'all 0.15s ease',
               }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = '#F3F4F6'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = n.read
-                  ? '#fff'
-                  : '#F9FAFB'
-              }}
+              onMouseEnter={(e) => {
+  e.currentTarget.style.backgroundColor = '#F3F4F6'
+}}
+onMouseLeave={(e) => {
+  e.currentTarget.style.backgroundColor = n.read
+    ? '#FFFFFF'
+    : '#F9FAFB'
+}}
             >
               {n.message}
             </div>

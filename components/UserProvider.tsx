@@ -49,26 +49,6 @@ function UserLogic({ children }: { children: ReactNode }) {
         })
       }
 
-      // 🔥 CREATE PROFILE IF NOT EXISTS
-      if (!profile) {
-        const { data: newProfile, error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: userId,
-            email: email,
-            welcome_shown: false,
-          })
-          .select()
-          .single()
-
-        if (insertError) {
-          console.error('Profile create error:', insertError)
-          return
-        }
-
-        profile = newProfile
-      }
-
       // 🎉 WELCOME BONUS
       if (profile && profile.welcome_shown === false) {
         notify('🎉 Welcome to EggPuff! You received 5 free 🥐 EP.')

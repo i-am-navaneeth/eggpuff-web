@@ -90,10 +90,10 @@ export function NotificationProvider({
               payload.new.user_id === user.id
             )
               return
-
+            /* Disabled due to new Questions banner as X 
             notify(
               '📢 New campus question posted'
-            )
+            )*/
           }
         )
         .subscribe()

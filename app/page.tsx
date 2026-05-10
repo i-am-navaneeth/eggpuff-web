@@ -62,20 +62,20 @@ export default function Home() {
         <h1 className="text-2xl font-bold">EggPuff</h1>
 
         <button
-          onClick={handleGoogleLogin}
-          className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-5 py-2 rounded-xl font-semibold hover:scale-105 transition"
+          onClick={() => router.push('/login')}
+          className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-8 py-3 rounded-xl font-semibold hover:scale-105 transition"
         >
-          Continue with Google
+          Join your campus
         </button>
       </div>
 
       {/* ================= HERO ================= */}
       <section className="text-center px-6 mt-16 mb-20 relative">
 
-        {/* 🎯 Dynamic badge */}
+        {/* 🎯 Dynamic badge 
         <div className="mb-6 inline-block bg-white/10 px-4 py-1 rounded-full text-sm border border-white/20">
           🎯 {joinedToday} students joined today
-        </div>
+        </div>*/}
 
         <h2 className="text-5xl md:text-7xl font-extrabold mb-6">
           Your Campus,
@@ -88,13 +88,6 @@ export default function Home() {
         <p className="text-gray-400 max-w-2xl mx-auto mb-8">
           Ask questions, connect with students, and grow together — all within your own college.
         </p>
-
-        <button
-          onClick={() => router.push('/login')}
-          className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-8 py-3 rounded-xl font-semibold hover:scale-105 transition"
-        >
-          Join your campus
-        </button>
 
         {/* FLOATING CARDS */}
         <div className="hidden md:block">
@@ -116,6 +109,9 @@ export default function Home() {
 
       </section>
 
+      {/* DIVIDER */}
+      <div className="w-full h-px bg-white/10 mb-6"></div>
+
       {/* ================= RELATABLE PAIN ================= */}
       <section className="text-center max-w-3xl mx-auto mb-20 px-6">
         <h3 className="text-3xl font-semibold mb-6">
@@ -127,6 +123,9 @@ export default function Home() {
           or even knowing what’s happening around you — it’s harder than it should be.
         </p>
       </section>
+
+      {/* DIVIDER */}
+      <div className="w-full h-px bg-white/10 mb-6"></div>
 
       {/* ================= WHAT IS EGGPUFF ================= */}
      <section className="text-center max-w-3xl mx-auto mb-20 px-6">
@@ -161,6 +160,9 @@ export default function Home() {
           </div>
         ))}
       </section>
+
+      {/* DIVIDER */}
+      <div className="w-full h-px bg-white/10 mb-6"></div>
 
       {/* ================= DIFFERENTIATION ================= */}
       <section className="text-center max-w-3xl mx-auto mb-20 px-6">
@@ -204,6 +206,9 @@ export default function Home() {
         </div>
       </section>
 
+      {/* DIVIDER */}
+      <div className="w-full h-px bg-white/10 mb-6"></div>
+
       {/* ================= FINAL CTA ================= */}
       <section className="text-center mb-16">
         <h3 className="text-3xl font-bold mb-4">
@@ -212,11 +217,11 @@ export default function Home() {
 
         <div className="flex justify-center gap-4 flex-wrap">
           <button
-            onClick={handleGoogleLogin}
-            className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-8 py-3 rounded-xl font-semibold"
-          >
-            Continue with Google
-          </button>
+          onClick={() => router.push('/login')}
+          className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-8 py-3 rounded-xl font-semibold hover:scale-105 transition"
+        >
+          Join your campus
+        </button>
 
           <button
             onClick={() => router.push('/login')}

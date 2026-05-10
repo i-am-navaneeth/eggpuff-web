@@ -52,15 +52,14 @@ export default function CategoryGrid({
             cursor: 'pointer',
             transition: 'transform 0.12s ease, box-shadow 0.12s ease',
           }}
-          onMouseEnter={e => {
-            e.currentTarget.style.transform = 'translateY(-1px)'
-            e.currentTarget.style.boxShadow =
-              '0 6px 14px rgba(0,0,0,0.08)'
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = 'none'
-          }}
+          onMouseEnter={(e) => {
+  e.currentTarget.style.transform = 'translateY(-1px)'
+  e.currentTarget.style.boxShadow = '0 6px 14px rgba(0, 0, 0, 0.08)'
+}}
+onMouseLeave={(e) => {
+  e.currentTarget.style.transform = 'translateY(0)'
+  e.currentTarget.style.boxShadow = 'none'
+}}
         >
           {/* 🔴 ACTIVE COUNT BADGE */}
           {cat.activeCount > 0 && (

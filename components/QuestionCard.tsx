@@ -1,7 +1,10 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { markHelpful, markNotUseful } from '@/lib/feedPrefs'
+import LinkPreviewCard from './LinkPreviewCard'
+import QuestionActionsMenu from './QuestionActionsMenu'
 
 type Props = {
   q: {
@@ -16,7 +19,22 @@ type Props = {
     username?: string
     avatar_url?: string
     is_verified?: boolean
+    streak_count?: number
+    is_trending?: boolean
+    _missed?: boolean
+    hideStreak?: boolean
+    is_friend?: boolean
+    user_id?: string
+    link_url?: string
+link_title?: string
+link_description?: string
+link_image?: string
+link_domain?: string
+link_type?: string
   }
+  currentUserId?: string | null
+
+  onDelete?: (id: string) => void
 }
 
 function formatTime(dateString: string) {
@@ -32,67 +50,131 @@ function formatTime(dateString: string) {
   return `${date.getMonth() + 1}/${date.getDate()}`
 }
 
-export default function QuestionCard({ q }: Props) {
+export default function QuestionCard({
+  q,
+  currentUserId,
+  onDelete,
+}: Props){
   const router = useRouter()
+
   const [popped, setPopped] = useState(false)
+  const [showMenu, setShowMenu] =
+  useState(false)
 
-  const goToQuestion = () => {
-    if (q.type === 'bubble') {
-      setPopped(true)
+  useEffect(() => {
+  return () => {
+    setPopped(false)
+  }
+}, [])
 
+  const [feedback, setFeedback] =
+    useState<'up' | 'down' | null>(null)
+
+ const goToQuestion = () => {
+  // 🔥 prevent spam taps
+  if (popped) return
+
+  // 🔥 instant visual feedback
+  setPopped(true)
+
+  // 🔥 save scroll
+  sessionStorage.setItem(
+    'feed_scroll',
+    String(window.scrollY)
+  )
+
+  // 🔥 cache preview
+  sessionStorage.setItem(
+    `question-preview-${q.id}`,
+    JSON.stringify(q)
+  )
+
+  // 🔥 bubble sound (non-blocking)
+  if (q.type === 'bubble') {
+    try {
       const audio = new Audio('/pop.mp3')
-      audio.volume = 0.4
-      audio.play().catch(() => {})
+      audio.volume = 0.15
 
       setTimeout(() => {
-        router.push(`/question/${q.id}`)
-      }, 250)
-    } else {
-      router.push(`/question/${q.id}`)
-    }
+        audio.play().catch(() => {})
+      }, 0)
+    } catch {}
   }
 
-  const hasAnswers = (q.answers_count ?? 0) > 0
+  // 🔥 allow tap animation to finish slightly
+  setTimeout(() => {
+  setPopped(false)
+
+router.push(`/question/${q.id}`)
+}, 85)
+}
+
+  const hasAnswers =
+    (q.answers_count ?? 0) > 0
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={goToQuestion}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') goToQuestion()
-      }}
-      style={{
-        marginBottom: 14,
-        padding: 16,
-        borderRadius: 16,
-        background: q.type === 'bubble' ? '#F3F4F6' : '#FFFFFF',
-        border:
-          q.type === 'bubble'
-            ? '1px dashed #111827'
-            : '1px solid #E5E7EB',
-        cursor: 'pointer',
-        position: 'relative',
-        transition: 'all 0.2s ease',
-        boxShadow: 'none',
+  <div
+    role="button"
+    tabIndex={0}
+    onClick={goToQuestion}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter') goToQuestion()
+    }}
+    style={{
+      marginBottom: 14,
+      padding: 16,
+      borderRadius: 16,
 
-        transform: popped ? 'scale(0.85)' : 'scale(1)',
-        opacity: popped ? 0 : 1,
+      background:
+        q.type === 'bubble'
+          ? '#F3F4F6'
+          : '#FFFFFF',
 
-        animation:
-          q.type === 'bubble'
-            ? 'floatBubble 3s ease-in-out infinite'
-            : undefined,
-      }}
-    >
+      border:
+        q.type === 'bubble'
+          ? '1px dashed #111827'
+          : '1px solid #E5E7EB',
+
+      cursor: 'pointer',
+      position: 'relative',
+
+      boxShadow: popped
+        ? '0 6px 18px rgba(0,0,0,0.06)'
+        : '0 0 0 rgba(0,0,0,0)',
+
+      transition:
+        'transform 0.08s ease-out, box-shadow 0.12s ease-out, opacity 0.08s ease-out',
+
+      transform: 'scale(1)',
+
+opacity: 1,
+
+      animation:
+        q.type === 'bubble'
+          ? 'floatBubble 3s ease-in-out infinite'
+          : undefined,
+
+      WebkitTapHighlightColor: 'transparent',
+
+      willChange: 'transform',
+      backfaceVisibility: 'hidden',
+      transformStyle: 'preserve-3d',
+    }}
+  >
       {/* HEADER */}
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div
+  style={{
+    display: 'flex',
+    gap: 10,
+    alignItems: 'flex-start',
+  }}
+>
         
         {/* AVATAR */}
         <div
           style={{
-            width: 30,
-            height: 30,
+            width: 34,
+            height: 34,
             borderRadius: '50%',
             backgroundImage: `url(${q.avatar_url})`,
             backgroundSize: 'cover',
@@ -100,14 +182,19 @@ export default function QuestionCard({ q }: Props) {
           }}
         />
 
-        <div style={{ flex: 1 }}>
+        <div
+  style={{
+    flex: 1,
+    minWidth: 0,
+  }}
+>
           
           {/* NAME + MORE */}
           <div
             style={{
               display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'center',
+              alignItems: 'flex-start',
             }}
           >
             <div
@@ -116,11 +203,18 @@ export default function QuestionCard({ q }: Props) {
     fontSize: 12.5,
     opacity: 0.9,
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 4,
   }}
 >
-  {q.user_name || 'Anonymous'}
+  {q.hideStreak
+  ? (q.user_name || 'Anonymous')
+  : (
+      q.is_friend || q.user_id === currentUserId
+        ? `${q.user_name || 'Anonymous'} 🔥${q.streak_count ?? 0}`
+        : (q.user_name || 'Anonymous')
+    )
+}
   {q.is_verified && (
     <span
   style={{
@@ -161,26 +255,138 @@ export default function QuestionCard({ q }: Props) {
 </span>
   )}
 </div>
+{q.is_trending && (
+  <span
+    style={{
+      display: 'flex',
+      justifyContent: 'space-around',
+      alignItems: 'center',
+      gap: 6,
+      padding: '3px 10px',
+      borderRadius: 999,
+      fontSize: 10,
+      fontWeight: 600,
+      background: 'linear-gradient(135deg, #FFF4E5, #FFE7CC)',
+      color: '#D97706',
+      border: '1px solid #FCD9A8',
+      width: 'fit-content',
+      marginTop: 6,
+    }}
+  >
+    🔥 Trending
+  </span>
+)}
 
-            {/* MORE (Hidden for now)*/}
-            {false && (
-            <div style={{ fontSize: 18, color: '#6B7280' }}>⋯</div>)}
+{q._missed && (
+  <div
+    style={{
+      fontSize: 12,
+      fontWeight: 600,
+      color: '#F59E0B',
+      marginBottom: 6,
+    }}
+  >
+    You might’ve missed this 👇
+  </div>
+)}
+
+
+            <div
+  onClick={(e) => e.stopPropagation()}
+  style={{
+    position: 'relative',
+  }}
+>
+  <button
+    onClick={(e) => {
+      e.stopPropagation()
+
+      setShowMenu((prev) => !prev)
+    }}
+    style={{
+      border: 'none',
+      background: 'transparent',
+
+      cursor: 'pointer',
+
+      width: 32,
+      height: 32,
+
+      borderRadius: '50%',
+
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      color: '#6B7280',
+    }}
+  >
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+    >
+      <circle cx="5" cy="12" r="1.8" />
+      <circle cx="12" cy="12" r="1.8" />
+      <circle cx="19" cy="12" r="1.8" />
+    </svg>
+  </button>
+
+  {/* DROPDOWN */}
+  {showMenu && (
+    <div
+      onClick={(e) =>
+        e.stopPropagation()
+      }
+      style={{
+        position: 'absolute',
+
+        top: 36,
+        right: 0,
+
+        zIndex: 50,
+      }}
+    >
+      <QuestionActionsMenu
+        onClose={() =>
+          setShowMenu(false)
+        }
+        isOwner={
+          q.user_id === currentUserId
+        }
+        questionId={q.id}
+      />
+    </div>
+  )}
+</div>
           </div>
 
           {/* USERNAME + TIME */}
-          <div
-            style={{
-              fontSize: 11,
-opacity: 0.6,
-letterSpacing: '0.2px',
-              color: '#6B7280',
-              marginTop: 2,
-            }}
-          >
-            @{q.username || 'user'} • {formatTime(q.created_at)}
-          </div>
-        </div>
-      </div>
+<div
+  style={{
+    fontSize: 11,
+
+    opacity: 0.6,
+
+    letterSpacing: '0.2px',
+
+    color: '#6B7280',
+
+    marginTop: -10,
+
+    lineHeight: 1.05,
+
+    display: 'flex',
+    alignItems: 'center',
+
+    gap: 4,
+  }}
+>
+  @{q.username || 'user'} •{' '}
+  {formatTime(q.created_at)}
+</div>
+</div></div>
 
       {/* QUESTION TEXT */}
       <p
@@ -196,6 +402,17 @@ letterSpacing: '0.2px',
       >
         {q.text}
       </p>
+
+      {q.link_url && (
+  <LinkPreviewCard
+    url={q.link_url}
+    title={q.link_title}
+    description={q.link_description}
+    image={q.link_image}
+    domain={q.link_domain}
+    type={q.link_type}
+  />
+)}
 
       {/* ACTION ROW (Hidden for now) */}
       {false &&(
@@ -294,6 +511,60 @@ letterSpacing: '0.2px',
     }}
   >
     🫧 Expires in 24h
+  </div>
+)}
+
+{q._missed && (
+  <div style={{ marginTop: 8 }}>
+    {feedback === null ? (
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button
+          onClick={(e) => {
+           e.stopPropagation()
+           setFeedback('up')
+           markHelpful(q)
+          }}
+          style={{
+            padding: '4px 10px',
+            borderRadius: 8,
+            border: '1px solid #e5e5e5',
+            background: '#fff',
+            cursor: 'pointer',
+            fontSize: 12,
+          }}
+        >
+          👍 Helpful
+        </button>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            setFeedback('down')
+            markNotUseful(q)
+          }}
+          style={{
+            padding: '4px 10px',
+            borderRadius: 8,
+            border: '1px solid #e5e5e5',
+            background: '#fff',
+            cursor: 'pointer',
+            fontSize: 12,
+          }}
+        >
+          👎 Not useful
+        </button>
+      </div>
+    ) : (
+      <div
+        style={{
+          fontSize: 12,
+          color: '#6B7280',
+          fontWeight: 500,
+        }}
+      >
+        Thanks for your feedback 🙌
+      </div>
+    )}
   </div>
 )}
 

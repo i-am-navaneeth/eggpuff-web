@@ -63,31 +63,29 @@ body {
 /* ========================================
    Buttons
 ======================================== */
-button {
+.btn-primary {
   background: var(--brand);
   border: none;
   border-radius: var(--radius-md);
   padding: 10px 14px;
   font-weight: 600;
   cursor: pointer;
-
   transition: transform 0.28s var(--elastic);
 }
 
-button:active:not(:disabled) {
+.btn-primary:active:not(:disabled) {
   transform: scale(0.88);
 }
 
-button:not(:active) {
+.btn-primary:not(:active) {
   transform: scale(1);
 }
 
-button:disabled {
+.btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
 }
-
 
 /* ========================================
    Card Component
@@ -241,5 +239,69 @@ button:disabled {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+.sidebar {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .sidebar {
+    display: flex !important;
+  }
+}
+
+@keyframes bell-ring {
+  0%   { transform: rotate(0deg); }
+  15%  { transform: rotate(6deg); }
+  30%  { transform: rotate(-5deg); }
+  45%  { transform: rotate(3deg); }
+  60%  { transform: rotate(-2deg); }
+  75%  { transform: rotate(1deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes bell-clapper {
+  0%   { transform: translateX(0); }
+  20%  { transform: translateX(1.5px); }
+  40%  { transform: translateX(-1.2px); }
+  60%  { transform: translateX(0.8px); }
+  80%  { transform: translateX(-0.4px); }
+  100% { transform: translateX(0); }
+}
+
+.animate-bell-ring {
+  animation: bell-ring 0.8s ease-out 1;
+  transform-origin: top center;
+}
+
+.animate-bell-clapper {
+  animation: bell-clapper 0.8s ease-out 1;
+}
+
+.link-highlight {
+  color: #1D9BF0;
+}
+
+.ep-refresh-spinner {
+  width: 24px;
+  height: 24px;
+
+  border-radius: 999px;
+
+  border: 2.5px solid rgba(0,0,0,0.08);
+  border-top-color: #F4B860;
+
+  animation: ep-spin 0.7s linear infinite;
+}
+
+@keyframes ep-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
   }
 }

@@ -83,7 +83,7 @@ const [dangerFade, setDangerFade] = useState(true);
       const { data: profile } = await supabase
   .from('profiles')
   .select('*')
-  .eq('id', user.id)
+  .eq('user_id', user.id)
   .maybeSingle()
 
       if (profile) {
@@ -136,10 +136,11 @@ const [dangerFade, setDangerFade] = useState(true);
     };
 
     fetchColleges();
-  }, [collegeSearch]);
+  }, [collegeSearch, isLocked]);
 
   /* ---------------- SAVE ---------------- */
   const handleSave = async () => {
+    if (saving) return;
     if (!username || username.length < 3) {
   notify('Username must be at least 3 characters');
   return;
@@ -162,14 +163,15 @@ if (usernameStatus === 'taken') {
 
     const { error } = await supabase
       .from('profiles')
-      .update({
-        name,
-        username,
-        batch_year: batchYear,
-        college_id: collegeId,
-        avatar_url: avatar,
-      })
-      .eq('id', user?.id);
+      .upsert({
+  user_id: user?.id,
+  name,
+  username,
+  batch_year: batchYear,
+  college_id: collegeId,
+  avatar_url: avatar,
+})
+      .eq('user_id', user?.id);
 
     if (error) {
   const msg = error.message.toLowerCase();
@@ -214,7 +216,7 @@ if (usernameStatus === 'taken') {
       .from('profiles')
       .select('id')
       .eq('username', username)
-      .neq('id', user.id)
+      .neq('user_id', user.id)
       .limit(1);
 
     if (data && data.length > 0) {
@@ -230,14 +232,36 @@ if (usernameStatus === 'taken') {
 }, [username, originalProfile]);
 
 useEffect(() => {
-  if (usernameStatus === 'available') {
-    const timer = setTimeout(() => {
-      setUsernameStatus('idle');
-    }, 2000); // ⏱ 2 seconds
+  let mounted = true
 
-    return () => clearTimeout(timer);
+  let steps = 0
+  const maxSteps = 3
+
+  const interval = setInterval(() => {
+    if (steps >= maxSteps) {
+      clearInterval(interval)
+      return
+    }
+
+    setDangerFade(false)
+
+    const timeout = setTimeout(() => {
+      if (!mounted) return
+
+      setDangerIndex((prev) => (prev + 1) % dangerTexts.length)
+      setDangerFade(true)
+    }, 200)
+
+    steps++
+
+    return () => clearTimeout(timeout)
+  }, 3000)
+
+  return () => {
+    mounted = false
+    clearInterval(interval)
   }
-}, [usernameStatus]);
+}, [])
 
 useEffect(() => {
   let steps = 0;
@@ -302,7 +326,7 @@ useEffect(() => {
   {/* Back */}
   {!isSetupMode && (
   <button
-    onClick={() => router.push('/feed')}
+    onClick={() => router.back()}
     style={{
       background: 'none',
       border: 'none',
@@ -356,6 +380,7 @@ useEffect(() => {
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {avatars.map((a) => (
               <img
+                alt="avatar"
                 key={a}
                 src={a}
                 onClick={() => setAvatar(a)}
@@ -484,6 +509,8 @@ useEffect(() => {
 
           if (!user) return
 
+           const normalizedCollege = collegeSearch.trim().toLowerCase()
+
           // 🔒 prevent duplicate
           const { data: existing } = await supabase
             .from('college_requests')
@@ -500,7 +527,7 @@ useEffect(() => {
           const { error } = await supabase
             .from('college_requests')
             .insert({
-              name: collegeSearch,
+              name: normalizedCollege,
               requested_by: user.id,
               status: 'pending',
             })
@@ -556,12 +583,12 @@ useEffect(() => {
           fontSize: 14,
           borderBottom: '1px solid #F3F4F6',
         }}
-        onMouseEnter={(e) =>
-          (e.currentTarget.style.background = '#F9FAFB')
-        }
-        onMouseLeave={(e) =>
-          (e.currentTarget.style.background = '#fff')
-        }
+        onMouseEnter={(e) => {
+  e.currentTarget.style.backgroundColor = '#F9FAFB'
+}}
+onMouseLeave={(e) => {
+  e.currentTarget.style.backgroundColor = '#FFFFFF'
+}}
       >
         {c.name}
       </div>

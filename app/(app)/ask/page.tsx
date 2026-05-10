@@ -7,6 +7,9 @@ import { supabase } from '../../../lib/supabase'
 import { getEggPuffBalance } from '../../../lib/rewards'
 import Skeleton from '@/components/Skeleton'
 import { useNotify } from '../../../components/NotificationProvider'
+import { extractUrl } from '@/lib/extractUrl'
+import { getLinkType } from '@/lib/getLinkType'
+import { highlightLinks } from '@/lib/highlightLinks'
 
 type Category = {
   id: string
@@ -34,6 +37,64 @@ export default function AskPage() {
 
   const [isProfileComplete, setIsProfileComplete] = useState(true);
   const [type, setType] = useState<'normal' | 'bubble'>('normal')
+  const [focused, setFocused] =
+  useState(false)
+
+  const [linkPreview, setLinkPreview] =
+  useState<any>(null)
+
+const [loadingPreview, setLoadingPreview] =
+  useState(false)
+
+  useEffect(() => {
+  const loadPreview = async () => {
+    const url = extractUrl(text)
+
+    // ❌ no link
+    if (!url) {
+      setLinkPreview(null)
+      return
+    }
+
+    try {
+      setLoadingPreview(true)
+
+      const res = await fetch(
+        '/api/link-preview',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url }),
+        }
+      )
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setLinkPreview(null)
+        return
+      }
+
+      setLinkPreview(data)
+
+    } catch (err) {
+      console.error(err)
+      setLinkPreview(null)
+    } finally {
+      setLoadingPreview(false)
+    }
+  }
+
+  // 🔥 tiny debounce
+  const timeout = setTimeout(() => {
+    loadPreview()
+  }, 500)
+
+  return () => clearTimeout(timeout)
+
+}, [text])
 
   /* ---------------- LOAD CATEGORIES ---------------- */
   useEffect(() => {
@@ -127,12 +188,6 @@ if (!profile?.college_id || !profile?.batch_year) {
   router.push('/setup-profile');
   return;
 }
-
-    if (balance <= 0) {
-      notify('🥐 You have 0 EggPuffs. Buy to ask a question!')
-      return
-    }
-
     setLoading(true)
 
     try {
@@ -162,6 +217,13 @@ if (type === 'bubble') {
   expires_at: expiresAt || null,
   college_id: profile?.college_id,
   batch_year: profile?.batch_year,
+  link_url: linkPreview?.url || null,
+link_title: linkPreview?.title || null,
+link_description:
+  linkPreview?.description || null,
+link_image: linkPreview?.image || null,
+link_domain: linkPreview?.domain || null,
+link_type: linkPreview?.type || null,
 })
 
       if (insertError) {
@@ -176,14 +238,17 @@ if (type === 'bubble') {
       }
 
       notify('✅ Question posted!')
-      router.push('/feed')
+      router.back()
+      
     } catch (err) {
       console.error('SUBMIT ERROR:', err)
       notify('❌ Something went wrong.')
     } finally {
       setLoading(false)
     }
+    await supabase.rpc('update_streak', { u_id: user.id })
   }
+  
 
   useEffect(() => {
   const checkProfile = async () => {
@@ -209,7 +274,19 @@ if (type === 'bubble') {
 
   /* ---------------- UI ---------------- */
   return (
-    <div>
+  <div
+    style={{
+      width: '100%',
+
+      maxWidth: 720,
+
+      margin: '0 auto',
+
+      padding: '0 16px 120px',
+
+      boxSizing: 'border-box',
+    }}
+  >
       {pageLoading && (
         <div
         style={{
@@ -298,70 +375,290 @@ if (type === 'bubble') {
             </select>
           </div>
 
-          {/* QUESTION */}
-          <textarea
-            placeholder="Type your question here..."
-            value={text}
-            onChange={e => setText(e.target.value)}
-            style={{
-  width: '100%',
-  minHeight: 90,
-  marginTop: 16,
-  padding: 12,
-  borderRadius: 14,
-  border: '1px solid #E5E7EB',
-  fontSize: 14,
-}}
-          />
-
-          <div
+         {/* QUESTION */}
+<div
   style={{
-    marginTop: 16,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-   padding: '12px 14px',
-    borderRadius: 14,
-    border: '1px solid #E5E7EB', // 🔥 outline added
-    background: '#FFFFFF',
+    position: 'relative',
+    marginTop: 12,
   }}
 >
-  {/* LABEL */}
-  <div>
-    <div style={{ fontSize: 14, fontWeight: 600 }}>
-      🫧 Bubble
+  {/* HIGHLIGHT LAYER */}
+  <div
+    aria-hidden
+    dangerouslySetInnerHTML={{
+      __html: highlightLinks(
+        (text || ' ')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\n$/g, '\n ')
+      ),
+    }}
+    style={{
+      position: 'absolute',
+
+      inset: 0,
+
+      padding: '20px 22px',
+
+      borderRadius: 30,
+
+      whiteSpace: 'pre-wrap',
+
+      wordBreak: 'break-word',
+
+      overflow: 'hidden',
+
+      fontSize: 16,
+
+      lineHeight: '27px',
+
+      fontFamily:
+        'Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+
+      fontWeight: 450,
+
+      letterSpacing: '-0.25px',
+
+      pointerEvents: 'none',
+
+      color: '#18181B',
+
+      zIndex: 2,
+
+      boxSizing: 'border-box',
+    }}
+  />
+
+  {/* PLACEHOLDER */}
+  {!text && (
+    <div
+      style={{
+        position: 'absolute',
+
+        top: 18,
+
+        left: 22,
+
+        fontSize: 16,
+
+        lineHeight: '28px',
+
+        fontFamily:
+          'Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+
+        fontWeight: 450,
+
+        letterSpacing: '-0.25px',
+
+        color: '#9CA3AF',
+
+        pointerEvents: 'none',
+
+        zIndex: 3,
+      }}
+    >
+      Type your thoughts here...
     </div>
-    <div style={{ fontSize: 12, color: '#6B7280' }}>
-      Disappears in 24 hours
+  )}
+
+  {/* REAL TEXTAREA */}
+  <textarea
+    value={text}
+    onChange={(e) =>
+      setText(e.target.value)
+    }
+    onFocus={() =>
+      setFocused(true)
+    }
+    onBlur={() =>
+      setFocused(false)
+    }
+    spellCheck={false}
+    style={{
+      position: 'relative',
+
+      width: '100%',
+
+      minHeight: 130,
+
+      padding: '18px 22px 20px 22px',
+
+      borderRadius: 30,
+
+      border: focused
+  ? '1.5px solid #18181B'
+  : '1px solid #DADDE3',
+
+      background: 'transparent',
+
+      fontSize: 16,
+
+      lineHeight: '27px',
+
+      fontFamily:
+        'Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+
+      fontWeight: 100,
+
+      letterSpacing: '-0.15px',
+
+      resize: 'none',
+
+      outline: 'none',
+
+      // 🔥 invisible textarea text
+      color: 'transparent',
+
+      caretColor: '#18181B',
+
+      zIndex: 4,
+
+      WebkitTapHighlightColor:
+        'transparent',
+
+      overflow: 'hidden',
+
+      boxSizing: 'border-box',
+
+      transition:
+  'border-color 180ms cubic-bezier(0.4,0,0.2,1), box-shadow 220ms cubic-bezier(0.4,0,0.2,1), background-color 180ms ease',
+
+      boxShadow: focused
+  ? '0 0 0 4px rgba(24,24,27,0.035)'
+  : '0 1px 2px rgba(0,0,0,0.02)',
+    }}
+  />
+</div>
+
+  {/* LABEL + TOGGLE ROW */}
+<div
+  style={{
+    marginTop: 4,
+
+    display: 'flex',
+
+    alignItems: 'center',
+
+    justifyContent: 'space-between',
+
+    padding: '10px 18px',
+
+    borderRadius: 22,
+
+    border: '1px solid #E5E7EB',
+
+    background: '#FFFFFF',
+
+    boxShadow:
+      '0 1px 2px rgba(0,0,0,0.03)',
+  }}
+>
+  {/* LEFT */}
+  <div
+    style={{
+      display: 'flex',
+
+      alignItems: 'center',
+
+      gap: 12,
+    }}
+  >
+    {/* ICON */}
+    <div
+      style={{
+        fontSize: 22,
+
+        lineHeight: 1,
+      }}
+    >
+      🫧
+    </div>
+
+    {/* TEXT */}
+    <div>
+      <div
+        style={{
+          fontSize: 15,
+
+          fontWeight: 700,
+
+          color: '#111827',
+        }}
+      >
+        Bubble
+      </div>
+
+      <div
+        style={{
+          fontSize: 13,
+
+          color: '#6B7280',
+
+          marginTop: 2,
+
+          fontWeight: 500,
+        }}
+      >
+        Disappears in 24 hours
+      </div>
     </div>
   </div>
 
   {/* TOGGLE SWITCH */}
   <div
     onClick={() =>
-      setType(type === 'bubble' ? 'normal' : 'bubble')
+      setType(
+        type === 'bubble'
+          ? 'normal'
+          : 'bubble'
+      )
     }
     style={{
-      width: 44,
-      height: 24,
+      width: 50,
+
+      height: 28,
+
       borderRadius: 999,
-      background: type === 'bubble' ? '#FCD34D' : '#E5E7EB',
+
+      background:
+        type === 'bubble'
+          ? '#F4B860'
+          : '#E5E7EB',
+
       position: 'relative',
+
       cursor: 'pointer',
-      transition: 'all 0.2s ease',
+
+      transition:
+        'background 0.22s ease',
+
+      flexShrink: 0,
     }}
   >
     <div
       style={{
-        width: 20,
-        height: 20,
+        width: 24,
+
+        height: 24,
+
         borderRadius: '50%',
+
         background: '#FFFFFF',
+
         position: 'absolute',
+
         top: 2,
-        left: type === 'bubble' ? 22 : 2,
-        transition: 'all 0.2s ease',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+
+        left:
+          type === 'bubble'
+            ? 24
+            : 2,
+
+        transition:
+          'left 0.22s cubic-bezier(.34,1.56,.64,1)',
+
+        boxShadow:
+          '0 2px 8px rgba(0,0,0,0.14)',
       }}
     />
   </div>
@@ -370,7 +667,7 @@ if (type === 'bubble') {
           {/* ACTIONS */}
           <div
             style={{
-              marginTop: 28,
+              marginTop: 20,
               display: 'flex',
               gap: 12,
               alignItems: 'center',
@@ -409,20 +706,24 @@ if (type === 'bubble') {
     : 'Ask'}
 </button>
 
-            <Link href="/feed">
-              <button
-                style={{
-                  padding: '12px 16px',
-                  borderRadius: 999,
-                  background: '#F3F4F6',
-                  border: 'none',
-                  fontSize: 14,
-                  cursor: 'pointer',
-                }}
-              >
-                ← Back
-              </button>
-            </Link>
+            <button
+  onClick={() => router.back()}
+  style={{
+    padding: '12px 16px',
+
+    borderRadius: 999,
+
+    background: '#F3F4F6',
+
+    border: 'none',
+
+    fontSize: 14,
+
+    cursor: 'pointer',
+  }}
+>
+  ← Back
+</button>
           </div>
           <div style={{ marginTop: 24 }}>
 

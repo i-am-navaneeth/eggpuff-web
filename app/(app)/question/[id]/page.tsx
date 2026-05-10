@@ -34,6 +34,29 @@ export default function QuestionPage({
   const [text, setText] = useState('')
   const [me, setMe] = useState<string | null>(null)
   const [posting, setPosting] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  // ===============================
+// INSTANT PREVIEW CACHE
+// ===============================
+useEffect(() => {
+  if (!id) return
+
+  const cached = sessionStorage.getItem(
+    `question-preview-${id}`
+  )
+
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached)
+
+      setQuestion(parsed)
+
+      // 🔥 instant render
+      setLoading(false)
+    } catch {}
+  }
+}, [id])
 
   // ===============================
   // LOAD QUESTION + ANSWERS
@@ -42,27 +65,48 @@ export default function QuestionPage({
     let channel: any
 
     const load = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const [
+  authRes,
+  questionRes,
+  answersRes,
+] = await Promise.all([
+  supabase.auth.getUser(),
 
-      setMe(user?.id || null)
+  supabase
+    .from('questions')
+    .select('*')
+    .eq('id', id)
+    .single(),
 
-      const { data: q } = await supabase
-  .from('questions')
-  .select('*')
-  .eq('id', id)
-  .single()
+  supabase
+    .from('answers')
+    .select(
+      'id, text, user_id, question_id, approved, created_at'
+    )
+    .eq('question_id', id)
+    .order('created_at', {
+      ascending: true,
+    }),
+])
 
-      setQuestion(q)
+const user =
+  authRes.data?.user
 
-      const { data: a } = await supabase
-        .from('answers')
-        .select('id, text, user_id, question_id, approved')
-        .eq('question_id', id)
-        .order('created_at', { ascending: true })
+setMe(user?.id || null)
 
-      setAnswers(a || [])
+if (questionRes.data) {
+  setQuestion((prev: any) => ({
+    ...prev,
+    ...questionRes.data,
+  }))
+}
+
+setAnswers(
+  answersRes.data || []
+)
+
+// 🔥 render everything together
+setLoading(false)
 
       channel = supabase
         .channel('answers-' + id)
@@ -142,7 +186,6 @@ export default function QuestionPage({
   // ===============================
  const submitAnswer = async () => {
   if (!text.trim()) return
-  // ❌ removed limit restriction
   if (posting) return
 
   const {
@@ -165,170 +208,208 @@ export default function QuestionPage({
   setAnswers(prev => [...prev, optimisticAnswer])
   setText('')
 
-  const { error } = await supabase
-  .from('answers')
-  .insert({
-    text,
-    user_id: user.id,
-    question_id: id,
-  })
+  try {
+    const { error } = await supabase
+      .from('answers')
+      .insert({
+        text,
+        user_id: user.id,
+        question_id: id,
+      })
 
-// 🔔 PUSH VIA API (SERVER SAFE)
-if (!error && question && question.user_id !== user.id) {
-  await fetch('/api/push/send', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      userId: question.user_id,
-      title: '💬 New answer',
-      message: 'New activity on your question',
-      url: `/question/${id}`,
-    }),
-  })
+    if (error) {
+      setAnswers(prev =>
+        prev.filter(a => a.id !== optimisticAnswer.id)
+      )
+      console.error('Insert error:', error)
+      return
+    }
+
+    // ✅ RESET UI IMMEDIATELY
+    setPosting(false)
+
+    await supabase.rpc('update_streak', { u_id: user.id })
+    
+    // 🔔 PUSH (safe)
+   if (question && question.user_id !== user?.id) {
+  try {
+    await fetch('/api/push/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId: question.user_id,
+        title: '💬 New answer',
+        message: 'New activity on your question',
+        url: `/question/${id}`,
+      }),
+    })
+
+    // 🔔 ALSO INSERT IN-APP NOTIFICATION
+    await supabase.from('notifications').insert({
+      user_id: question.user_id,
+      actor_id: user?.id,
+      type: 'answer',
+      message: 'answered your question',
+      link: `/question/${id}`,
+      is_read: false,
+    })
+
+  } catch (err) {
+    console.error('Push error:', err)
+  }
 }
-  if (error) {
+
+  } catch (err) {
+    console.error('Submit error:', err)
+
+    // rollback optimistic
     setAnswers(prev =>
       prev.filter(a => a.id !== optimisticAnswer.id)
     )
+  } finally {
+    // ✅ ALWAYS RESET
+    setPosting(false)
   }
-
-  setPosting(false)
 }
-
   // ===============================
   // SAFE RENDER
   // ===============================
-  if (!question) {
-    return (
-      <div
+if (!question?.text) {
+  return null
+}
+
+return (
+  <div
+    style={{
+      padding: '55px 16px 100px',
+    }}
+  >
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        minHeight: '100vh',
+      }}
+    >
+
+      {/* QUESTION */}
+      <h2
         style={{
-          padding: 20,
-          maxWidth: 680,
-          margin: '0 auto',
+          fontSize: 20,
+          fontWeight: 600,
+          marginBottom: 2,
         }}
       >
-        <p style={{ opacity: 0.6 }}>Loading…</p>
-      </div>
-    )
-  }
+        {question.text}
+      </h2>
 
-  return (
-    <div style={{ padding: '16px 16px 20px' }}>
-      <div
+      <p
         style={{
-          maxWidth: 720,
-          margin: '0 auto',
-          width: '100%',
+          color: '#6B7280',
+          fontSize: 14,
+          marginBottom: 10,
         }}
       >
-
-        {/* QUESTION */}
-        <h2
-          style={{
-            fontSize: 20,
-            fontWeight: 600,
-            marginBottom: 2,
-          }}
-        >
-          {question.text}
-        </h2>
-
-        <p
-  style={{
-    color: '#6B7280',
-    fontSize: 14,
-    marginBottom: 10,
-  }}
->
-  Answers: {answers.length}
-</p>
+        Answers: {answers.length}
+      </p>
 
         {/* ANSWERS */}
         <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16,
-          }}
-        >
-          {orderedAnswers.map(a => (
-            <AnswerCard
-              key={a.id}
-              answer={a}
-              isAsker={question.user_id === me}
-            />
-          ))}
+  style={{
+    flex: 1,
+    overflowY: 'auto',
+    paddingBottom: '120px', // 🔥 space for input box
+  }}
+>
+          {orderedAnswers.map((a, i) => (
+  <AnswerCard
+    key={a.id}
+    answer={a}
+    isAsker={question.user_id === me}
+    isLast={i === orderedAnswers.length - 1}
+  />
+))}
         </div>
+{/* 🔥 DIVIDER */}
+  <div
+    style={{
+      height: 1,
+      background: 'linear-gradient(to right, transparent, #E5E7EB, transparent)',
+      marginBottom: 12,
+      opacity: 0.6,
+    }}
+  />
+        <div
+  style={{
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#6B7280',
+    margin: '12px 0',
+  }}
+>
+  Love EggPuff?{' '}
+  <span
+    onClick={() => {
+      window.location.href = '/feedback'
+    }}
+    style={{
+      fontWeight: 600,
+      color: '#111827',
+      cursor: 'pointer',
+    }}
+  >
+    Rate it ⭐
+  </span>
+</div>
 
         {/* INPUT SECTION */}
-        {!isClosed && (
-          <div style={{ marginTop: 2 }}>
-            <textarea
-              value={text}
-              disabled={posting}
-              onChange={e => setText(e.target.value)}
-              placeholder="Write your answer..."
-              style={{
-                width: '100%',
-                minHeight: 110,
-                padding: '16px 18px',
-                borderRadius: 16,
-                border: '1px solid #E5E7EB',
-                fontSize: 16,
-                lineHeight: 1.6,
-                resize: 'vertical',
-                background: '#FFFFFF',
-                boxSizing: 'border-box',
-              }}
-            />
+        <div
+  style={{
+    position: 'fixed',
+    paddingBottom: 'env(safe-area-inset-bottom)',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    background: 'white',
+    borderTop: '1px solid #eee',
+    padding: '10px 12px',
+    display: 'flex',
+    gap: '10px',
+    alignItems: 'center',
+    zIndex: 20,
+  }}
+>
+  <input
+    value={text}
+    onChange={(e) => setText(e.target.value)}
+    placeholder="Write your answer..."
+    style={{
+      flex: 1,
+      padding: '10px 12px',
+      borderRadius: '20px',
+      border: '1px solid #ddd',
+      outline: 'none',
+    }}
+  />
 
-            <div
-              style={{
-                display: 'flex',
-                gap: 14,
-                marginTop: 16,
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-              }}
-            >
-
-              <button
-                onClick={submitAnswer}
-                disabled={posting}
-                style={{
-                  padding: '12px 24px',
-                  borderRadius: 999,
-                  border: 'none',
-                  background: '#F4B860',
-                  color: '#111827',
-                  fontWeight: 600,
-                  fontSize: 15,
-                  cursor: posting ? 'not-allowed' : 'pointer',
-                  opacity: posting ? 0.7 : 1,
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                }}
-              >
-                {posting ? 'Posting…' : 'Answer'}
-              </button>
-
-              <button
-                onClick={() => router.back()}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  fontSize: 15,
-                  color: '#374151',
-                  cursor: 'pointer',
-                }}
-              >
-                ← Back
-              </button>
-
-            </div>
-          </div>
-        )}
+  <button
+    onClick={submitAnswer}
+    disabled={posting}
+    style={{
+      background: '#E9B25D',
+      border: 'none',
+      padding: '10px 16px',
+      borderRadius: '20px',
+      fontWeight: 600,
+      cursor: 'pointer',
+    }}
+  >
+    {posting ? '...' : 'Answer'}
+  </button>
+</div>
 
         {/* CLOSED STATE */}
         {isClosed && (
@@ -345,36 +426,7 @@ if (!error && question && question.user_id !== user.id) {
 
         <div style={{ marginTop: 24 }}>
 
-  {/* 🔥 DIVIDER */}
-  <div
-    style={{
-      height: 1,
-      background: 'linear-gradient(to right, transparent, #E5E7EB, transparent)',
-      marginBottom: 12,
-      opacity: 0.6,
-    }}
-  />
-
-  {/* 🔥 FEEDBACK TEXT */}
-  <div
-    style={{
-      fontSize: 12,
-      color: '#6B7280',
-      textAlign: 'center',
-    }}
-  >
-    Help us improve ✨{' '}
-    <span
-      onClick={() => router.push('/feedback')}
-      style={{
-        fontWeight: 600,
-        color: '#111827',
-        cursor: 'pointer',
-      }}
-    >
-      Feedback
-    </span>
-  </div>
+  
 
 </div>
 

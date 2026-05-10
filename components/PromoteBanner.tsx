@@ -271,11 +271,11 @@ opacity: claimed[url] ? 0.6 : 1,
                 }}
                 onMouseEnter={(e) => {
   e.currentTarget.style.transform = 'translateY(-2px)'
-  e.currentTarget.style.boxShadow = '0 10px 28px rgba(0,0,0,0.08)'
+  e.currentTarget.style.boxShadow = '0 10px 28px rgba(0, 0, 0, 0.08)'
 }}
 onMouseLeave={(e) => {
   e.currentTarget.style.transform = 'translateY(0)'
-  e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.06)'
+  e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.06)'
 }}
               >
                 {/* HEADER */}

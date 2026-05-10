@@ -55,27 +55,40 @@ export default function PushInit() {
 
         console.log('🚀 Sending subscription...')
 
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
+const {
+  data: { session },
+} = await supabase.auth.getSession()
 
-        try {
-          const res = await fetch('/api/push/subscribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              endpoint: sub.endpoint,
-              keys: sub.toJSON().keys,
-              user_id: user?.id ?? null,
-            }),
-            cache: 'no-store',
-          })
+const user = session?.user
 
-          const data = await res.json()
-          
-        } catch (err) {
-          console.error('❌ FETCH FAILED:', err)
-        }
+// 🔥 prevent null user_id (wait until user exists)
+if (!user) {
+  console.warn('Push subscribe skipped: user not ready')
+  return
+}
+
+try {
+  const res = await fetch('/api/push/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      endpoint: sub.endpoint,
+      keys: sub.toJSON().keys,
+      user_id: user.id,
+    }),
+    cache: 'no-store',
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Request failed: ${res.status} ${text}`)
+  }
+
+  const data = await res.json()
+
+} catch (err) {
+  console.error('❌ FETCH FAILED:', err)
+}
 
         
       } catch (err) {

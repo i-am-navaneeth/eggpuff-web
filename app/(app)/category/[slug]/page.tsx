@@ -91,7 +91,7 @@ export default function CategoryFeedPage() {
 
   return (
     <div style={{ padding: 20 }}>
-      <TopBar />
+     <TopBar currentUserId={null} />
 
       <h2 style={{ marginTop: 12, marginBottom: 8 }}>
         {slug.charAt(0).toUpperCase() + slug.slice(1)}
