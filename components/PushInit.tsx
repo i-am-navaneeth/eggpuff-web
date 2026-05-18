@@ -96,7 +96,80 @@ try {
       }
     }
 
-    init()
+    // ─────────────────────────────
+// REALTIME NOTIFICATIONS
+// ─────────────────────────────
+
+const subscribeRealtime =
+  async () => {
+
+    const {
+      data: { session }
+    } =
+      await supabase
+        .auth
+        .getSession()
+
+    const userId =
+      session?.user?.id
+
+    if (!userId)
+      return
+
+    const channel =
+
+      supabase
+
+        .channel(
+          'eggpuff-notifications'
+        )
+
+        .on(
+
+          'postgres_changes',
+
+          {
+            event: 'INSERT',
+
+            schema: 'public',
+
+            table:
+              'notifications',
+
+            filter:
+              `user_id=eq.${userId}`,
+          },
+
+          () => {
+
+            // WHATSAPP STYLE VIBRATION
+
+            if (
+              navigator.vibrate
+            ) {
+
+              navigator.vibrate([
+                120,
+                50,
+                120,
+              ])
+            }
+          }
+        )
+
+        .subscribe()
+
+    return () => {
+
+      supabase.removeChannel(
+        channel
+      )
+    }
+  }
+
+init()
+
+subscribeRealtime()
   }, [])
 
   return null

@@ -281,6 +281,10 @@ if (pathname.startsWith('/question/')) {
   return null
 }
 
+if (pathname.startsWith('/communities/')) {
+  return null
+}
+
 if (shouldHideNavbar) return null
 
   return (
@@ -312,17 +316,14 @@ if (shouldHideNavbar) return null
           onClick={() => router.push('/search')}
         />
 
-        {/* CENTER BUTTON */}
-        <button
-          onClick={() => router.push('/ask', {
-  scroll: false,
-})}
-          className="flex items-center justify-center"
-        >
-          <div className="h-14 w-14 rounded-full bg-[var(--brand)] text-white flex items-center justify-center shadow-lg active:scale-95 transition">
-            <PlusIcon />
-          </div>
-        </button>
+        {/* COMMUNITIES */}
+
+<NavItem
+  icon={<CommunityIcon />}
+  label=""
+  active={pathname.startsWith('/communities')}
+  onClick={() => router.push('/communities')}
+/>
 
         {/* NOTIFICATIONS */}
         <NavItem
@@ -446,14 +447,67 @@ function SearchIcon() {
   )
 }
 
-function PlusIcon() {
+function CommunityIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M12 5V19M5 12H19"
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      {/* CENTER PERSON */}
+      <circle
+        cx="12"
+        cy="9"
+        r="3"
         stroke="currentColor"
-        strokeWidth="2.4"
+        strokeWidth="1.8"
+      />
+
+      {/* LEFT PERSON */}
+      <circle
+        cx="5.5"
+        cy="11"
+        r="2.2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        opacity="0.7"
+      />
+
+      {/* RIGHT PERSON */}
+      <circle
+        cx="18.5"
+        cy="11"
+        r="2.2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        opacity="0.7"
+      />
+
+      {/* BODY */}
+      <path
+        d="M7.5 18C7.5 15.8 9.3 14 12 14C14.7 14 16.5 15.8 16.5 18"
+        stroke="currentColor"
+        strokeWidth="1.8"
         strokeLinecap="round"
+      />
+
+      {/* LEFT BODY */}
+      <path
+        d="M2.8 18C2.8 16.5 4 15.3 5.7 15.3"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        opacity="0.7"
+      />
+
+      {/* RIGHT BODY */}
+      <path
+        d="M21.2 18C21.2 16.5 20 15.3 18.3 15.3"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        opacity="0.7"
       />
     </svg>
   )

@@ -14,6 +14,9 @@ export default function FloatingAskButton() {
   if (pathname.startsWith('/question/')) {
     return null
   }
+  if (pathname.startsWith('/communities')) {
+    return null
+  }
   if (pathname.startsWith('/ask')) {
   return null
 }

@@ -48,7 +48,11 @@ export default function Layout({
       <div className="flex-1 flex flex-col">
 
         {/* ===================== TOP BAR ===================== */}
-      {!pathname.startsWith('/search') && (
+      {!(
+  pathname.startsWith('/search') ||
+
+  pathname.startsWith('/communities/')
+) && (
   <div className="fixed top-0 left-0 right-0 z-50 bg-[#f5f5f5] shadow-sm lg:pl-[80px]">
     <div className="max-w-[1140px] mx-auto px-6">
       <TopBar

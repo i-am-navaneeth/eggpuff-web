@@ -441,7 +441,7 @@ const handleMiniFollow = async () => {
           borderBottom: '1px solid #eee',
         }}
       >
-        {(isQuestionPage || pathname.startsWith('/u') || pathname === '/notifications') ? (
+        {(isQuestionPage || pathname.startsWith('/u') || pathname === '/notifications' ) ? (
   <button
     onClick={() => router.back()}
     className="flex items-center justify-center w-8 h-8 rounded-full active:scale-95 transition"

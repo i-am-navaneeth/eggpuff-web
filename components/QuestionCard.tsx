@@ -389,19 +389,33 @@ opacity: 1,
 </div></div>
 
       {/* QUESTION TEXT */}
-      <p
-        style={{
-          marginTop: 12,
-          marginBottom: 10,
-          fontSize: 'clamp(16px, 1.05vw, 18px)',
-          letterSpacing: '-0.2px',
-          lineHeight: 1.75,
-          fontWeight: 500,
-          color: '#111827',
-        }}
-      >
-        {q.text}
-      </p>
+
+<p
+  style={{
+    marginTop: 12,
+
+    marginBottom: 10,
+
+    fontSize:
+      'clamp(16px, 1.05vw, 18px)',
+
+    letterSpacing: '-0.2px',
+
+    lineHeight: 1.75,
+
+    fontWeight: 500,
+
+    color: '#111827',
+
+    whiteSpace: 'pre-wrap',
+
+    wordBreak: 'break-word',
+
+    overflowWrap: 'break-word',
+  }}
+>
+  {q.text}
+</p>
 
       {q.link_url && (
   <LinkPreviewCard
