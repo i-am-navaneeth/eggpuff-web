@@ -16,40 +16,57 @@ export default function AuthProvider({ children, skipRedirect }: Props) {
   const pathname = usePathname();
 
   useEffect(() => {
-    const handleSession = async () => {
-      await supabase.auth.getUser();
-    };
 
-    handleSession();
-  }, []);
+    let mounted = true;
 
-  useEffect(() => {
     const init = async () => {
       if (typeof window === 'undefined') return;
 
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+  data: { session },
+} = await supabase.auth.getSession();
+
+const user = session?.user ?? null;
 
       const path = pathname;
 
       // 🔥 Handle OAuth redirect properly
-      if (typeof window !== 'undefined' && window.location.search.includes('code=')) {
+if (
+  typeof window !== 'undefined' &&
+  window.location.search.includes('code=')
+) {
+
   if (path !== '/feed') {
+
     const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, newSession) => {
-      if (event === 'SIGNED_IN' && newSession?.user) {
-        window.history.replaceState({}, document.title, '/feed');
-        router.replace('/feed');
+      data: { subscription: oauthSubscription },
+    } = supabase.auth.onAuthStateChange(
+      (event, newSession) => {
+
+        if (
+          event === 'SIGNED_IN' &&
+          newSession?.user
+        ) {
+
+          window.history.replaceState(
+            {},
+            document.title,
+            '/feed'
+          )
+
+          router.replace('/feed')
+        }
       }
-    });
+    )
 
-    setLoading(false);
+    if (!mounted) {
+      oauthSubscription.unsubscribe()
+      return
+    }
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    setLoading(false)
+
+    return
   }
 }
 
@@ -120,8 +137,9 @@ export default function AuthProvider({ children, skipRedirect }: Props) {
 });
 
     return () => {
-      subscription.unsubscribe();
-    };
+  mounted = false
+  subscription.unsubscribe()
+};
   }, [router, skipRedirect, pathname]);
 
   // 🔥 Prevent UI flicker

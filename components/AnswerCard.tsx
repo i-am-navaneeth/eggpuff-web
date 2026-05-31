@@ -56,8 +56,10 @@ export default function AnswerCard({ answer, isAsker, isLast }: Props) {
 
     const load = async () => {
       const {
-        data: { user },
-      } = await supabase.auth.getUser()
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
       if (user) {
         const { data } = await supabase
@@ -92,8 +94,10 @@ export default function AnswerCard({ answer, isAsker, isLast }: Props) {
     if (liked) return
 
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
     if (!user) return
 

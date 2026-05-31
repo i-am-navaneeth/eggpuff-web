@@ -161,8 +161,10 @@ useEffect(() => {
     if (document.visibilityState !== 'visible') return
 
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
     if (!user) return
 
@@ -195,8 +197,10 @@ useEffect(() => {
 useEffect(() => {
   const loadClaimed = async () => {
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
     if (!user) return
 

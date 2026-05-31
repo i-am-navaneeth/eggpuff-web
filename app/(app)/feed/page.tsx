@@ -501,18 +501,16 @@ saveFeedOffset(
   getLastVisit()
 
 const freshQuestionsPromise =
-  supabase
-    .from('questions')
-    .select('*')
-    .gt(
-      'created_at',
-      lastVisit ||
-        '1970-01-01'
-    )
-    .order('created_at', {
-      ascending: false,
-    })
-    .limit(3)
+  supabase.rpc(
+    'get_smart_feed',
+    {
+      p_user_id: user?.id,
+
+      p_limit: 3,
+
+      p_offset: 0,
+    }
+  )
 
 const feedPromise =
   supabase.rpc(
@@ -601,7 +599,9 @@ const questionsData =
   getFeedOffset() +
     normalFeed.length
 )
-saveLastVisit()
+setTimeout(() => {
+  saveLastVisit()
+}, 500)
 
       // ✅ FIX 2: Set loaded=true AFTER data is in state
       //    This unblocks loadMore and re-triggers the observer
@@ -751,11 +751,15 @@ saveLastVisit()
 
       ;(async () => {
         const { data: profileRow } =
-          await supabase
-            .from('profiles')
-            .select(
-              'name, username, avatar_url, is_verified'
-            )
+  await supabase
+    .from('profiles')
+    .select(`
+      name,
+      username,
+      avatar_url,
+      is_verified,
+      streak_count
+    `)
             .eq(
               'user_id',
               (incoming as any).user_id
@@ -783,15 +787,16 @@ saveLastVisit()
                   is_verified:
                     profileRow?.is_verified ??
                     false,
+                  
+                  streak_count:
+                   profileRow?.streak_count ?? 0,
                 }
               : q
           )
         )
       })()
 
-      if (window.scrollY > 50) {
-        setShowNewBanner(true)
-      }
+      setShowNewBanner(true)
     }
   )
 

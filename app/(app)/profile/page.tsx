@@ -72,8 +72,10 @@ const [dangerFade, setDangerFade] = useState(true);
   useEffect(() => {
     const load = async () => {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
       if (!user) {
         router.push('/login');
@@ -158,8 +160,10 @@ if (usernameStatus === 'taken') {
     setSaving(true);
 
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
     const { error } = await supabase
       .from('profiles')
@@ -207,8 +211,10 @@ if (usernameStatus === 'taken') {
 
     // 🔥 Get current user (FIXED)
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  data: { session },
+} = await supabase.auth.getSession();
+
+const user = session?.user ?? null;
 
     if (!user) return;
 
@@ -504,8 +510,10 @@ useEffect(() => {
       <span
         onClick={async () => {
           const {
-            data: { user },
-          } = await supabase.auth.getUser()
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
           if (!user) return
 

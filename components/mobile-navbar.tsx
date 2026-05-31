@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase'
 export default function MobileNavbar({ userId }: { userId?: string }) {
   const pathname = usePathname()
   const router = useRouter()
-  const hideNavbarRoutes = ['/ask', '/notifications', '/profile', '/u']
+  const hideNavbarRoutes = ['/ask', '/notifications', '/profile' ]
   const shouldHideNavbar = hideNavbarRoutes.some(route =>
   pathname.startsWith(route)
  ) 
@@ -141,66 +141,68 @@ useEffect(() => {
   }
 }, [])
 
-  // ================= FETCH + REALTIME =================
-  useEffect(() => {
-  if (!userId) return
-
-  const fetchUnread = async () => {
-    const { data } = await supabase
-      .from('notifications')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('is_read', false)
-
-    if (data) setUnreadCount(data.length)
-  }
-
-  fetchUnread()
-
-  const channel = supabase
-    .channel('notifications-realtime')
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${userId}`,
-      },
-      fetchUnread
-    )
-    .subscribe()
-
-  return () => {
-    supabase.removeChannel(channel)
-  }
-}, [userId])
-
 useEffect(() => {
-  const cached = localStorage.getItem('ep_avatar')
 
-  // ✅ instant load (no flicker)
+  const cached =
+    localStorage.getItem(
+      'ep_avatar'
+    )
+
+  // 🔥 instant cached avatar
   if (cached) {
     setAvatar(cached)
   }
 
-  const fetchUser = async () => {
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
+  const loadAvatar =
+    async () => {
 
-    const avatarUrl =
-      user?.user_metadata?.avatar_url ||
-      user?.user_metadata?.picture ||
-      null
+      const {
+        data: { user }
+      } = await supabase
+        .auth
+        .getUser()
 
-    if (avatarUrl) {
-      setAvatar(avatarUrl)
-      localStorage.setItem('ep_avatar', avatarUrl)
+      if (!user)
+        return
+
+      // 🔥 ALWAYS use DB avatar
+      // NEVER OAuth image
+      const {
+        data,
+        error,
+      } = await supabase
+
+        .from('profiles')
+
+        .select(
+          'avatar_url'
+        )
+
+        .eq(
+          'user_id',
+          user.id
+        )
+
+        .maybeSingle()
+
+      if (
+        !error &&
+        data?.avatar_url
+      ) {
+
+        setAvatar(
+          data.avatar_url
+        )
+
+        localStorage.setItem(
+          'ep_avatar',
+          data.avatar_url
+        )
+      }
     }
-  }
 
-  fetchUser()
+  loadAvatar()
+
 }, [])
 
   useEffect(() => {
@@ -245,46 +247,27 @@ useEffect(() => {
   }
 }, [userId])
 
-
-useEffect(() => {
-  const loadAvatar = async () => {
-    // 1. get user
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
-
-    if (!user) return
-
-    // 2. get profile from DB
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('avatar_url')
-      .eq('id', user.id)
-      .single()
-
-    if (!error && data?.avatar_url) {
-      setAvatar(data.avatar_url)
-      localStorage.setItem('ep_avatar', data.avatar_url)
-    }
-  }
-
-  // 🔥 instant cache load
-  const cached = localStorage.getItem('ep_avatar')
-  if (cached) setAvatar(cached)
-
-  loadAvatar()
-}, [])
-
-
-
+// 🔥 Hide on question pages
 if (pathname.startsWith('/question/')) {
   return null
 }
 
+// 🔥 Hide on communities pages
 if (pathname.startsWith('/communities/')) {
   return null
 }
 
+// 🔥 Hide on other users profile pages
+if (
+  pathname.startsWith('/u/') &&
+  username &&
+  pathname !== `/u/${username}` &&
+  !pathname.startsWith(`/u/${username}/`)
+) {
+  return null
+}
+
+// 🔥 Existing hidden routes
 if (shouldHideNavbar) return null
 
   return (
@@ -298,12 +281,12 @@ if (shouldHideNavbar) return null
       <div className="absolute inset-0 bg-white border-t border-black/10" />
 
       {/* CONTENT */}
-      <div className="relative h-[70px] grid grid-cols-5 items-center px-2">
+      <div className="relative h-[58px] grid grid-cols-5 items-center px-1">
 
         {/* HOME */}
         <NavItem
           icon={<HomeIcon />}
-          label=""
+          label="Home"
           active={isActive('/feed')}
           onClick={() => router.push('/feed')}
         />
@@ -311,7 +294,7 @@ if (shouldHideNavbar) return null
         {/* SEARCH */}
         <NavItem
           icon={<SearchIcon />}
-          label=""
+          label="Search"
           active={isActive('/search')}
           onClick={() => router.push('/search')}
         />
@@ -320,7 +303,7 @@ if (shouldHideNavbar) return null
 
 <NavItem
   icon={<CommunityIcon />}
-  label=""
+  label="Communities"
   active={pathname.startsWith('/communities')}
   onClick={() => router.push('/communities')}
 />
@@ -338,7 +321,7 @@ if (shouldHideNavbar) return null
       )}
     </div>
   }
-  label=""
+  label="Notifications"
   active={isActive('/notifications')}
   onClick={() => router.push('/notifications')}
 />
@@ -346,7 +329,7 @@ if (shouldHideNavbar) return null
         {/* PROFILE */}
         <NavItem
   icon={
-    <div className="relative w-6 h-6 -mt-[1px]">
+    <div className="relative w-[20px] h-[20px]">
       {/* Avatar Image */}
       {avatar && (
         <img
@@ -354,20 +337,26 @@ if (shouldHideNavbar) return null
           onError={(e) => {
   e.currentTarget.style.display = 'none'
 }}
-          className="w-6 h-6 rounded-full object-cover"
+          className="w-[20px] h-[20px] rounded-full object-cover"
         />
       )}
 
       {/* Fallback Avatar */}
-      {!avatar && (
-        <div className="w-6 h-6 rounded-full bg-black text-white flex items-center justify-center text-xs font-medium">
-          {username ? username[0].toUpperCase() : 'U'}
-        </div>
-      )}
+{!avatar && (
+  <div className="w-[20px] h-[20px] rounded-full bg-black text-white flex items-center justify-center text-xs font-medium">
+    {username ? username[0].toUpperCase() : 'U'}
+  </div>
+)}
     </div>
   }
-  label=""
-  active={pathname.startsWith('/u')}
+  label="Profile"
+  active={
+  !!username &&
+  (
+    pathname === `/u/${username}` ||
+    pathname.startsWith(`/u/${username}/`)
+  )
+}
   onClick={() => {
     if (username) {
       router.push(`/u/${username}`)
@@ -395,26 +384,24 @@ function NavItem({
 }) {
   return (
     <button
-      onClick={onClick}
-      className="relative flex flex-col items-center justify-center w-full h-[60px]"
-    >
+  onClick={onClick}
+  title={label}
+  aria-label={label}
+  className="relative flex flex-col items-center justify-center w-full h-[50px]"
+>
       {/* ICON */}
       <div className={active ? 'text-[var(--brand)]' : 'text-black/40'}>
         {icon}
       </div>
 
-      {/* LABEL */}
-      <span
-        className={`text-[10px] mt-[2px] ${
-          active ? 'text-[var(--brand)]' : 'text-black/40'
-        }`}
-      >
-        {label}
-      </span>
+      {/* ACCESSIBILITY ONLY */}
+<span className="sr-only">
+  {label}
+</span>
 
       {/* UNDERLINE */}
       <span
-        className={`absolute bottom-[6px] h-[2px] rounded-full transition-all duration-300 ${
+        className={`absolute bottom-[4px] h-[2px] rounded-full transition-all duration-300 ${
           active
             ? 'w-5 bg-[var(--brand)] opacity-100'
             : 'w-0 opacity-0'
@@ -428,7 +415,7 @@ function NavItem({
 
 function HomeIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
       <path
         d="M3 10.5L12 3L21 10.5V20C21 20.55 20.55 21 20 21H4C3.45 21 3 20.55 3 20V10.5Z"
         stroke="currentColor"
@@ -440,7 +427,7 @@ function HomeIcon() {
 
 function SearchIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
       <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
       <path d="M20 20L17 17" stroke="currentColor" strokeWidth="1.8" />
     </svg>
@@ -450,8 +437,8 @@ function SearchIcon() {
 function CommunityIcon() {
   return (
     <svg
-      width="24"
-      height="24"
+      width="21"
+      height="21"
       viewBox="0 0 24 24"
       fill="none"
     >
@@ -519,7 +506,7 @@ function BellIcon() {
   xmlns="http://www.w3.org/2000/svg"
   viewBox="0 0 24 24"
   fill="none"
-  className="w-6 h-6 text-gray-400"
+  className="w-5 h-5 text-gray-400"
 >
   <path
     d="M18 16V11C18 7.7 15.8 5 12 5C8.2 5 6 7.7 6 11V16L4 18V19H20V18L18 16Z"

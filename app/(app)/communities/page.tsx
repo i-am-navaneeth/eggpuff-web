@@ -68,7 +68,10 @@ const [
   const [description,
     setDescription] =
       useState('')
-
+      
+  const [showCreateFlow,
+  setShowCreateFlow] =
+    useState(false)
       
 
   // ─────────────────────────────────────────────
@@ -784,7 +787,11 @@ if (loading) {
 
       </div>
 
-      {joinedCommunities.map(
+    {tab !== 'create' && (
+
+  <>
+
+    {joinedCommunities.map(
   (community) => (
 
     <div
@@ -1183,6 +1190,9 @@ if (loading) {
   </div>
 
 </div>
+  </>
+
+)}
 
       {/* CREATE TAB */}
       {tab === 'create' && (

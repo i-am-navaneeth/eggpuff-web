@@ -3,9 +3,12 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useSearchParams } from "next/navigation"
 
 export default function Home() {
   const router = useRouter()
+
+  const searchParams = useSearchParams()
 
   const [epCount, setEpCount] = useState(0)
   const [joinedToday, setJoinedToday] = useState(120)
@@ -17,6 +20,16 @@ export default function Home() {
     },
   })
 }
+
+  useEffect(() => {
+  const src = searchParams.get("src")
+
+  const existing = localStorage.getItem("ep_source")
+
+  if (src && !existing) {
+    localStorage.setItem("ep_source", src)
+  }
+}, [searchParams])
 
   // ⚡ EP counter animation
   useEffect(() => {

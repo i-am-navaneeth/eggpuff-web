@@ -2,6 +2,7 @@
 
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getEggPuffBalance } from '@/lib/rewards'
 import { useRouter } from 'next/navigation'
@@ -73,6 +74,25 @@ type Notification = {
 // ================= STATE =================
 const [notifications, setNotifications] = useState<Notification[]>([])
 const unreadCount = notifications.filter((n) => !n.is_read).length
+
+const pathname = usePathname()
+
+const [currentUserId, setCurrentUserId] =
+  useState<string | null>(null)
+
+useEffect(() => {
+  const loadUser = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    setCurrentUserId(
+      session?.user?.id ?? null
+    )
+  }
+
+  loadUser()
+}, [])
 
 // ================= FETCH NOTIFICATIONS =================
 useEffect(() => {
@@ -385,7 +405,17 @@ useEffect(() => {
 // ================= SCROLL (MINI PROFILE) =================
 useEffect(() => {
   const handleScroll = () => {
-    setShowMiniProfile(window.scrollY > 120)
+    const followButton =
+  document.getElementById(
+    'profile-follow-button'
+  )
+
+if (!followButton) return
+
+const rect =
+  followButton.getBoundingClientRect()
+
+setShowMiniProfile(rect.bottom < 0)
   }
 
   window.addEventListener('scroll', handleScroll)
@@ -420,39 +450,125 @@ useEffect(() => {
 }, [profile])
 
 useEffect(() => {
-  if (activeTab !== 'answers') return
-  if (!profile?.user_id) return
 
-  const fetchAnswers = async () => {
-    setLoadingAnswers(true)
+  if (activeTab !== 'answers')
+    return
 
-    const { data, error } = await supabase
-      .from('answers')
-      .select(`
-        *,
-        questions (
-          id,
-          text
+  if (!profile?.user_id)
+    return
+
+  const fetchAnswers =
+    async () => {
+
+      setLoadingAnswers(true)
+
+      const profileUserId =
+        profile.user_id ||
+        profile.id
+
+      // 🔥 FETCH ANSWERS
+
+      const {
+        data: answersData,
+        error,
+      } = await supabase
+
+        .from('answers')
+
+        .select('*')
+
+        .eq(
+          'user_id',
+          profileUserId
         )
-      `)
-      .eq('user_id', profile.user_id)
-      .order('created_at', { ascending: false })
 
-    if (!error && data) {
-      setAnswers(data)
+        .order(
+          'created_at',
+          {
+            ascending: false,
+          }
+        )
+
+      if (error) {
+
+        console.error(
+          'ANSWERS ERROR:',
+          error
+        )
+
+        setLoadingAnswers(false)
+
+        return
+      }
+
+      // 🔥 FETCH QUESTIONS
+
+      const questionIds =
+        answersData?.map(
+          (a) => a.question_id
+        ) || []
+
+      let questionsMap: any = {}
+
+      if (questionIds.length > 0) {
+
+        const {
+          data: questionsData,
+        } = await supabase
+
+          .from('questions')
+
+          .select(`
+            id,
+            text
+          `)
+
+          .in(
+            'id',
+            questionIds
+          )
+
+        questionsMap =
+          Object.fromEntries(
+
+            (questionsData || [])
+              .map((q) => [
+                q.id,
+                q,
+              ])
+          )
+      }
+
+      // 🔥 MERGE
+
+      const formatted =
+        (answersData || [])
+          .map((answer) => ({
+
+            ...answer,
+
+            questions:
+              questionsMap[
+                answer.question_id
+              ] || null,
+          }))
+
+      setAnswers(formatted)
+
+      setLoadingAnswers(false)
     }
 
-    setLoadingAnswers(false)
-  }
-
   fetchAnswers()
+
 }, [activeTab, profile])
 
 useEffect(() => {
   const loadUser = async () => {
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
     setCurrentUser(user)
   }
@@ -467,6 +583,10 @@ useEffect(() => {
   if (!profile) {
     return <div className="p-5">User not found</div>
   }
+
+if (pathname.startsWith('/question/')) {
+  return null
+}
 
   return (
     <div className="max-w-[600px] mx-auto px-5 pt-0 pb-6">
@@ -494,6 +614,7 @@ useEffect(() => {
   {/* EDIT BUTTON — OWNER ONLY */}
   {currentUser?.id === profile.user_id && (
     <button
+    id="profile-follow-button"
       onClick={() =>
         router.push('/profile')
       }
@@ -566,6 +687,7 @@ useEffect(() => {
         {userId !== profile.user_id && ( 
            <div className="mt-4 flex justify-center">
           <button
+          id="profile-follow-button"
   onClick={handleFollow}
   disabled={loadingFollow}
   className={`px-5 py-2 rounded-full text-sm font-medium transition ${
@@ -715,17 +837,27 @@ useEffect(() => {
         })
         .map((q) => (
           <QuestionCard
-            key={q.id}
-            q={{
-              ...q,
-              user_name: profile.name,
-              username: profile.username,
-              avatar_url: profile.avatar_url,
-              is_anonymous: false,
-              answers_count: q.answers_count ?? 0,
-              hideStreak: true,
-            }}
-          />
+  key={q.id}
+  q={{
+    ...q,
+    user_name: profile.name,
+    username: profile.username,
+    avatar_url: profile.avatar_url,
+    is_anonymous: false,
+    answers_count: q.answers_count ?? 0,
+    hideStreak: true,
+  }}
+
+  currentUserId={profile.user_id}
+
+  onDelete={(deletedId) => {
+    setQuestions(prev =>
+      prev.filter(
+        q => q.id !== deletedId
+      )
+    )
+  }}
+/>
         ))}
     </>
   ) : (

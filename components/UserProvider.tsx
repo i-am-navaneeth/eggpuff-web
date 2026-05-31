@@ -12,14 +12,25 @@ function UserLogic({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
   const { notify } = useNotify()
 
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | null = null
-    let cleanupListeners: (() => void) | null = null
+useEffect(() => {
+  let mounted = true
 
-    const init = async () => {
+  let interval:
+    ReturnType<typeof setInterval> | null = null
+
+  let cleanupListeners:
+    (() => void) | null = null
+
+  const init = async () => {
+    try {
+
       const {
-        data: { user },
-      } = await supabase.auth.getUser()
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!mounted) return
+
+      const user = session?.user
 
       if (!user) {
         setReady(true)
@@ -27,109 +38,180 @@ function UserLogic({ children }: { children: ReactNode }) {
       }
 
       const userId = user.id
-      const email = user.email
 
       setReady(true)
 
       /* ------------------------------------------------ */
       /* 🎉 WELCOME BONUS CHECK                          */
       /* ------------------------------------------------ */
-      let { data: profile, error: profileError } = await supabase
+
+      const {
+        data: profile,
+        error: profileError,
+      } = await supabase
         .from('profiles')
-        .select('id, welcome_shown')
-        .eq('id', userId)
+        .select(
+          'id, user_id, welcome_shown'
+        )
+        .eq('user_id', userId)
         .maybeSingle()
 
+      if (!mounted) return
+
       if (profileError) {
-        console.error('Profile fetch error:', {
-          message: profileError.message,
-          details: profileError.details,
-          hint: profileError.hint,
-          code: profileError.code,
-        })
+        console.error(
+          'Profile fetch error:',
+          profileError
+        )
       }
 
-      // 🎉 WELCOME BONUS
-      if (profile && profile.welcome_shown === false) {
-        notify('🎉 Welcome to EggPuff! You received 5 free 🥐 EP.')
+      if (
+        profile &&
+        profile.welcome_shown === false
+      ) {
+
+        notify(
+          '🎉 Welcome to EggPuff! You received 5 free 🥐 EP.'
+        )
 
         await supabase
           .from('profiles')
-          .update({ welcome_shown: true })
-          .eq('id', userId)
+          .update({
+            welcome_shown: true,
+          })
+          .eq('user_id', userId)
 
-        const { error } = await supabase
+        await supabase
           .from('egg_puff_ledger')
           .insert({
             user_id: userId,
             amount: 5,
             reason: 'Welcome bonus',
           })
-
-        if (error) {
-          console.error('Welcome bonus error:', error)
-        }
       }
 
       /* ------------------------------------------------ */
-      /* 🔴 Update last_active_at safely                  */
+      /* 🔴 LAST ACTIVE                                  */
       /* ------------------------------------------------ */
-      const updateActivity = async () => {
-        const { error } = await supabase
-          .from('profiles')
-          .update({
-            last_active_at: new Date().toISOString(),
-          })
-          .eq('id', userId)
 
-        if (error) {
-          console.error('Activity update error:', {
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-            code: error.code,
-          })
+      const updateActivity =
+        async () => {
+
+          if (!mounted) return
+
+          const { error } =
+            await supabase
+              .from('profiles')
+              .update({
+                last_active_at:
+                  new Date().toISOString(),
+              })
+              .eq(
+                'user_id',
+                userId
+              )
+
+          if (error) {
+            console.error(
+              'Activity update error:',
+              error
+            )
+          }
         }
-      }
 
-      // 🔥 Initial update
       await updateActivity()
 
-      // 🔄 Interval update every 30 seconds
-      interval = setInterval(updateActivity, 30000)
+      interval = setInterval(
+        updateActivity,
+        30000
+      )
 
-      // 🖱 Throttled interaction update
       let lastInteraction = 0
-      const handleActivity = () => {
-        const now = Date.now()
-        if (now - lastInteraction > 15000) {
-          lastInteraction = now
-          updateActivity()
+
+      const handleActivity =
+        () => {
+
+          const now = Date.now()
+
+          if (
+            now -
+              lastInteraction >
+            15000
+          ) {
+
+            lastInteraction = now
+
+            updateActivity()
+          }
         }
-      }
 
-      window.addEventListener('click', handleActivity)
-      window.addEventListener('keydown', handleActivity)
-      window.addEventListener('focus', handleActivity)
+      window.addEventListener(
+        'click',
+        handleActivity
+      )
 
-      cleanupListeners = () => {
-        window.removeEventListener('click', handleActivity)
-        window.removeEventListener('keydown', handleActivity)
-        window.removeEventListener('focus', handleActivity)
+      window.addEventListener(
+        'keydown',
+        handleActivity
+      )
+
+      window.addEventListener(
+        'focus',
+        handleActivity
+      )
+
+      cleanupListeners =
+        () => {
+
+          window.removeEventListener(
+            'click',
+            handleActivity
+          )
+
+          window.removeEventListener(
+            'keydown',
+            handleActivity
+          )
+
+          window.removeEventListener(
+            'focus',
+            handleActivity
+          )
+        }
+
+    } catch (err) {
+
+      console.error(
+        'UserProvider init error:',
+        err
+      )
+
+      if (mounted) {
+        setReady(true)
       }
     }
+  }
 
-    init()
+  init()
 
-    return () => {
-      if (interval) clearInterval(interval)
-      if (cleanupListeners) cleanupListeners()
+  return () => {
+
+    mounted = false
+
+    if (interval) {
+      clearInterval(interval)
     }
-  }, [notify])
 
-  if (!ready) return null
+    if (cleanupListeners) {
+      cleanupListeners()
+    }
+  }
+}, [notify])
 
-  return <>{children}</>
+if (!ready)
+  return null
+
+return <>{children}</>
 }
 
 /* ------------------------------------------------ */

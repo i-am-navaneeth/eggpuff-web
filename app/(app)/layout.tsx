@@ -28,10 +28,16 @@ export default function Layout({
 
   useEffect(() => {
   const loadUser = async () => {
-    const { data } = await supabase.auth.getSession()
-    const user = data?.session?.user
-    if (user) setUserId(user.id)
+  const {
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
+
+  if (user) {
+    setUserId(user.id)
   }
+}
 
   loadUser()
 }, [])
@@ -68,7 +74,7 @@ export default function Layout({
     pathname.startsWith('/search') ? 'pt-0 mt-0' : 'pt-[55px]'
   } px-0 sm:px-6 max-w-[1140px] mx-auto w-full lg:pl-[80px]`}
 >
-          <main className="flex-1 py-4">
+          <main className="flex-1">
             {children}
             {modal}
           </main>

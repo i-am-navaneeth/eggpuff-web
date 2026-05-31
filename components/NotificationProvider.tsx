@@ -71,8 +71,10 @@ export function NotificationProvider({
 
     const init = async () => {
       const {
-        data: { user },
-      } = await supabase.auth.getUser()
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
       if (!user || !mounted) return
 
@@ -111,10 +113,12 @@ export function NotificationProvider({
   useEffect(() => {
   const loadNotifications = async () => {
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+  data: { session },
+} = await supabase.auth.getSession()
 
-    if (!user) return
+const user = session?.user
+
+if (!user) return
 
     const { data } = await supabase
       .from('notifications')

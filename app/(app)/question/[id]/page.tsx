@@ -4,12 +4,19 @@ import { use, useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import AnswerCard from '@/components/AnswerCard'
+import LinkPreviewCard from '@/components/LinkPreviewCard'
 
 type Question = {
   id: string
   text: string
   user_id: string
   expires_at: string
+  link_url?: string
+  link_title?: string
+  link_description?: string
+  link_image?: string
+  link_domain?: string
+  link_type?: string
 }
 
 type Answer = {
@@ -61,111 +68,149 @@ useEffect(() => {
   // ===============================
   // LOAD QUESTION + ANSWERS
   // ===============================
-  useEffect(() => {
-    let channel: any
+useEffect(() => {
+  let channel: any
 
-    const load = async () => {
-      const [
-  authRes,
-  questionRes,
-  answersRes,
-] = await Promise.all([
-  supabase.auth.getUser(),
+  const load = async () => {
+    // 🔥 auth FIRST
+    const authRes =
+      await supabase.auth.getUser()
 
-  supabase
-    .from('questions')
-    .select('*')
-    .eq('id', id)
-    .single(),
+    // 🔥 remaining queries in parallel
+    const [
+      questionRes,
+      answersRes,
+    ] = await Promise.all([
 
-  supabase
-    .from('answers')
-    .select(
-      'id, text, user_id, question_id, approved, created_at'
+      supabase
+        .from('questions')
+        .select('*')
+        .eq('id', id)
+        .single(),
+
+      supabase
+        .from('answers')
+        .select(
+          'id, text, user_id, question_id, approved, created_at'
+        )
+        .eq('question_id', id)
+        .order('created_at', {
+          ascending: true,
+        }),
+
+    ])
+
+    const user =
+      authRes.data?.user
+
+    setMe(user?.id || null)
+
+    if (questionRes.data) {
+      setQuestion((prev: any) => ({
+        ...prev,
+        ...questionRes.data,
+      }))
+    }
+
+    setAnswers(
+      answersRes.data || []
     )
-    .eq('question_id', id)
-    .order('created_at', {
-      ascending: true,
-    }),
-])
 
-const user =
-  authRes.data?.user
+    // 🔥 render everything together
+    setLoading(false)
 
-setMe(user?.id || null)
+    // 🔥 realtime
+    channel = supabase
+      .channel('answers-' + id)
 
-if (questionRes.data) {
-  setQuestion((prev: any) => ({
-    ...prev,
-    ...questionRes.data,
-  }))
-}
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'answers',
+        },
+        payload => {
+          const incoming =
+            payload.new as Answer
 
-setAnswers(
-  answersRes.data || []
-)
+          if (
+            incoming.question_id !== id
+          ) return
 
-// 🔥 render everything together
-setLoading(false)
-
-      channel = supabase
-        .channel('answers-' + id)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'answers',
-          },
-          payload => {
-            const incoming = payload.new as Answer
-            if (incoming.question_id !== id) return
-
-            setAnswers(prev => {
-              const optimisticIndex = prev.findIndex(
+          setAnswers(prev => {
+            const optimisticIndex =
+              prev.findIndex(
                 a =>
                   a._optimistic &&
                   a.user_id === incoming.user_id &&
                   a.text === incoming.text
               )
 
-              if (optimisticIndex !== -1) {
-                const copy = [...prev]
-                copy[optimisticIndex] = incoming
-                return copy
-              }
+            // 🔥 replace optimistic answer
+            if (
+              optimisticIndex !== -1
+            ) {
+              const copy = [...prev]
 
-              if (prev.some(a => a.id === incoming.id)) return prev
-              return [...prev, incoming]
-            })
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'answers',
-          },
-          payload => {
-            const updated = payload.new as Answer
+              copy[optimisticIndex] =
+                incoming
 
-            setAnswers(prev =>
-              prev.map(a =>
-                a.id === updated.id ? updated : a
+              return copy
+            }
+
+            // 🔥 prevent duplicates
+            if (
+              prev.some(
+                a =>
+                  a.id === incoming.id
               )
+            ) {
+              return prev
+            }
+
+            return [
+              ...prev,
+              incoming,
+            ]
+          })
+        }
+      )
+
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'answers',
+        },
+        payload => {
+          const updated =
+            payload.new as Answer
+
+          setAnswers(prev =>
+            prev.map(a =>
+              a.id === updated.id
+                ? updated
+                : a
             )
-          }
-        )
-        .subscribe()
-    }
+          )
+        }
+      )
 
-    load()
+      .subscribe()
+  }
 
-    return () => {
-      if (channel) supabase.removeChannel(channel)
+  load()
+
+  return () => {
+    if (channel) {
+      supabase.removeChannel(
+        channel
+      )
     }
-  }, [id])
+  }
+}, [id])
 
   // ===============================
   // DERIVED STATE
@@ -189,8 +234,10 @@ setLoading(false)
   if (posting) return
 
   const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
   if (!user) return
 
@@ -296,15 +343,111 @@ return (
     >
 
       {/* QUESTION */}
-      <h2
-        style={{
-          fontSize: 20,
-          fontWeight: 600,
-          marginBottom: 2,
-        }}
-      >
-        {question.text}
-      </h2>
+<div
+  style={{
+    marginBottom: 4,
+  }}
+>
+  <h2
+    style={{
+      fontSize: 20,
+
+      fontWeight: 600,
+
+      lineHeight: 1.65,
+
+      letterSpacing: '-0.2px',
+
+      color: '#0F1419',
+
+      whiteSpace: 'pre-wrap',
+
+      wordBreak: 'break-word',
+
+      overflowWrap: 'break-word',
+
+      fontFamily:
+        'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI Emoji", "Apple Color Emoji", sans-serif',
+    }}
+  >
+    {question.text
+      .split(
+        /(https?:\/\/[^\s]+|www\.[^\s]+)/g
+      )
+      .map((part, index) => {
+
+        const isLink =
+          /^(https?:\/\/|www\.)/.test(
+            part
+          )
+
+        if (isLink) {
+
+          const href =
+            part.startsWith('http')
+              ? part
+              : `https://${part}`
+
+          return (
+            <span
+              key={index}
+              onClick={(e) => {
+                e.stopPropagation()
+
+                sessionStorage.setItem(
+                  'ep_inapp_browser',
+                  href
+                )
+
+                router.push(
+                  `/browser?url=${encodeURIComponent(
+                    href
+                  )}`
+                )
+              }}
+              style={{
+                color: '#1D9BF0',
+
+                cursor: 'pointer',
+
+                textDecoration: 'none',
+
+                wordBreak: 'break-word',
+              }}
+            >
+              {part}
+            </span>
+          )
+        }
+
+        return (
+          <span key={index}>
+            {part}
+          </span>
+        )
+      })}
+  </h2>
+
+  {/* RICH PREVIEW */}
+  {question.link_url && (
+    <div
+      style={{
+        marginTop: 14,
+      }}
+    >
+      <LinkPreviewCard
+        url={question.link_url}
+        title={question.link_title}
+        description={
+          question.link_description
+        }
+        image={question.link_image}
+        domain={question.link_domain}
+        type={question.link_type}
+      />
+    </div>
+  )}
+</div>
 
       <p
         style={{

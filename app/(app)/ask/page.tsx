@@ -161,8 +161,10 @@ const [loadingPreview, setLoadingPreview] =
     if (!text.trim()) return
 
     const {
-  data: { user },
-} = await supabase.auth.getUser()
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
 if (!user) {
   console.error('User not found')
@@ -253,8 +255,10 @@ link_type: linkPreview?.type || null,
   useEffect(() => {
   const checkProfile = async () => {
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  data: { session },
+} = await supabase.auth.getSession();
+
+const user = session?.user ?? null;
 
     if (!user) return;
 

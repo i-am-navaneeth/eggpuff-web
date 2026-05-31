@@ -25,17 +25,21 @@ export default function AuthCallback() {
           .maybeSingle()
 
         if (!existing) {
-          await supabase.from('profiles').insert({
-            user_id: user.id,
-            name: user.user_metadata?.name || 'User',
-            username:
-              (user.email?.split('@')[0] || 'user') +
-              '_' +
-              user.id.slice(0, 4),
-            email: user.email,
-            avatar_url: user.user_metadata?.avatar_url || null,
-          })
-        }
+  const source = localStorage.getItem('ep_source')
+
+  await supabase.from('profiles').insert({
+    user_id: user.id,
+    name: user.user_metadata?.name || 'User',
+    username:
+      (user.email?.split('@')[0] || 'user') +
+      '_' +
+      user.id.slice(0, 4),
+    email: user.email,
+    avatar_url: user.user_metadata?.avatar_url || null,
+
+    source, // 👈 Mail tracking
+  })
+}
 
         // ✅ ONLY redirect if we are on auth callback page
         if (window.location.search.includes('code=')) {

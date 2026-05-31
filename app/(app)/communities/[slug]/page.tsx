@@ -260,7 +260,7 @@ if (owner) {
     .order(
       'created_at',
       {
-        ascending: false,
+        ascending: true,
       }
     )
 
@@ -321,19 +321,25 @@ if (!questionData) {
 
   }, [slug, router])
 
-  useEffect(() => {
+useEffect(() => {
 
   if (!feedRef.current)
     return
 
-  feedRef.current
-    .scrollTo({
+  requestAnimationFrame(() => {
 
-      top: 0,
+    if (!feedRef.current)
+      return
+
+    feedRef.current.scrollTo({
+
+      top:
+        feedRef.current.scrollHeight,
 
       behavior:
         'instant' as ScrollBehavior,
     })
+  })
 
 }, [posts])
 
@@ -523,9 +529,9 @@ const handleCreatePost =
 
       setPosts((prev) => [
 
-        newPost,
-
         ...prev,
+
+       newPost,
       ])
 
       // ─────────────────────────────

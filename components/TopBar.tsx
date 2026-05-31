@@ -45,6 +45,9 @@ export default function TopBar({
   const [miniFollowing, setMiniFollowing] = useState(false)
   const [miniLoadingFollow, setMiniLoadingFollow] = useState(false)
 
+  const [miniProfileLoading, setMiniProfileLoading] =
+  useState(true)
+
   const [pullDistance, setPullDistance] =
   useState(0)
   const [pulling, setPulling] =
@@ -55,8 +58,10 @@ export default function TopBar({
 useEffect(() => {
   const loadUser = async () => {
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
     if (user) {
     }
@@ -73,8 +78,10 @@ useEffect(() => {
 
   const loadUserAndBalance = async () => {
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
     if (!user) {
       if (mounted) {
@@ -137,8 +144,10 @@ useEffect(() => {
 
   const loadAvatar = async () => {
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
     if (!user) return;
 
@@ -190,8 +199,10 @@ useEffect(() => {
 
   const loadProfile = async () => {
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
     if (!user) return
 
@@ -210,59 +221,141 @@ useEffect(() => {
 }, [isProfilePage])
 
 useEffect(() => {
-  const loadMiniProfile = async () => {
-    if (!usernameFromPath) {
-      setMiniProfile(null)
-      return
-    }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('username', usernameFromPath)
-      .maybeSingle()
+  let mounted = true
 
-    if (!profile) return
+  const loadMiniProfile =
+    async () => {
 
-    setMiniProfile(profile)
+      if (!usernameFromPath) {
 
-    // question count
-    const { count } = await supabase
-      .from('questions')
-      .select('*', {
-        count: 'exact',
-        head: true,
-      })
-      .eq('user_id', profile.user_id)
+        if (mounted) {
+          setMiniProfile(null)
+          setMiniProfileLoading(false)
+        }
 
-    setMiniQuestionsCount(count || 0)
+        return
+      }
 
-    // follow state
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+      // 🔥 start loading
+      if (mounted) {
+        setMiniProfileLoading(true)
+      }
 
-    if (user) {
-      const { data: follow } = await supabase
-        .from('follows')
-        .select('id')
-        .eq('follower_id', user.id)
-        .eq('following_id', profile.user_id)
+      // 🔥 get logged user FIRST
+     const {
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
+
+      // 🔥 get viewed profile
+      const {
+        data: profile
+      } = await supabase
+
+        .from('profiles')
+
+        .select('*')
+
+        .eq(
+          'username',
+          usernameFromPath
+        )
+
         .maybeSingle()
 
-      setMiniFollowing(!!follow)
+      if (!profile) {
+
+        if (mounted) {
+          setMiniProfile(null)
+          setMiniProfileLoading(false)
+        }
+
+        return
+      }
+
+      // 🔥 question count
+      const { count } =
+        await supabase
+
+          .from('questions')
+
+          .select('*', {
+            count: 'exact',
+            head: true,
+          })
+
+          .eq(
+            'user_id',
+            profile.user_id
+          )
+
+      // 🔥 follow state
+      let following = false
+
+      if (
+        user &&
+        profile.user_id
+      ) {
+
+        const {
+          data: follow
+        } = await supabase
+
+          .from('follows')
+
+          .select('id')
+
+          .eq(
+            'follower_id',
+            user.id
+          )
+
+          .eq(
+            'following_id',
+            profile.user_id
+          )
+
+          .maybeSingle()
+
+        following = !!follow
+      }
+
+      // 🔥 ATOMIC UPDATE
+      // everything updates together
+      if (mounted) {
+
+        setMiniProfile(profile)
+
+        setMiniQuestionsCount(
+          count || 0
+        )
+
+        setMiniFollowing(
+          following
+        )
+
+        setMiniProfileLoading(false)
+      }
     }
-  }
 
   loadMiniProfile()
+
+  return () => {
+    mounted = false
+  }
+
 }, [usernameFromPath])
 
 const handleMiniFollow = async () => {
   if (!miniProfile) return
 
   const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
   if (!user) return
 
@@ -470,132 +563,280 @@ const handleMiniFollow = async () => {
   <div style={{ width: 15 }} />
 )}
 
-        {/* LOGO / MINI PROFILE */}
-{isProfilePage && showMiniProfile && miniProfile ? (
-  <div className="flex items-center justify-between w-full">
+        {/* 🔥 BROWSER TOPBAR */}
+{pathname === '/browser' ? (
 
-    {/* LEFT */}
-    <div className="flex items-center gap-3 min-w-0">
+  <div
+    className="
+      flex items-center
+      gap-3
+      w-full
+    "
+  >
 
-      {/* AVATAR */}
-      <img
-        src={miniProfile.avatar_url || '/default-avatar.png'}
-        className="w-8 h-8 rounded-full object-cover"
-      />
+    {/* CLOSE */}
+    <button
+      onClick={() => router.back()}
+      className="
+        flex items-center justify-center
+        w-8 h-8
+        rounded-full
+        active:scale-95
+        transition
+      "
+      style={{
+        border: 'none',
+        background: 'transparent',
+        flexShrink: 0,
+      }}
+    >
+      <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+      >
+        <path
+          d="M18 6L6 18"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+        />
+        <path
+          d="M6 6L18 18"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+        />
+      </svg>
+    </button>
 
-      {/* USER */}
-      <div className="leading-tight min-w-0">
-        <div className="text-sm font-semibold truncate">
-          {miniProfile.name || miniProfile.username}
-        </div>
+    {/* DOMAIN */}
+    <div
+      className="
+        flex flex-col
+        min-w-0
+      "
+    >
+      <div
+        style={{
+          fontSize: 16,
+          fontWeight: 700,
+          color: '#111827',
+          lineHeight: 1.1,
 
-        <div className="text-xs text-gray-500">
-          {miniQuestionsCount} question
-          {miniQuestionsCount !== 1 ? 's' : ''}
-        </div>
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {searchParams.get('domain') || 'Website'}
       </div>
+
+      <div
+        style={{
+          fontSize: 12,
+          color: '#6B7280',
+          marginTop: 2,
+          lineHeight: 1,
+        }}
+      >
+        Open inside EggPuff
+      </div>
+    </div>
+
+  </div>
+
+) : isProfilePage ? (
+
+  showMiniProfile &&
+  !miniProfileLoading &&
+  miniProfile ? (() => {
+
+    const isOwnProfile =
+      !!currentUserId &&
+      !!miniProfile?.user_id &&
+      String(currentUserId).trim() ===
+        String(miniProfile.user_id).trim()
+
+    return (
+      <div className="flex items-center justify-between w-full">
+
+        {/* LEFT */}
+        <div className="flex items-center gap-3 min-w-0">
+
+          {/* AVATAR */}
+          <img
+            src={
+              miniProfile.avatar_url ||
+              '/default-avatar.png'
+            }
+            className="
+              w-8 h-8 rounded-full
+              object-cover flex-shrink-0
+            "
+          />
+
+          {/* USER INFO */}
+          <div className="leading-tight min-w-0">
+
+            <div
+              className="
+                text-sm font-semibold
+                truncate
+              "
+            >
+              {miniProfile.name ||
+                miniProfile.username}
+            </div>
+
+            <div
+              className="
+                text-xs text-gray-500
+              "
+            >
+              {miniQuestionsCount} question
+              {miniQuestionsCount !== 1
+                ? 's'
+                : ''}
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* RIGHT ACTION */}
+        {isOwnProfile ? (
+
+          <button
+            onClick={() =>
+              router.push('/profile')
+            }
+            className="
+              px-4 py-1.5 rounded-full
+              bg-gray-100 text-black
+              text-sm font-medium
+              active:scale-95
+              transition
+            "
+          >
+            Edit
+          </button>
+
+        ) : (
+
+          <button
+            onClick={handleMiniFollow}
+            disabled={miniLoadingFollow}
+            className={`
+              px-4 py-1.5 rounded-full
+              text-sm font-medium
+              active:scale-95
+              transition
+              ${
+                miniFollowing
+                  ? 'bg-gray-200 text-black'
+                  : 'bg-black text-white'
+              }
+            `}
+          >
+            {miniLoadingFollow
+              ? '...'
+              : miniFollowing
+              ? 'Following'
+              : 'Follow'}
+          </button>
+
+        )}
+
+      </div>
+    )
+  })() : (
+
+    <div className="flex items-center gap-2">
+
+      <h2
+        className="
+          text-xl sm:text-2xl
+          font-semibold
+          select-none
+        "
+      >
+        EggPuff
+      </h2>
 
     </div>
 
-    {/* RIGHT */}
-    {currentUserId &&
-    miniProfile?.user_id &&
-    String(miniProfile.user_id).trim() ===
-      String(currentUserId).trim() ? (
+  )
 
-      <button
-        onClick={() => router.push('/profile')}
-        className="
-          px-4 py-1.5 rounded-full
-          bg-gray-100 text-black
-          text-sm font-medium
-        "
-      >
-        Edit
-      </button>
-
-    ) : (
-
-      <button
-        onClick={handleMiniFollow}
-        disabled={miniLoadingFollow}
-        className={`
-          px-4 py-1.5 rounded-full
-          text-sm font-medium transition
-          ${
-            miniFollowing
-              ? 'bg-gray-200 text-black'
-              : 'bg-black text-white'
-          }
-        `}
-      >
-        {miniLoadingFollow
-          ? '...'
-          : miniFollowing
-          ? 'Following'
-          : 'Follow'}
-      </button>
-
-    )}
-
-  </div>
 ) : (
+
+  /* 🔥 NORMAL TOPBAR */
   <h2
-  onClick={() => {
-    const now = Date.now()
+    onClick={() => {
+      const now = Date.now()
 
-    // 🔥 double tap detection
-    if (
-      (window as any).__ep_last_tap &&
-      now -
-        (window as any).__ep_last_tap <
-        320
-    ) {
-      // 🔥 refresh only if already on feed
-      if (pathname === '/feed') {
-        onRefreshFeed?.()
+      if (
+        (window as any).__ep_last_tap &&
+        now -
+          (window as any).__ep_last_tap <
+          320
+      ) {
+
+        if (pathname === '/feed') {
+          onRefreshFeed?.()
+        } else {
+          router.push('/feed')
+        }
+
       } else {
+
         router.push('/feed')
+
       }
-    } else {
-      // 🔥 single tap = normal navigation
-      router.push('/feed')
-    }
 
-    ;(window as any).__ep_last_tap =
-      now
-  }}
-  className="text-xl sm:text-2xl font-semibold cursor-pointer select-none flex items-center gap-1"
-  style={{
-    WebkitTapHighlightColor:
-      'transparent',
+      ;(window as any).__ep_last_tap =
+        now
+    }}
+    className="
+      text-xl sm:text-2xl
+      font-semibold
+      cursor-pointer
+      select-none
+      flex items-center gap-1
+    "
+    style={{
+      WebkitTapHighlightColor:
+        'transparent',
 
-    userSelect: 'none',
+      userSelect: 'none',
 
-    transition:
-      'transform 0.12s ease',
-  }}
-  onTouchStart={(e) => {
-    e.currentTarget.style.transform =
-      'scale(0.96)'
-  }}
-  onTouchEnd={(e) => {
-    e.currentTarget.style.transform =
-      'scale(1)'
-  }}
->
-  {pathname === '/notifications'
-    ? 'Notifications'
-    : 'EggPuff'}
-</h2>
+      transition:
+        'transform 0.12s ease',
+    }}
+    onTouchStart={(e) => {
+      e.currentTarget.style.transform =
+        'scale(0.96)'
+    }}
+    onTouchEnd={(e) => {
+      e.currentTarget.style.transform =
+        'scale(1)'
+    }}
+  >
+    {pathname === '/notifications'
+      ? 'Notifications'
+      : 'EggPuff'}
+  </h2>
+
 )}
 
         {/* RIGHT SIDE */}
 <div className="flex items-center gap-2 sm:gap-3 ml-auto pr-1 sm:pr-2">
 
   {/* BALANCE */}
-  {pathname !== '/notifications' &&
-    !pathname.startsWith('/u/') && (
+ {pathname !== '/notifications' &&
+  !pathname.startsWith('/u/') &&
+  pathname !== '/browser' && (
       <div>
         <button
   onClick={() => setBuyOpen(true)}

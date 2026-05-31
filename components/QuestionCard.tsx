@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { markHelpful, markNotUseful } from '@/lib/feedPrefs'
 import LinkPreviewCard from './LinkPreviewCard'
 import QuestionActionsMenu from './QuestionActionsMenu'
@@ -58,6 +58,8 @@ export default function QuestionCard({
   const router = useRouter()
 
   const [popped, setPopped] = useState(false)
+  const menuButtonRef =
+  useRef<HTMLButtonElement>(null)
   const [showMenu, setShowMenu] =
   useState(false)
 
@@ -71,6 +73,9 @@ export default function QuestionCard({
     useState<'up' | 'down' | null>(null)
 
  const goToQuestion = () => {
+  // 🔥 BLOCK navigation while menu is open
+  if (showMenu) return
+
   // 🔥 prevent spam taps
   if (popped) return
 
@@ -89,10 +94,11 @@ export default function QuestionCard({
     JSON.stringify(q)
   )
 
-  // 🔥 bubble sound (non-blocking)
+  // 🔥 bubble sound
   if (q.type === 'bubble') {
     try {
       const audio = new Audio('/pop.mp3')
+
       audio.volume = 0.15
 
       setTimeout(() => {
@@ -101,68 +107,117 @@ export default function QuestionCard({
     } catch {}
   }
 
-  // 🔥 allow tap animation to finish slightly
+  // 🔥 slight delay for tap animation
   setTimeout(() => {
-  setPopped(false)
+    setPopped(false)
 
-router.push(`/question/${q.id}`)
-}, 85)
+    router.push(
+      `/question/${q.id}`
+    )
+  }, 85)
 }
 
   const hasAnswers =
     (q.answers_count ?? 0) > 0
 
+
+useEffect(() => {
+  if (!showMenu) return
+
+  let ticking = false
+
+  const closeMenu = () => {
+    if (ticking) return
+
+    ticking = true
+
+    requestAnimationFrame(() => {
+      setShowMenu(false)
+      ticking = false
+    })
+  }
+
+  window.addEventListener(
+    'scroll',
+    closeMenu,
+    true
+  )
+
+  return () => {
+    window.removeEventListener(
+      'scroll',
+      closeMenu,
+      true
+    )
+  }
+}, [showMenu])
+
   return (
   <div
-    role="button"
-    tabIndex={0}
-    onClick={goToQuestion}
-    onKeyDown={(e) => {
-      if (e.key === 'Enter') goToQuestion()
-    }}
-    style={{
-      marginBottom: 14,
-      padding: 16,
-      borderRadius: 16,
+  role="button"
+  tabIndex={0}
+  onClick={goToQuestion}
+  onKeyDown={(e) => {
+    if (e.key === 'Enter') goToQuestion()
+  }}
+  onMouseDown={() => setPopped(true)}
+  onMouseUp={() => setPopped(false)}
+  onMouseLeave={() => setPopped(false)}
+  onTouchStart={() => setPopped(true)}
+  onTouchEnd={() => setPopped(false)}
+  style={{
+    marginBottom: 0,
 
-      background:
-        q.type === 'bubble'
-          ? '#F3F4F6'
-          : '#FFFFFF',
+    padding: '16px 18px 12px',
 
-      border:
-        q.type === 'bubble'
-          ? '1px dashed #111827'
-          : '1px solid #E5E7EB',
+    borderRadius: 0,
 
-      cursor: 'pointer',
-      position: 'relative',
+    background:
+      popped
+        ? 'rgba(15,20,25,0.03)'
+        : q.type === 'bubble'
+        ? '#F8FAFC'
+        : 'transparent',
 
-      boxShadow: popped
-        ? '0 6px 18px rgba(0,0,0,0.06)'
-        : '0 0 0 rgba(0,0,0,0)',
+    border: 'none',
 
-      transition:
-        'transform 0.08s ease-out, box-shadow 0.12s ease-out, opacity 0.08s ease-out',
+    borderBottom:
+      q.type === 'bubble'
+        ? '1px dashed #E5E7EB'
+        : '1px solid rgba(15, 20, 25, 0.08)',
 
-      transform: 'scale(1)',
+    backgroundClip: 'padding-box',
 
-opacity: 1,
+    cursor: 'default',
 
-      animation:
-        q.type === 'bubble'
-          ? 'floatBubble 3s ease-in-out infinite'
-          : undefined,
+    position: 'relative',
 
-      WebkitTapHighlightColor: 'transparent',
+    zIndex: 'auto',
 
-      willChange: 'transform',
-      backfaceVisibility: 'hidden',
-      transformStyle: 'preserve-3d',
-    }}
-  >
+    boxShadow: popped
+      ? '0 2px 10px rgba(0,0,0,0.04)'
+      : 'none',
+
+    transform: popped
+      ? 'scale(0.988)'
+      : 'scale(1)',
+
+    opacity: popped
+      ? 0.92
+      : 1,
+
+    transition:
+      'transform 0.12s ease, opacity 0.12s ease, background 0.12s ease, box-shadow 0.12s ease',
+
+    animation: undefined,
+
+    WebkitTapHighlightColor:
+      'transparent',
+  }}
+>
+
       {/* HEADER */}
-      <div
+<div
   style={{
     display: 'flex',
     gap: 10,
@@ -171,16 +226,31 @@ opacity: 1,
 >
         
         {/* AVATAR */}
-        <div
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: '50%',
-            backgroundImage: `url(${q.avatar_url})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
-        />
+<div
+  onClick={(e) => {
+    e.stopPropagation()
+
+    if (q.username) {
+      router.push(`/u/${q.username}`)
+    }
+  }}
+  style={{
+    width: 38,
+height: 38,
+
+    borderRadius: '50%',
+
+    backgroundImage: `url(${q.avatar_url})`,
+
+    backgroundSize: 'cover',
+
+    backgroundPosition: 'center',
+
+    cursor: 'pointer',
+
+    flexShrink: 0,
+  }}
+/>
 
         <div
   style={{
@@ -191,21 +261,36 @@ opacity: 1,
           
           {/* NAME + MORE */}
           <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-            }}
-          >
-            <div
   style={{
-    fontWeight: 500,
-    fontSize: 12.5,
-    opacity: 0.9,
     display: 'flex',
+    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 4,
   }}
+>
+  <div
+    onClick={(e) => {
+      e.stopPropagation()
+
+      if (q.username) {
+        router.push(`/u/${q.username}`)
+      }
+    }}
+    style={{
+      fontWeight: 600,
+fontSize: 14.5,
+letterSpacing: '-0.15px',
+      opacity: 1,
+
+      display: 'flex',
+
+      alignItems: 'flex-start',
+
+      gap: 4,
+
+      cursor: 'pointer',
+
+      width: 'fit-content',
+    }}
 >
   {q.hideStreak
   ? (q.user_name || 'Anonymous')
@@ -292,120 +377,164 @@ opacity: 1,
 
 
             <div
-  onClick={(e) => e.stopPropagation()}
+  onClick={(e) => {
+  e.preventDefault()
+  e.stopPropagation()
+}}
   style={{
-    position: 'relative',
-  }}
+  position: 'relative',
+}}
 >
   <button
-    onClick={(e) => {
-      e.stopPropagation()
+  ref={menuButtonRef}
+  onMouseDown={(e) => {
+  e.preventDefault()
+  e.stopPropagation()
+}}
 
-      setShowMenu((prev) => !prev)
-    }}
-    style={{
-      border: 'none',
-      background: 'transparent',
+onClick={(e) => {
+  e.preventDefault()
+  e.stopPropagation()
 
-      cursor: 'pointer',
+  setShowMenu(prev => !prev)
+}}
+  style={{
+    border: 'none',
 
-      width: 32,
-      height: 32,
+    background: 'transparent',
 
-      borderRadius: '50%',
+    cursor: 'pointer',
 
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
+    width: 32,
+    height: 32,
 
-      color: '#6B7280',
-    }}
+    borderRadius: '50%',
+
+    display: 'flex',
+
+    alignItems: 'center',
+
+    justifyContent: 'center',
+
+    color: '#6B7280',
+  }}
+>
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="currentColor"
   >
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-    >
-      <circle cx="5" cy="12" r="1.8" />
-      <circle cx="12" cy="12" r="1.8" />
-      <circle cx="19" cy="12" r="1.8" />
-    </svg>
-  </button>
+    <circle cx="5" cy="12" r="1.8" />
+    <circle cx="12" cy="12" r="1.8" />
+    <circle cx="19" cy="12" r="1.8" />
+  </svg>
+</button>
 
   {/* DROPDOWN */}
-  {showMenu && (
-    <div
-      onClick={(e) =>
-        e.stopPropagation()
-      }
-      style={{
-        position: 'absolute',
+{showMenu && (
+  <div
+  data-question-dropdown
+  onClick={(e) =>
+    e.stopPropagation()
+  }
+    style={{
+  position: 'fixed',
 
-        top: 36,
-        right: 0,
+  top:
+    menuButtonRef.current
+      ?.getBoundingClientRect()
+      .bottom! + 8,
 
-        zIndex: 50,
-      }}
-    >
-      <QuestionActionsMenu
-        onClose={() =>
-          setShowMenu(false)
-        }
-        isOwner={
-          q.user_id === currentUserId
-        }
-        questionId={q.id}
-      />
-    </div>
-  )}
+  left:
+    menuButtonRef.current
+      ?.getBoundingClientRect()
+      .right! - 240,
+
+  zIndex: 999999,
+
+  isolation: 'isolate',
+}}
+  >
+    <QuestionActionsMenu
+  onClose={() => {
+    requestAnimationFrame(() => {
+      setShowMenu(false)
+    })
+  }}
+
+  isOwner={
+    q.user_id === currentUserId
+  }
+
+  questionId={q.id}
+
+  onDelete={() => {
+    onDelete?.(q.id)
+  }}
+/>
+  </div>
+)}
 </div>
           </div>
 
           {/* USERNAME + TIME */}
 <div
   style={{
-    fontSize: 11,
+  fontSize: 12.5,
 
-    opacity: 0.6,
+  opacity: 1,
 
-    letterSpacing: '0.2px',
+  letterSpacing: '-0.1px',
 
-    color: '#6B7280',
+  color: '#71767B',
 
-    marginTop: -10,
+  marginTop: -8,
 
-    lineHeight: 1.05,
+  lineHeight: 1.2,
 
-    display: 'flex',
-    alignItems: 'center',
+  display: 'flex',
 
-    gap: 4,
-  }}
+  alignItems: 'center',
+
+  gap: 3,
+}}
 >
   @{q.username || 'user'} •{' '}
   {formatTime(q.created_at)}
 </div>
 </div></div>
 
-      {/* QUESTION TEXT */}
-
+{/* QUESTION CONTENT */}
+<div
+  onClick={(e) => {
+    e.stopPropagation()
+    goToQuestion()
+  }}
+  style={{
+    cursor: 'pointer',
+    maxWidth: '94%',
+  }}
+>
 <p
   style={{
     marginTop: 12,
 
-    marginBottom: 10,
+    marginBottom:
+      q.link_url ? 8 : 10,
 
-    fontSize:
-      'clamp(16px, 1.05vw, 18px)',
+    fontSize: '17px',
 
-    letterSpacing: '-0.2px',
+    fontFamily:
+      'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI Emoji", "Apple Color Emoji", sans-serif',
 
-    lineHeight: 1.75,
+    letterSpacing: '-0.15px',
 
-    fontWeight: 500,
+    lineHeight: 1.82,
 
-    color: '#111827',
+    fontWeight: 400,
+
+    color: '#0F1419',
 
     whiteSpace: 'pre-wrap',
 
@@ -414,18 +543,126 @@ opacity: 1,
     overflowWrap: 'break-word',
   }}
 >
-  {q.text}
-</p>
+{(
+  q.text || ''
+)
+  .replace(
+    /\bhttps?:\/\/https?:\/\//gi,
+    'https://'
+  )
+  .split(
+    /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s]*)/
+  )
+    .map((part, index) => {
 
-      {q.link_url && (
-  <LinkPreviewCard
-    url={q.link_url}
-    title={q.link_title}
-    description={q.link_description}
-    image={q.link_image}
-    domain={q.link_domain}
-    type={q.link_type}
-  />
+      const isLink =
+        /^(https?:\/\/|www\.|[a-zA-Z0-9-]+\.[a-zA-Z]{2,})/.test(
+          part
+        )
+
+      if (isLink) {
+
+        const href =
+          part.startsWith('http')
+            ? part
+            : `https://${part}`
+
+        const domain =
+          (() => {
+            try {
+              return new URL(href)
+                .hostname
+                .replace(/^www\./, '')
+            } catch {
+              return 'Website'
+            }
+          })()
+
+        // 🔥 PREMIUM CLEAN URL
+        const displayText =
+  part
+    .replace(/^https?:\/\//i, '')
+    .replace(/^www\./i, '')
+    .replace(/\/$/, '')
+
+        return (
+          <span
+            key={index}
+
+            onClick={(e) => {
+
+              e.stopPropagation()
+
+              sessionStorage.setItem(
+                'ep_inapp_browser',
+                href
+              )
+
+              router.push(
+                `/browser?url=${encodeURIComponent(
+                  href
+                )}&domain=${encodeURIComponent(
+                  domain
+                )}`
+              )
+            }}
+
+            style={{
+              color: '#1D9BF0',
+
+              cursor: 'pointer',
+
+              wordBreak: 'break-all',
+
+              textDecoration: 'none',
+
+              transition:
+                'opacity 0.12s ease',
+            }}
+
+            onTouchStart={(e) => {
+              e.currentTarget.style.opacity =
+                '0.7'
+            }}
+
+            onTouchEnd={(e) => {
+              e.currentTarget.style.opacity =
+                '1'
+            }}
+          >
+            {displayText}
+          </span>
+        )
+      }
+
+      return (
+        <span key={index}>
+          {part}
+        </span>
+      )
+    })}
+</p>
+</div>
+
+{/* 🔥 RICH PREVIEW */}
+{q.link_url && (
+  <div
+    onClick={(e) => {
+      e.stopPropagation()
+    }}
+    style={{
+      cursor: 'pointer',
+    }}
+  >
+    <LinkPreviewCard
+      url={q.link_url}
+      title={q.link_title}
+      description={q.link_description}
+      image={q.link_image}
+      domain={q.link_domain}
+      type={q.link_type}
+    />
+  </div>
 )}
 
       {/* ACTION ROW (Hidden for now) */}

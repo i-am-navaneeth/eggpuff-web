@@ -14,8 +14,10 @@ export default function NotificationBell() {
   useEffect(() => {
     const load = async () => {
       const {
-        data: { user },
-      } = await supabase.auth.getUser()
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
       if (!user) return
 
@@ -71,8 +73,10 @@ export default function NotificationBell() {
   /* ---------------- MARK ALL AS READ ---------------- */
   const markAllRead = async () => {
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+  data: { session },
+} = await supabase.auth.getSession()
+
+const user = session?.user
 
     if (!user) return
 
