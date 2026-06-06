@@ -15,10 +15,12 @@ export async function generateMetadata({
   return {
     title: `@${username} | EggPuff`,
     description: `View ${username}'s profile on EggPuff.`,
+
     openGraph: {
       title: `@${username} | EggPuff`,
       description: `View ${username}'s profile on EggPuff.`,
     },
+
     twitter: {
       title: `@${username} | EggPuff`,
       description: `View ${username}'s profile on EggPuff.`,
@@ -26,6 +28,33 @@ export async function generateMetadata({
   }
 }
 
-export default function Page() {
-  return <ProfileView />
+export default async function Page({
+  params,
+}: Props) {
+  const { username } = await params
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+
+    '@type': 'Person',
+
+    name: username,
+
+    alternateName: `@${username}`,
+
+    url: `https://eggpuff.in/u/${username}`,
+  }
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd),
+        }}
+      />
+
+      <ProfileView />
+    </>
+  )
 }

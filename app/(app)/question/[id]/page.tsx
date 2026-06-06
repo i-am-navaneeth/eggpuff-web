@@ -20,7 +20,12 @@ export async function generateMetadata({
 
   const { data: question } = await supabase
     .from('questions')
-    .select('text')
+    .select(`
+      id,
+      text,
+      user_id,
+      created_at
+    `)
     .eq('id', id)
     .single()
 
@@ -62,17 +67,53 @@ export default async function Page({
 
   const { data: question } = await supabase
     .from('questions')
-    .select('text')
+    .select(`
+      id,
+      text,
+      user_id,
+      created_at
+    `)
     .eq('id', id)
     .single()
+
+  const { data: profile } =
+    question?.user_id
+      ? await supabase
+          .from('profiles')
+          .select(`
+            username,
+            name
+          `)
+          .eq('user_id', question.user_id)
+          .maybeSingle()
+      : { data: null }
 
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'QAPage',
+
     mainEntity: {
       '@type': 'Question',
-      name: question?.text ?? 'Question',
-      text: question?.text ?? 'Question',
+
+      name:
+        question?.text ?? 'Question',
+
+      text:
+        question?.text ?? 'Question',
+
+      url: `https://eggpuff.in/question/${id}`,
+
+      dateCreated:
+        question?.created_at,
+
+      author: {
+        '@type': 'Person',
+
+        name:
+          profile?.name ||
+          profile?.username ||
+          'Anonymous',
+      },
     },
   }
 
