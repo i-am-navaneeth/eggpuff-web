@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { createClient } from '@supabase/supabase-js'
 import QuestionIdPage from '@/components/QuestionIdPage'
 
 type Props = {
@@ -12,16 +13,39 @@ export async function generateMetadata({
 }: Props): Promise<Metadata> {
   const { id } = await params
 
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  const { data: question } = await supabase
+    .from('questions')
+    .select('text')
+    .eq('id', id)
+    .single()
+
+  const title = question?.text
+    ? `${question.text.slice(0, 60)} | EggPuff`
+    : 'Question | EggPuff'
+
   return {
-    title: 'Question | EggPuff',
-    description: 'View this question on EggPuff.',
+    title,
+    description:
+      question?.text ??
+      'View this question on EggPuff.',
+
     openGraph: {
-      title: 'Question | EggPuff',
-      description: 'View this question on EggPuff.',
+      title,
+      description:
+        question?.text ??
+        'View this question on EggPuff.',
     },
+
     twitter: {
-      title: 'Question | EggPuff',
-      description: 'View this question on EggPuff.',
+      title,
+      description:
+        question?.text ??
+        'View this question on EggPuff.',
     },
   }
 }
@@ -29,9 +53,39 @@ export async function generateMetadata({
 export default async function Page({
   params,
 }: Props) {
+  const { id } = await params
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  const { data: question } = await supabase
+    .from('questions')
+    .select('text')
+    .eq('id', id)
+    .single()
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'QAPage',
+    mainEntity: {
+      '@type': 'Question',
+      name: question?.text ?? 'Question',
+      text: question?.text ?? 'Question',
+    },
+  }
+
   return (
-    <QuestionIdPage
-      params={params}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd),
+        }}
+      />
+
+      <QuestionIdPage params={params} />
+    </>
   )
 }
