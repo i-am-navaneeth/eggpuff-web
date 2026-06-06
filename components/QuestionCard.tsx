@@ -152,6 +152,12 @@ useEffect(() => {
   }
 }, [showMenu])
 
+useEffect(() => {
+  if (showMenu) {
+    
+  }
+}, [showMenu])
+
   return (
   <div
   role="button"
@@ -172,12 +178,12 @@ useEffect(() => {
 
     borderRadius: 0,
 
-    background:
-      popped
-        ? 'rgba(15,20,25,0.03)'
-        : q.type === 'bubble'
-        ? '#F8FAFC'
-        : 'transparent',
+    backgroundColor:
+  popped
+    ? 'rgba(15,20,25,0.03)'
+    : q.type === 'bubble'
+    ? '#F8FAFC'
+    : 'transparent',
 
     border: 'none',
 
@@ -207,7 +213,7 @@ useEffect(() => {
       : 1,
 
     transition:
-      'transform 0.12s ease, opacity 0.12s ease, background 0.12s ease, box-shadow 0.12s ease',
+  'transform 0.12s ease, opacity 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease',
 
     animation: undefined,
 
@@ -386,11 +392,12 @@ letterSpacing: '-0.15px',
 }}
 >
   <button
+  data-question-menu-button
   ref={menuButtonRef}
   onMouseDown={(e) => {
-  e.preventDefault()
-  e.stopPropagation()
-}}
+    e.preventDefault()
+    e.stopPropagation()
+  }}
 
 onClick={(e) => {
   e.preventDefault()
@@ -434,45 +441,30 @@ onClick={(e) => {
   {/* DROPDOWN */}
 {showMenu && (
   <div
-  data-question-dropdown
-  onClick={(e) =>
-    e.stopPropagation()
-  }
+    data-question-dropdown
+    onClick={(e) => e.stopPropagation()}
     style={{
-  position: 'fixed',
+      position: 'absolute',
+      top: 34,
+      right: 0,
 
-  top:
-    menuButtonRef.current
-      ?.getBoundingClientRect()
-      .bottom! + 8,
+      zIndex: 999999,
 
-  left:
-    menuButtonRef.current
-      ?.getBoundingClientRect()
-      .right! - 240,
-
-  zIndex: 999999,
-
-  isolation: 'isolate',
-}}
+      minWidth: 240,
+    }}
   >
     <QuestionActionsMenu
-  onClose={() => {
-    requestAnimationFrame(() => {
-      setShowMenu(false)
-    })
-  }}
-
-  isOwner={
-    q.user_id === currentUserId
-  }
-
-  questionId={q.id}
-
-  onDelete={() => {
-    onDelete?.(q.id)
-  }}
-/>
+      onClose={() => {
+        setShowMenu(false)
+      }}
+      isOwner={
+        q.user_id === currentUserId
+      }
+      questionId={q.id}
+      onDelete={() => {
+        onDelete?.(q.id)
+      }}
+    />
   </div>
 )}
 </div>

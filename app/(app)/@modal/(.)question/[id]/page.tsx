@@ -3,7 +3,7 @@
 import { useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import TopBar from '@/components/TopBar'
-import QuestionPage from '@/app/(app)/question/[id]/page'
+import QuestionIdPage from '@/components/QuestionIdPage'
 
 type Props = {
   params: Promise<{ id: string }>
@@ -63,7 +63,9 @@ export default function QuestionModal(props: Props) {
       padding: '16px',
     }}
   >
-    <QuestionPage params={props.params} />
+    <QuestionIdPage
+  params={props.params}
+/>
   </div>
 </div>
     </div>

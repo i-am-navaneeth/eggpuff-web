@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import QuestionActionsMenu from '@/components/QuestionActionsMenu'
 
 type Answer = {
   id: string
@@ -17,6 +18,9 @@ type Props = {
   answer: Answer
   isAsker: boolean
   isLast?: boolean
+
+  currentUserId?: string | null
+  questionId?: string
 }
 
 // ===============================
@@ -35,11 +39,19 @@ function formatTimeAgo(dateString?: string) {
   return `${Math.floor(diff / 86400)}d`
 }
 
-export default function AnswerCard({ answer, isAsker, isLast }: Props) {
+export default function AnswerCard({
+  answer,
+  isAsker,
+  isLast,
+  currentUserId,
+  questionId,
+}: Props) {
   const [liked, setLiked] = useState(false)
   const [likeCount, setLikeCount] = useState(0)
   const [approved, setApproved] = useState(answer.approved)
   const [loading, setLoading] = useState(false)
+  const [showMenu, setShowMenu] =
+  useState(false)
 
   // ===============================
   // SYNC APPROVAL STATE
@@ -130,148 +142,259 @@ const user = session?.user
     setLoading(false)
   }
 
-  return (
+ return (
+  <div
+    style={{
+      padding: '16px 0',
+      borderBottom:
+        '1px solid rgba(15,20,25,0.08)',
+    }}
+  >
     <div
       style={{
         display: 'flex',
         gap: 12,
-        marginTop: 12,
+        alignItems: 'flex-start',
       }}
     >
-      {/* LEFT: Avatar + Thread */}
+      {/* AVATAR */}
+      <img
+        src={
+          answer.avatar_url ||
+          '/default-avatar.png'
+        }
+        alt=""
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: '50%',
+          objectFit: 'cover',
+          flexShrink: 0,
+        }}
+      />
+
       <div
         style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          width: 36,
+          flex: 1,
+          minWidth: 0,
         }}
       >
-        <img
-          src={answer.avatar_url || '/default-avatar.png'}
-          alt=""
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: '50%',
-            objectFit: 'cover',
-          }}
-        />
-
-        {!isLast && (
-          <div
-            style={{
-              width: 2,
-              flex: 1,
-              background: '#E5E7EB',
-              marginTop: 4,
-            }}
-          />
-        )}
-      </div>
-
-      {/* RIGHT: Content */}
-      <div style={{ flex: 1 }}>
+        {/* HEADER */}
         <div
           style={{
-            border: approved ? '2px solid #16a34a' : '1px solid #e5e7eb',
-            background: approved ? '#f0fdf4' : '#fff',
-            padding: 14,
-            borderRadius: 12,
-            transition: 'all 0.2s ease',
+            display: 'flex',
+            justifyContent:
+              'space-between',
+            alignItems: 'flex-start',
           }}
         >
-          {/* USERNAME */}
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              marginBottom: 4,
-            }}
-          >
-            {answer.username || '@user'}
+          <div>
+            <div
+              style={{
+                fontWeight: 700,
+                fontSize: 15,
+                color: '#0F1419',
+              }}
+            >
+              {answer.username ||
+                'Anonymous'}
+            </div>
+
+            <div
+              style={{
+                fontSize: 13,
+                color: '#71767B',
+                marginTop: 2,
+              }}
+            >
+              @
+              {answer.username ||
+                'user'}
+              {answer.created_at &&
+                ` • ${formatTimeAgo(
+                  answer.created_at
+                )}`}
+            </div>
           </div>
 
-          {/* TIMESTAMP */}
-          {answer.created_at && (
-            <div
+           {/* REAL MENU */}
+                  <div
+                    style={{
+                      position: 'relative',
+                    }}
+                  >
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+          
+                        setShowMenu(
+                          !showMenu
+                        )
+                      }}
+                      style={{
+                        border: 'none',
+                        background:
+                          'transparent',
+                        cursor: 'pointer',
+                        width: 32,
+                        height: 32,
+                        borderRadius:
+                          '50%',
+                        color: '#6B7280',
+                      }}
+                    >
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
+                        <circle
+                          cx="5"
+                          cy="12"
+                          r="1.8"
+                        />
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="1.8"
+                        />
+                        <circle
+                          cx="19"
+                          cy="12"
+                          r="1.8"
+                        />
+                      </svg>
+                    </button>
+          
+                    {showMenu && (
+                      <div
+                        style={{
+                          position:
+                            'absolute',
+                          top: 36,
+                          right: 0,
+                          zIndex: 9999,
+                        }}
+                      >
+                        <QuestionActionsMenu
+  onClose={() =>
+    setShowMenu(false)
+  }
+  isOwner={
+    answer.user_id ===
+    currentUserId
+  }
+  questionId={
+    questionId
+  }
+/>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+        {/* TEXT */}
+        <div
+          style={{
+            marginTop: 12,
+            fontSize: 17,
+            lineHeight: 1.8,
+            color: '#0F1419',
+            whiteSpace:
+              'pre-wrap',
+            wordBreak:
+              'break-word',
+          }}
+        >
+          {answer.text}
+        </div>
+
+        {/* APPROVED */}
+        {approved && (
+          <div
+            style={{
+              marginTop: 12,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background:
+                '#ECFDF5',
+              color: '#16A34A',
+              border:
+                '1px solid #BBF7D0',
+              borderRadius: 999,
+              padding:
+                '5px 10px',
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            ✅ Approved Answer
+          </div>
+        )}
+
+        {/* ACTIONS */}
+        {!approved && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              marginTop: 14,
+            }}
+          >
+            <button
+              onClick={like}
+              disabled={liked}
               style={{
-                fontSize: 12,
-                color: '#6B7280',
-                marginBottom: 6,
+                border: 'none',
+                background:
+                  liked
+                    ? '#111827'
+                    : '#F3F4F6',
+                color:
+                  liked
+                    ? '#FFFFFF'
+                    : '#111827',
+                borderRadius: 999,
+                padding:
+                  '7px 14px',
+                cursor: liked
+                  ? 'default'
+                  : 'pointer',
+                fontSize: 14,
+                fontWeight: 600,
               }}
             >
-              {formatTimeAgo(answer.created_at)}
-            </div>
-          )}
+              👍 {likeCount}
+            </button>
 
-          {/* TEXT */}
-          <p style={{ marginBottom: 10 }}>{answer.text}</p>
-
-          {/* APPROVED */}
-          {approved && (
-            <strong style={{ color: '#16a34a' }}>
-              ✅ Approved
-            </strong>
-          )}
-
-          {/* ACTIONS */}
-          {!approved && (
-            <div
-              style={{
-                display: 'flex',
-                gap: 12,
-                alignItems: 'center',
-              }}
-            >
+            {isAsker && (
               <button
-                onClick={like}
-                disabled={liked}
+                onClick={approve}
+                disabled={loading}
                 style={{
+                  background:
+                    '#F4B860',
                   border: 'none',
-                  background: liked ? '#111' : '#f3f4f6',
-                  color: liked ? '#fff' : '#111',
                   borderRadius: 999,
-                  padding: '6px 14px',
-                  cursor: liked ? 'default' : 'pointer',
-                  fontSize: 16,
-                  transition: 'all 0.15s ease',
+                  padding:
+                    '7px 14px',
+                  fontWeight: 600,
+                  cursor:
+                    loading
+                      ? 'default'
+                      : 'pointer',
                 }}
               >
-                👍
+                Approve
               </button>
-
-              {isAsker && (
-                <>
-                  <span
-                    style={{
-                      fontSize: 14,
-                      opacity: 0.6,
-                    }}
-                  >
-                    {likeCount} likes
-                  </span>
-
-                  <button
-                    onClick={approve}
-                    disabled={loading}
-                    style={{
-                      fontSize: 14,
-                      background: '#fde68a',
-                      border: 'none',
-                      borderRadius: 8,
-                      padding: '6px 12px',
-                      cursor: loading ? 'default' : 'pointer',
-                    }}
-                  >
-                    Approve
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
-  )
+  </div>
+)
 }

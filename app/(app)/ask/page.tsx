@@ -34,11 +34,14 @@ export default function AskPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
   const [pageLoading, setPageLoading] = useState(true)
+  
 
   const [isProfileComplete, setIsProfileComplete] = useState(true);
   const [type, setType] = useState<'normal' | 'bubble'>('normal')
   const [focused, setFocused] =
   useState(false)
+  const prefilledCategory =
+  searchParams.get('category')
 
   const [linkPreview, setLinkPreview] =
   useState<any>(null)
@@ -115,6 +118,26 @@ const [loadingPreview, setLoadingPreview] =
 
     load()
   }, [])
+
+  useEffect(() => {
+  if (
+    prefilledCategory &&
+    categories.length > 0
+  ) {
+    const match = categories.find(
+      c =>
+        c.label.toLowerCase() ===
+        prefilledCategory.toLowerCase()
+    )
+
+    if (match) {
+      setCategory(match.id)
+    }
+  }
+}, [
+  prefilledCategory,
+  categories,
+])
 
   /* ---------------- PRESELECT CATEGORY FROM QUERY ---------------- */
   useEffect(() => {

@@ -104,6 +104,8 @@ export default function FeedPage() {
   const [showNewBanner, setShowNewBanner] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] =
+  useState(true)
 
   const [userId, setUserId] = useState<string | null>(null)
   const PAGE_SIZE = 6
@@ -263,89 +265,84 @@ const appendLoopBatch = (
   //    before the initial load completes
   // ─────────────────────────────────────────────
 
-  const loadMore = useCallback(async () => {
-    // ✅ FIX 2: !loaded guard — blocks observer from firing too early
-    if (hardLockRef.current || !loaded) return
+ const loadMore = useCallback(async () => {
+  // ✅ block duplicate loads
+  // ✅ block before initial load
+  // ✅ stop forever when feed ends
+  if (
+    hardLockRef.current ||
+    !loaded ||
+    !hasMore
+  ) {
+    return
+  }
 
-    hardLockRef.current = true
-    setLoadingMore(true)
+  hardLockRef.current = true
+  setLoadingMore(true)
 
-    try {
-      const userId = await getUserId()
-      if (!userId) return
+  try {
+    const userId = await getUserId()
 
-      const batch = await fetchPage(userId)
+    if (!userId) return
 
-      console.log(
-  'BATCH IDS:',
-  batch.map(q => q.id)
-)
+    const batch =
+      await fetchPage(userId)
 
-if (!batch.length) {
-
-  observerRef.current?.disconnect()
-
-  saveFeedOffset(0)
-
-  const restartBatch =
-    await fetchPage(
-      userId,
-      0
+    console.log(
+      'BATCH IDS:',
+      batch.map(q => q.id)
     )
 
-  appendLoopBatch(
-    restartBatch
-  )
+    // ✅ end of feed
+    if (!batch.length) {
+      observerRef.current?.disconnect()
 
-  saveFeedOffset(
-    restartBatch.length
-  )
+      setHasMore(false)
 
-  setTimeout(() => {
+      return
+    }
+
+    mergeBatch(batch)
+
+    saveFeedOffset(
+      getFeedOffset() +
+        batch.length
+    )
+
+  } catch (e) {
+    console.warn(
+      'loadMore error',
+      e
+    )
+  } finally {
+    setLoadingMore(false)
+
+    hardLockRef.current = false
+
+    // ✅ don't reattach observer after end
     if (
-      loadMoreRefEl.current
+      hasMore &&
+      loadMoreRefEl.current &&
+      observerRef.current
     ) {
-      observerRef.current?.observe(
+      observerRef.current.disconnect()
+
+      observerRef.current.observe(
         loadMoreRefEl.current
       )
     }
-  }, 700)
+  }
+}, [loaded, hasMore])
 
-  return
-}
+// ✅ Stable ref so observer callback
+// never captures stale closure
+const loadMoreRef =
+  useRef(loadMore)
 
-mergeBatch(batch)
-
-saveFeedOffset(
-  getFeedOffset() +
-    batch.length
-)
-
-    } catch (e) {
-      console.warn('loadMore error', e)
-    } finally {
-      setLoadingMore(false)
-      hardLockRef.current = false
-
-      if (
-  loadMoreRefEl.current &&
-  observerRef.current
-) {
-  observerRef.current.disconnect()
-
-  observerRef.current.observe(
-    loadMoreRefEl.current
-  )
-}
-    }
-  }, [loaded]) // ✅ FIX 2: loaded added to deps
-
-  // Stable ref so observer callback never captures stale closure
-  const loadMoreRef = useRef(loadMore)
-  useEffect(() => {
-    loadMoreRef.current = loadMore
-  })
-
+useEffect(() => {
+  loadMoreRef.current =
+    loadMore
+})
   // ─────────────────────────────────────────────
   // IntersectionObserver
   // ✅ FIX 4: depends on [loaded] so it re-attaches
@@ -1263,106 +1260,170 @@ pointerEvents: 'none',
             />
           )}
 
-          {!loading && visibleQuestions.length === 0 && (
-            <p style={{ marginTop: 40, textAlign: 'center', opacity: 0.6 }}>
-              No questions yet — be the first to ask 👀
-            </p>
-          )}
+          {!loading &&
+  visibleQuestions.length === 0 && (
+    <div
+      style={{
+        textAlign: 'center',
+        padding: '48px 20px',
+      }}
+    >
+      <div
+  style={{
+    fontSize: 48,
+    marginBottom: 12,
+    display: 'inline-block',
+    animation: 'eggWiggle 4s ease-in-out infinite',
+    transformOrigin: 'bottom center',
+  }}
+>
+  🥚
+</div>
+
+      <div
+        style={{
+          fontSize: 16,
+          fontWeight: 600,
+          color: '#111827',
+          marginBottom: 4,
+        }}
+      >
+         No questions are here yet
+      </div>
+
+      <div
+        style={{
+          fontSize: 14,
+          color: '#6B7280',
+          marginBottom: 18,
+        }}
+      >
+        Be the first to ask.
+      </div>
+
+      <button
+        onClick={() =>
+          router.push(
+            `/ask?category=${encodeURIComponent(
+              activeCategorySlug
+            )}`
+          )
+        }
+        style={{
+          background: '#F4B860',
+          border: 'none',
+          borderRadius: 999,
+          padding: '14px 24px',
+          fontWeight: 700,
+          fontSize: 15,
+          cursor: 'pointer',
+        }}
+      >
+        Ask a Question
+      </button>
+
+      <style jsx>{`
+  @keyframes eggWiggle {
+    0%   { transform: translateY(0) rotate(0deg); }
+4%   { transform: translateY(-2px) rotate(-5deg); }
+8%   { transform: translateY(0) rotate(5deg); }
+12%  { transform: translateY(-1px) rotate(-3deg); }
+16%  { transform: translateY(0) rotate(3deg); }
+20%  { transform: translateY(0) rotate(0deg); }
+100% { transform: translateY(0) rotate(0deg); }
+  }
+`}</style>
+    </div>
+)}
 
           {!loading && (
   <div className="space-y-3">
-    {visibleQuestions
-      .map((q: QuestionRow, index) => (
-        <div
-          key={
-  q.id +
-  '-' +
-  index +
-  (q._missed
-    ? '_missed'
-    : '')
-}
-          data-question-id
-          data-id={q.id}
-          data-created-at={q.created_at}
-        >
-          <QuestionCard
-  q={q}
-  currentUserId={userId}
-  onDelete={(id: string) => {
-  // 🔥 persist deleted ids
-  try {
-    const deletedIds = JSON.parse(
-      localStorage.getItem(
-        'deleted_questions'
-      ) || '[]'
-    )
+    {visibleQuestions.map((q: QuestionRow) => (
+      <div
+        key={`${q.id}-${q._missed ? 'missed' : 'normal'}`}
+        data-question-id
+        data-id={q.id}
+        data-created-at={q.created_at}
+      >
+        <QuestionCard
+          q={q}
+          currentUserId={userId}
+          onDelete={(id: string) => {
+            try {
+              const deletedIds = JSON.parse(
+                localStorage.getItem(
+                  'deleted_questions'
+                ) || '[]'
+              )
 
-    // 🔥 avoid duplicates
-    if (!deletedIds.includes(id)) {
-      localStorage.setItem(
-        'deleted_questions',
-        JSON.stringify([
-          ...deletedIds,
-          id,
-        ])
-      )
-    }
-  } catch {}
+              if (!deletedIds.includes(id)) {
+                localStorage.setItem(
+                  'deleted_questions',
+                  JSON.stringify([
+                    ...deletedIds,
+                    id,
+                  ])
+                )
+              }
+            } catch {}
 
-  // 🔥 remove instantly from feed
-  setQuestions((prev) => {
-    const updated = prev.filter(
-      (question) =>
-        question.id !== id
-    )
+            setQuestions((prev) => {
+              const updated = prev.filter(
+                (question) =>
+                  question.id !== id
+              )
 
-    // 🔥 sync cache immediately
-    try {
-      localStorage.setItem(
-        'feed_cache',
-        JSON.stringify(
-          updated.slice(0, 10)
-        )
-      )
-    } catch {}
+              try {
+                localStorage.setItem(
+                  'feed_cache',
+                  JSON.stringify(
+                    updated.slice(0, 10)
+                  )
+                )
+              } catch {}
 
-    return updated
-  })
+              return updated
+            })
 
-  // 🔥 remove from realtime queue
-  setNewQuestions((prev) =>
-    prev.filter(
-      (question) =>
-        question.id !== id
-    )
-  )
-
-  // 🔥 force immediate rerender
-  requestAnimationFrame(() => {
-    setQuestions((prev) => [...prev])
-  })
-}}
-/>
-        </div>
-      ))}
+            setNewQuestions((prev) =>
+              prev.filter(
+                (question) =>
+                  question.id !== id
+              )
+            )
+          }}
+        />
+      </div>
+    ))}
   </div>
 )}
 
-          {loadingMore && (
-            <div className="text-center py-4 text-sm text-gray-400">
-              Loading more...
-            </div>
-          )}
+          {loadingMore &&
+  hasMore &&
+  visibleQuestions.length > 0 && (
+    <div
+      style={{
+        textAlign: 'center',
+        padding: '16px 0',
+        fontSize: 14,
+        color: '#9CA3AF',
+      }}
+    >
+      Loading more...
+    </div>
+)}
 
           {/* ✅ FIX 1 + FIX 2: Sentinel is inside <main>, after the list.
                No longer in a position:fixed container.
                Only rendered after load completes so observer
                doesn't fire into empty state. */}
-          {loaded && (
-            <div ref={loadMoreRefEl} style={{ height: 1 }} />
-          )}
-
+         {loaded &&
+  hasMore && (
+    <div
+      ref={loadMoreRefEl}
+      style={{ height: 1 }}
+    />
+)}
         </main>
 
         {/* RIGHT PANEL */}

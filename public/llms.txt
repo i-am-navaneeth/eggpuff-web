@@ -1,0 +1,34 @@
+# EggPuff
+
+EggPuff is a student community platform that helps students ask questions, learn from peers, build meaningful connections, and grow throughout their academic journey.
+
+## Primary Audience
+
+- College students
+- University students
+- School students preparing for college
+- Student creators
+
+## Core Features
+
+- Student questions and answers
+- Campus discussions
+- Student communities
+- Student networking
+- Creator promotion through EP Points
+
+## Topics
+
+- College life
+- Admissions
+- Internships
+- Placements
+- Careers
+- Productivity
+- Student growth
+- Exams
+- Study techniques
+
+## Website
+
+https://eggpuff.in

@@ -45,31 +45,43 @@ export default function FeedbackDropdown({
   // OUTSIDE CLICK
   // ===============================
   useEffect(() => {
-    const handleClickOutside = (
-      event: MouseEvent
-    ) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(
-          event.target as Node
-        )
-      ) {
-        onClose()
-      }
-    }
+  const handleClickOutside = (
+    event: PointerEvent
+  ) => {
+    const target =
+      event.target as Node
 
-    document.addEventListener(
-      'mousedown',
+    const dropdown =
+      containerRef.current
+
+    if (!dropdown) return
+
+    const clickedMenuButton =
+      (target as HTMLElement)?.closest(
+        '[data-question-menu-button]'
+      )
+
+    if (clickedMenuButton) return
+
+    if (
+      !dropdown.contains(target)
+    ) {
+      onClose()
+    }
+  }
+
+  document.addEventListener(
+    'pointerdown',
+    handleClickOutside
+  )
+
+  return () => {
+    document.removeEventListener(
+      'pointerdown',
       handleClickOutside
     )
-
-    return () => {
-      document.removeEventListener(
-        'mousedown',
-        handleClickOutside
-      )
-    }
-  }, [onClose])
+  }
+}, [onClose])
 
   // ===============================
   // FEEDBACK SUBMIT
