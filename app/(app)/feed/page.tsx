@@ -31,15 +31,35 @@ type FilterType = 'all' | 'unanswered' | 'answered'
 
 type QuestionRow = {
   id: string
+
   text: string
+
   created_at: string
+
   expires_at?: string
+
   type?: 'normal' | 'bubble'
+
   category_id: string | null
+
   approved_answer_id?: string | null
-  categories?: { label: string }[]
+
+  answers_count?: number
+
+  helpful_count?: number
+
+  is_helpful?: boolean
+
+  is_saved?: boolean
+
+  categories?: {
+    label: string
+  }[]
+
   category_label?: string
+
   is_verified?: boolean
+
   _missed?: boolean
 }
 
@@ -1345,6 +1365,7 @@ pointerEvents: 'none',
         data-id={q.id}
         data-created-at={q.created_at}
       >
+      
         <QuestionCard
           q={q}
           currentUserId={userId}
@@ -1393,6 +1414,7 @@ pointerEvents: 'none',
             )
           }}
         />
+        
       </div>
     ))}
   </div>

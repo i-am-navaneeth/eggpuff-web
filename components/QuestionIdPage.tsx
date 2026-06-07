@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import AnswerCard from '@/components/AnswerCard'
 import LinkPreviewCard from '@/components/LinkPreviewCard'
 import QuestionActionsMenu from '@/components/QuestionActionsMenu'
+import QuestionCardSkeleton from '@/components/QuestionCardSkeleton'
 
 type Question = {
   id: string
@@ -78,8 +79,6 @@ useEffect(() => {
 
       setQuestion(parsed)
 
-      // 🔥 instant render
-      setLoading(false)
     } catch {}
   }
 }, [id])
@@ -115,17 +114,12 @@ useEffect(() => {
     user_id,
     question_id,
     approved,
-    created_at,
-    profiles (
-  username,
-  name,
-  avatar_url
-)
+    created_at
   `)
-        .eq('question_id', id)
-        .order('created_at', {
-          ascending: true,
-        }),
+  .eq('question_id', id)
+  .order('created_at', {
+    ascending: true,
+  }),
 
     ])
 
@@ -174,19 +168,59 @@ useEffect(() => {
   }))
 }
 
-    setAnswers(
-  (answersRes.data || []).map(
+const answersData =
+  answersRes.data || []
+
+const answerUserIds = [
+  ...new Set(
+    answersData.map(
+      (a: any) => a.user_id
+    )
+  ),
+]
+
+const { data: profiles } =
+  await supabase
+    .from('profiles')
+    .select(`
+      user_id,
+      username,
+      name,
+      avatar_url
+    `)
+    .in(
+      'user_id',
+      answerUserIds
+    )
+
+const profileMap = new Map(
+  (profiles || []).map(
+    (p: any) => [
+      p.user_id,
+      p,
+    ]
+  )
+)
+
+setAnswers(
+  answersData.map(
     (a: any) => ({
       ...a,
 
       username:
-        a.profiles?.username,
+        profileMap.get(
+          a.user_id
+        )?.username,
 
       user_name:
-  a.profiles?.name,
+        profileMap.get(
+          a.user_id
+        )?.name,
 
       avatar_url:
-        a.profiles?.avatar_url,
+        profileMap.get(
+          a.user_id
+        )?.avatar_url,
     })
   )
 )
@@ -420,7 +454,11 @@ const user = session?.user
   // ===============================
   // SAFE RENDER
   // ===============================
-if (!question?.text) {
+if (loading) {
+  return <QuestionCardSkeleton />
+}
+
+if (!question) {
   return null
 }
 

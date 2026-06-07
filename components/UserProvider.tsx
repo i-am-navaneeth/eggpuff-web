@@ -112,10 +112,15 @@ useEffect(() => {
               )
 
           if (error) {
-            console.error(
-              'Activity update error:',
-              error
-            )
+            console.log(
+  'Activity update error full:',
+  {
+    code: error.code,
+    message: error.message,
+    details: error.details,
+    hint: error.hint,
+  }
+)
           }
         }
 

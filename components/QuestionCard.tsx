@@ -5,6 +5,11 @@ import { useEffect, useState, useRef } from 'react'
 import { markHelpful, markNotUseful } from '@/lib/feedPrefs'
 import LinkPreviewCard from './LinkPreviewCard'
 import QuestionActionsMenu from './QuestionActionsMenu'
+import { supabase } from '@/lib/supabase'
+import QuestionShareCard
+from '@/components/share/QuestionShareCard'
+import { shareQuestionImage }
+from '@/lib/shareQuestionImage'
 
 type Props = {
   q: {
@@ -31,6 +36,8 @@ link_description?: string
 link_image?: string
 link_domain?: string
 link_type?: string
+helpful_count?: number
+is_helpful?: boolean
   }
   currentUserId?: string | null
 
@@ -57,6 +64,9 @@ export default function QuestionCard({
 }: Props){
   const router = useRouter()
 
+  const shareCardRef =
+  useRef<HTMLDivElement>(null)
+
   const [popped, setPopped] = useState(false)
   const menuButtonRef =
   useRef<HTMLButtonElement>(null)
@@ -71,10 +81,22 @@ export default function QuestionCard({
 
   const [feedback, setFeedback] =
     useState<'up' | 'down' | null>(null)
+  
+    const [helpfulCount, setHelpfulCount] =
+  useState(q.helpful_count ?? 0)
+
+const [isHelpful, setIsHelpful] =
+  useState(q.is_helpful ?? false)
+
+const [saved, setSaved] =
+  useState(false)
+
+const [showShareMenu, setShowShareMenu] =
+  useState(false)
 
  const goToQuestion = () => {
   // 🔥 BLOCK navigation while menu is open
-  if (showMenu) return
+  if (showMenu || showShareMenu) return
 
   // 🔥 prevent spam taps
   if (popped) return
@@ -120,6 +142,87 @@ export default function QuestionCard({
   const hasAnswers =
     (q.answers_count ?? 0) > 0
 
+const actionStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+
+  gap: 4,
+
+  flex: 1,
+
+  padding: '6px 4px',
+
+  borderRadius: 8,
+
+  cursor: 'pointer',
+
+  color: '#6B7280',
+
+  fontSize: 12,
+
+  fontWeight: 500,
+
+  userSelect: 'none',
+
+  WebkitTapHighlightColor:
+    'transparent',
+} as const
+
+
+const toggleHelpful = async (
+  e: React.MouseEvent
+) => {
+  e.preventDefault()
+  e.stopPropagation()
+
+  if (!currentUserId) return
+
+  const nextState = !isHelpful
+
+  // optimistic update
+  setIsHelpful(nextState)
+
+  setHelpfulCount(prev =>
+    nextState
+      ? prev + 1
+      : Math.max(0, prev - 1)
+  )
+
+  try {
+    if (nextState) {
+      const { error } = await supabase
+        .from('question_likes')
+        .insert({
+          question_id: q.id,
+          user_id: currentUserId,
+        })
+
+      if (error) throw error
+
+    } else {
+
+      const { error } = await supabase
+        .from('question_likes')
+        .delete()
+        .eq('question_id', q.id)
+        .eq('user_id', currentUserId)
+
+      if (error) throw error
+    }
+
+  } catch {
+
+    // rollback
+    setIsHelpful(!nextState)
+
+    setHelpfulCount(prev =>
+      nextState
+        ? Math.max(0, prev - 1)
+        : prev + 1
+    )
+  }
+}
 
 useEffect(() => {
   if (!showMenu) return
@@ -157,6 +260,99 @@ useEffect(() => {
     
   }
 }, [showMenu])
+
+useEffect(() => {
+  if (!currentUserId) return
+
+  const loadSaved = async () => {
+    const { data } = await supabase
+      .from('question_saves')
+      .select('id')
+      .eq('question_id', q.id)
+      .eq('user_id', currentUserId)
+      .maybeSingle()
+
+    setSaved(!!data)
+  }
+
+  loadSaved()
+}, [q.id, currentUserId])
+
+const toggleSave = async (
+  e: React.MouseEvent
+) => {
+  e.preventDefault()
+  e.stopPropagation()
+
+  if (!currentUserId) return
+
+  const next = !saved
+
+  setSaved(next)
+
+  try {
+    if (next) {
+      const { error } = await supabase
+  .from('question_saves')
+  .insert({
+    question_id: q.id,
+    user_id: currentUserId,
+  })
+
+if (error) throw error
+    } else {
+     const { error } = await supabase
+  .from('question_saves')
+  .delete()
+  .eq('question_id', q.id)
+  .eq('user_id', currentUserId)
+
+if (error) throw error
+    }
+  } catch {
+    setSaved(!next)
+  }
+}
+
+const handleImageShare =
+  async () => {
+
+    if (
+      !shareCardRef.current
+    ) {
+      return
+    }
+
+    try {
+
+      await shareQuestionImage(
+        shareCardRef.current
+      )
+
+    } catch (err) {
+
+      console.error(err)
+
+    }
+  }
+
+  useEffect(() => {
+  if (!showShareMenu) return
+
+  const close = () =>
+    setShowShareMenu(false)
+
+  document.addEventListener(
+    'click',
+    close
+  )
+
+  return () =>
+    document.removeEventListener(
+      'click',
+      close
+    )
+}, [showShareMenu])
 
   return (
   <div
@@ -657,86 +853,280 @@ onClick={(e) => {
   </div>
 )}
 
-      {/* ACTION ROW (Hidden for now) */}
-      {false &&(
+      {/* ACTION ROW */}
 <div
   style={{
     display: 'flex',
     alignItems: 'center',
-    gap: 28,
-    fontSize: 13,
-    color: '#6B7280',
+    justifyContent: 'space-between',
+
     marginTop: 6,
+
+    width: '100%',
+
+    color: '#6B7280',
   }}
 >
-  {/* COMMENT */}
+  {/* ANSWERS */}
   <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 6,
-      cursor: 'pointer',
-    }}
+    onClick={(e) => {
+  e.preventDefault()
+  e.stopPropagation()
+
+  goToQuestion()
+}}
+    style={actionStyle}
   >
     <svg
-      width="20"
-      height="20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-    >
-      <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/>
-    </svg>
-    <span>{q.answers_count ?? 0}</span>
+  width="18"
+  height="18"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  strokeWidth="2"
+  strokeLinecap="round"
+  strokeLinejoin="round"
+>
+  <path d="M21 15a3 3 0 0 1-3 3H8l-5 4V6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3z" />
+</svg>
+
+    <span>
+      {q.answers_count
+        ? `${q.answers_count} Answers`
+        : 'Answer'}
+    </span>
   </div>
 
-  {/* LIKE */}
-  <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 6,
-      cursor: 'pointer',
-    }}
-  >
-    <svg
-      width="20"
-      height="20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-    >
-      <path d="M20.8 4.6c-1.5-1.4-3.9-1.4-5.4 0L12 8l-3.4-3.4c-1.5-1.4-3.9-1.4-5.4 0-1.6 1.5-1.6 4 0 5.5L12 21l8.8-10.9c1.6-1.5 1.6-4 0-5.5z"/>
-    </svg>
-    <span>0</span>
-  </div>
+  {/* HELPFUL */}
+<div
+  onClick={toggleHelpful}
+  style={{
+    ...actionStyle,
+  }}
+>
+<svg
+  width="18"
+  height="18"
+  viewBox="0 0 24 24"
+  fill={
+    isHelpful
+      ? '#FF2D7A'
+      : 'none'
+  }
+  stroke={
+    isHelpful
+      ? '#FF2D7A'
+      : 'currentColor'
+  }
+  strokeWidth="2"
+  strokeLinecap="round"
+  strokeLinejoin="round"
+>
+  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+</svg>
 
-  {/* VIEWS (FIXED CENTERED ICON) */}
-  <div
+  <span
     style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 6,
-      cursor: 'pointer',
+      color: '#6B7280',
     }}
   >
-    <svg width="20" height="20" viewBox="0 0 24 24">
-      <circle
-        cx="12"
-        cy="12"
-        r="9"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        fill="none"
-      />
-      <rect x="8" y="11" width="2" height="4" fill="currentColor" />
-      <rect x="11" y="9" width="2" height="6" fill="currentColor" />
-      <rect x="14" y="10" width="2" height="5" fill="currentColor" />
-    </svg>
-    <span>0</span>
-  </div>
+    {helpfulCount > 0
+      ? `${helpfulCount}`
+      : 'Helpful'}
+  </span>
 </div>
-)}
+
+  {/* SAVE */}
+<div
+  onClick={toggleSave}
+  style={{
+    ...actionStyle,
+  }}
+>
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill={
+      saved
+        ? 'currentColor'
+        : 'none'
+    }
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+  </svg>
+
+  <span>Save</span>
+</div>
+
+  {/* SHARE */}
+<div
+  onClick={(e) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    setShowShareMenu(
+      (prev) => !prev
+    )
+  }}
+  style={{
+    ...actionStyle,
+    position: 'relative',
+  }}
+>
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" />
+    <path d="M12 16V3" />
+    <path d="M7 8l5-5 5 5" />
+  </svg>
+
+  <span>Share</span>
+
+  {showShareMenu && (
+    <div
+      onClick={(e) => {
+        e.stopPropagation()
+      }}
+     style={{
+  position: 'absolute',
+
+  bottom: 42,
+
+  right: -10,
+
+  minWidth: 220,
+
+  background: '#fff',
+
+  borderRadius: 16,
+
+  whiteSpace: 'nowrap',
+
+  boxShadow:
+    '0 8px 24px rgba(0,0,0,0.10)',
+
+  border:
+    '1px solid rgba(0,0,0,0.06)',
+
+  zIndex: 999999,
+}}
+    >
+      {/* SHARE IMAGE */}
+      <div
+        onClick={async (e) => {
+          e.stopPropagation()
+
+          setShowShareMenu(false)
+
+          await handleImageShare()
+        }}
+        style={{
+          padding:
+            '14px 16px',
+
+          cursor: 'pointer',
+
+          display: 'flex',
+
+          alignItems: 'center',
+
+          gap: 12,
+
+          fontSize: 15,
+
+          fontWeight: 500,
+        }}
+      >
+        🖼 Share as post
+      </div>
+
+      {/* COPY LINK */}
+      <div
+        onClick={async (e) => {
+          e.stopPropagation()
+
+          await navigator.clipboard.writeText(
+            `${window.location.origin}/question/${q.id}`
+          )
+
+          setShowShareMenu(false)
+        }}
+        style={{
+          padding:
+            '14px 16px',
+
+          cursor: 'pointer',
+
+          display: 'flex',
+
+          alignItems: 'center',
+
+          gap: 12,
+
+          fontSize: 15,
+
+          fontWeight: 500,
+        }}
+      >
+        🔗 Copy link
+      </div>
+
+      {/* MORE OPTIONS */}
+      <div
+        onClick={async (e) => {
+          e.stopPropagation()
+
+          try {
+            await navigator.share({
+              title:
+                'EggPuff',
+
+              text:
+                q.text,
+
+              url:
+                `${window.location.origin}/question/${q.id}`,
+            })
+          } catch {}
+
+          setShowShareMenu(false)
+        }}
+        style={{
+          padding:
+            '14px 16px',
+
+          cursor: 'pointer',
+
+          display: 'flex',
+
+          alignItems: 'center',
+
+          gap: 12,
+
+          fontSize: 15,
+
+          fontWeight: 500,
+        }}
+      >
+        📤 More options
+      </div>
+    </div>
+  )}
+</div>
+</div>
 
       {/* 🫧 BUBBLE LABEL */}
 {q.type === 'bubble' && (
@@ -810,6 +1200,38 @@ onClick={(e) => {
     )}
   </div>
 )}
+
+<div
+  style={{
+    position: 'fixed',
+
+    left: -99999,
+
+    top: 0,
+
+    pointerEvents:
+      'none',
+  }}
+>
+  <QuestionShareCard
+    ref={shareCardRef}
+    question={q.text}
+    creator={
+      q.user_name ||
+      'Anonymous'
+    }
+    username={
+      q.username ||
+      'user'
+    }
+    helpfulCount={
+      helpfulCount
+    }
+    answersCount={
+      q.answers_count ?? 0
+    }
+  />
+</div>
 
       {/* FLOAT */}
       <style jsx>{`
