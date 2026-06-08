@@ -1043,8 +1043,24 @@ useEffect(() => {
                 {filterLabel} ▾
               </button>
 
-              <button
-                onClick={() => handleCategoryClick('all')}
+<button
+  onClick={() => router.push('/resources')}
+  style={{
+    padding: '6px 14px',
+    borderRadius: 999,
+    border: '1px solid #E5E7EB',
+    background: '#FFFFFF',
+    fontSize: 'clamp(13px,0.9vw,15px)',
+    fontWeight: 500,
+    width: '100%',
+    textAlign: 'left',
+  }}
+>
+  📄 Resources
+</button>
+
+<button
+  onClick={() => handleCategoryClick('all')}
                 style={{
                   padding: '6px 14px',
                   borderRadius: 999,
@@ -1189,6 +1205,22 @@ pointerEvents: 'none',
                 >
                   {filterLabel} ▾
                 </button>
+     
+                <button
+  onClick={() => router.push('/resources')}
+  style={{
+    padding: '6px 14px',
+    borderRadius: 999,
+    border: '1px solid #E5E7EB',
+    background: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 500,
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+  }}
+>
+  📄 Resources
+</button>
 
                 <button
                   onClick={() => handleCategoryClick('all')}

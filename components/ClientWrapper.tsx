@@ -18,7 +18,9 @@ export default function ClientWrapper({
   const pathname = usePathname()
 
   const isPublicPage =
-    pathname === '/' || pathname.startsWith('/login')
+  pathname === '/' ||
+  pathname.startsWith('/login') ||
+  pathname.startsWith('/resource/')
 
   return (
     <NotificationProvider>

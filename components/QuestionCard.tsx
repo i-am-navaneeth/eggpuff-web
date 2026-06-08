@@ -892,7 +892,7 @@ onClick={(e) => {
 
     <span>
       {q.answers_count
-        ? `${q.answers_count} Answers`
+        ? `${q.answers_count}`
         : 'Answer'}
     </span>
   </div>

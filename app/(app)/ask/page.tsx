@@ -557,138 +557,165 @@ const user = session?.user ?? null;
   />
 </div>
 
-  {/* LABEL + TOGGLE ROW */}
-<div
+ <div
   style={{
     marginTop: 4,
+    display: 'flex',
+    gap: 10,
+  }}
+>
+  
+
+  {/* BUBBLE */}
+  <div
+    style={{
+      flex: 1,
+
+      display: 'flex',
+
+      alignItems: 'center',
+
+      justifyContent:
+        'space-between',
+
+      padding: '10px 14px',
+
+      borderRadius: 18,
+
+      border: '1px solid #E5E7EB',
+
+      background: '#FFFFFF',
+
+      boxShadow:
+        '0 1px 2px rgba(0,0,0,0.03)',
+    }}
+  >
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 18,
+        }}
+      >
+        🫧
+      </span>
+
+      <span
+        style={{
+          fontSize: 14,
+          fontWeight: 700,
+        }}
+      >
+        Bubble
+      </span>
+    </div>
+
+    <div
+      onClick={() =>
+        setType(
+          type === 'bubble'
+            ? 'normal'
+            : 'bubble'
+        )
+      }
+      style={{
+        width: 40,
+        height: 22,
+
+        borderRadius: 999,
+
+        background:
+          type === 'bubble'
+            ? '#F4B860'
+            : '#E5E7EB',
+
+        position: 'relative',
+
+        cursor: 'pointer',
+
+        flexShrink: 0,
+      }}
+    >
+      <div
+        style={{
+          width: 18,
+          height: 18,
+
+          borderRadius: '50%',
+
+          background: '#FFFFFF',
+
+          position: 'absolute',
+
+          top: 2,
+
+          left:
+            type === 'bubble'
+              ? 20
+              : 2,
+
+          transition:
+            'all .2s ease',
+
+          boxShadow:
+            '0 2px 6px rgba(0,0,0,.12)',
+        }}
+      />
+    </div>
+  </div>
+
+  {/* PDF RESOURCE */}
+<button
+  type="button"
+  onClick={() =>
+    window.location.href =
+  '/upload-resource'
+  }
+  style={{
+    width: 56,
+
+    height: 56,
 
     display: 'flex',
 
     alignItems: 'center',
 
-    justifyContent: 'space-between',
+    justifyContent: 'center',
 
-    padding: '10px 18px',
-
-    borderRadius: 22,
+    borderRadius: 18,
 
     border: '1px solid #E5E7EB',
 
     background: '#FFFFFF',
 
+    cursor: 'pointer',
+
     boxShadow:
       '0 1px 2px rgba(0,0,0,0.03)',
+
+    flexShrink: 0,
   }}
 >
-  {/* LEFT */}
-  <div
-    style={{
-      display: 'flex',
-
-      alignItems: 'center',
-
-      gap: 12,
-    }}
-  >
-    {/* ICON */}
-    <div
-      style={{
-        fontSize: 22,
-
-        lineHeight: 1,
-      }}
-    >
-      🫧
-    </div>
-
-    {/* TEXT */}
-    <div>
-      <div
-        style={{
-          fontSize: 15,
-
-          fontWeight: 700,
-
-          color: '#111827',
-        }}
-      >
-        Bubble
-      </div>
-
-      <div
-        style={{
-          fontSize: 13,
-
-          color: '#6B7280',
-
-          marginTop: 2,
-
-          fontWeight: 500,
-        }}
-      >
-        Disappears in 24 hours
-      </div>
-    </div>
-  </div>
-
-  {/* TOGGLE SWITCH */}
-  <div
-    onClick={() =>
-      setType(
-        type === 'bubble'
-          ? 'normal'
-          : 'bubble'
-      )
-    }
-    style={{
-      width: 50,
-
-      height: 28,
-
-      borderRadius: 999,
-
-      background:
-        type === 'bubble'
-          ? '#F4B860'
-          : '#E5E7EB',
-
-      position: 'relative',
-
-      cursor: 'pointer',
-
-      transition:
-        'background 0.22s ease',
-
-      flexShrink: 0,
-    }}
-  >
-    <div
-      style={{
-        width: 24,
-
-        height: 24,
-
-        borderRadius: '50%',
-
-        background: '#FFFFFF',
-
-        position: 'absolute',
-
-        top: 2,
-
-        left:
-          type === 'bubble'
-            ? 24
-            : 2,
-
-        transition:
-          'left 0.22s cubic-bezier(.34,1.56,.64,1)',
-
-        boxShadow:
-          '0 2px 8px rgba(0,0,0,0.14)',
-      }}
-    />
-  </div>
+  <svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+>
+  <path
+    d="M21.44 11.05l-8.49 8.49a5.5 5.5 0 01-7.78-7.78l8.49-8.49a3.5 3.5 0 114.95 4.95l-8.49 8.49a1.5 1.5 0 11-2.12-2.12l7.78-7.78"
+    stroke="#64748B"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  />
+</svg>
+</button>
 </div>
 
           {/* ACTIONS */}
