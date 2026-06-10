@@ -619,8 +619,9 @@ if (pathname.startsWith('/question/')) {
     <button
     id="profile-follow-button"
       onClick={() =>
-        router.push('/profile')
-      }
+    window.location.href =
+  '/profile'
+  }
       style={{
         position: 'absolute',
         right: -2,

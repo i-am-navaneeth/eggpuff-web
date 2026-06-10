@@ -297,15 +297,17 @@ setIsGuest(!session)
           }}
         >
           <iframe
-            src={
-              resource.file_url
-            }
-            width="100%"
-            height="900"
-            style={{
-              border: 'none',
-            }}
-          />
+  src={resource.file_url}
+  width="100%"
+  height={
+    isGuest
+      ? '350'
+      : '900'
+  }
+  style={{
+    border: 'none',
+  }}
+/>
         </div>
       ) : (
         <div
