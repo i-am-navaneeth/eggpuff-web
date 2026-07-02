@@ -135,7 +135,6 @@ if (
       )
 
     } catch (err) {
-      console.error(err)
 
       alert(
         'Upload failed'

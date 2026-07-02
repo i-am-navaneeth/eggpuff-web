@@ -83,7 +83,6 @@ const [loadingPreview, setLoadingPreview] =
       setLinkPreview(data)
 
     } catch (err) {
-      console.error(err)
       setLinkPreview(null)
     } finally {
       setLoadingPreview(false)

@@ -172,18 +172,22 @@ if (usernameStatus === 'taken') {
 const user = session?.user
 
     const { error } = await supabase
-      .from('profiles')
-      .upsert({
-  user_id: user?.id,
-  name,
-  username,
-  batch_year: batchYear,
-  college_id: collegeId,
-  avatar_url: avatar,
-})
-      .eq('user_id', user?.id);
+  .from('profiles')
+  .update({
+    name,
+    username,
+    batch_year: batchYear,
+    college_id: collegeId,
+    avatar_url: avatar,
+
+    // Mark onboarding complete
+    profile_completed: true,
+  })
+  .eq('user_id', user?.id);
 
     if (error) {
+      console.error('Profile update failed:', error);
+      
   const msg = error.message.toLowerCase();
 
   if (msg.includes('unique_username')) {
@@ -662,7 +666,8 @@ onMouseLeave={(e) => {
     </div>
   </div>
 </div>
-
+{/* DANGER ZONE TEXT */}
+        {!isSetupMode && (
 <div
   style={{
     marginTop: 24,
@@ -692,10 +697,10 @@ onMouseLeave={(e) => {
   >
     {dangerTexts[dangerIndex]}
   </div>
-</div>
+</div>)}
 
-        {/* LOGOUT */}
-        {!isSetupMode && (
+   {/* LOGOUT */}
+        {!isSetupMode && (     
   <button onClick={handleLogout} style={logoutBtn}>
     Logout
   </button>

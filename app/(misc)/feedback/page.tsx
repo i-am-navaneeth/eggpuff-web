@@ -45,7 +45,6 @@ const user = session?.user
         })
 
       if (error) {
-        console.error(error)
         notify('❌ Failed to submit feedback')
         return
       }
@@ -60,7 +59,6 @@ const user = session?.user
         router.back()
       }, 800)
     } catch (err) {
-      console.error(err)
       notify('❌ Something went wrong')
     } finally {
       setLoading(false)
