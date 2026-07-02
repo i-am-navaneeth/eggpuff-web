@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { useNavigation } from '@/components/navigation/NavigationProvider'
 
 type Props = {
   open: boolean
@@ -21,6 +22,7 @@ export default function FollowListSheet({
 }: Props) {
   const router = useRouter()
 
+  const { openProfile } = useNavigation()
   const [loading, setLoading] = useState(true)
   const [users, setUsers] = useState<any[]>([])
   const [followingIds, setFollowingIds] = useState<string[]>([])
@@ -214,10 +216,13 @@ load()
               >
                 {/* LEFT */}
                 <div
-                  onClick={() => {
-                    onClose()
-                    router.push(`/u/${u.username}`)
-                  }}
+                 onClick={() => {
+  onClose()
+
+  requestAnimationFrame(() => {
+  openProfile(u.username)
+})
+}}
                   className="flex items-center gap-3 cursor-pointer"
                 >
                   <img

@@ -1,7 +1,10 @@
 import './globals.css'
 
 import type { Metadata, Viewport } from 'next'
-
+import {
+  ShareProvider,
+} from '@/contexts/ShareContext'
+import { NavigationProvider } from '@/components/navigation/NavigationProvider'
 import ClientWrapper from '@/components/ClientWrapper' 
 import PushInit from '@/components/PushInit'
 
@@ -75,9 +78,23 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body suppressHydrationWarning>
-      <PushInit />
-        <ClientWrapper>{children}</ClientWrapper>
-      </body>
+  <PushInit />
+
+  <ClientWrapper>
+
+    <NavigationProvider>
+
+      <ShareProvider>
+
+        {children}
+
+      </ShareProvider>
+
+    </NavigationProvider>
+
+  </ClientWrapper>
+
+</body>
     </html>
   )
 }

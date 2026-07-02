@@ -85,7 +85,7 @@ return (
         'max(20px, env(safe-area-inset-bottom))',
       left: '50%',
       transform: 'translateX(-50%)',
-      zIndex: 1000,
+      zIndex: 3000, // Global install banner (must stay above overlays)
       animation: 'slideUp 0.35s ease',
       width: 'calc(100vw - 32px)',
       maxWidth: 360,

@@ -140,21 +140,14 @@ const subscribeRealtime =
               `user_id=eq.${userId}`,
           },
 
-          () => {
+          (payload) => {
 
-            // WHATSAPP STYLE VIBRATION
+  if (navigator.vibrate) {
+    navigator.vibrate([120, 50, 120])
+  }
 
-            if (
-              navigator.vibrate
-            ) {
-
-              navigator.vibrate([
-                120,
-                50,
-                120,
-              ])
-            }
-          }
+  alert("🔔 New notification received")
+}
         )
 
         .subscribe()

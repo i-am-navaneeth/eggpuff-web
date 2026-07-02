@@ -1,10 +1,14 @@
 'use client'
 
 import { useRouter, usePathname } from 'next/navigation'
+import { useNavigation } from '@/components/navigation/NavigationProvider'
 
 export default function Sidebar() {
   const router = useRouter()
   const pathname = usePathname()
+  const {
+  openEditProfile,
+} = useNavigation()
 
   // 🔥 you already use this somewhere, keeping it
   const avatar = null // replace with your actual state if needed
@@ -86,7 +90,9 @@ export default function Sidebar() {
 
       {/* 🔻 PROFILE SECTION (YOUR CODE, FIXED POSITION) */}
       <div
-        onClick={() => router.push('/profile')}
+        onClick={() => {
+ openEditProfile()
+}}
         style={{
           marginBottom: 16,
           display: 'flex',

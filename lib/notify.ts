@@ -23,8 +23,12 @@ export async function notify(event: string, payload: any) {
       return sendPushToAll('💬 New Answer', payload.message)
 
     /* ---------------- ADMIN ---------------- */
-    case 'ADMIN_ALERT':
-      return sendPushToAll('⚠️ Alert', payload.message)
+    case "ADMIN_ALERT":
+case "ADMIN_NOTIFICATION":
+  return sendPushToAll(
+    payload.title ?? "📢 EggPuff",
+    payload.message
+  );
 
     default:
       return

@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
 import { createClient } from '@supabase/supabase-js'
 
 export const runtime = 'nodejs'
@@ -19,46 +18,67 @@ export async function POST(req: Request) {
     // ✅ Basic validation (keeps your logic safe)
     if (!sub || !sub.endpoint) {
       console.error('❌ Invalid subscription object')
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid subscription',
-      })
+      return NextResponse.json(
+  {
+    success: false,
+    error: 'Invalid subscription',
+  },
+  {
+    status: 400,
+  }
+)
     }
 
-    // ✅ Get user (optional but useful)
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    // Remove stale subscriptions for this user
+if (sub.user_id) {
+  const { error: deleteError } = await supabaseAdmin
+    .from("push_subscriptions")
+    .delete()
+    .eq("user_id", sub.user_id)
+    .neq("endpoint", sub.endpoint);
 
-    // ✅ Insert into DB (refined + ADMIN CLIENT)
-    const { data, error } = await supabaseAdmin
-  .from('push_subscriptions')
+  if (deleteError) {
+    console.error(
+      "Failed cleaning old subscriptions:",
+      deleteError
+    );
+  }
+}
+
+// Insert or update current subscription
+const { data, error } = await supabaseAdmin
+  .from("push_subscriptions")
   .upsert(
     [
       {
-        user_id: sub.user_id ?? null,
+        user_id: sub.user_id,
         endpoint: sub.endpoint,
         p256dh: sub.keys?.p256dh ?? null,
         auth: sub.keys?.auth ?? null,
       },
     ],
     {
-      onConflict: 'endpoint', // 🔥 prevents duplicate error
+      onConflict: "endpoint",
     }
   )
-  .select()
+  .select();
 
-// 🔍 keep your logging/debug (if any)
 if (error) {
-  console.error('❌ Supabase error FULL:', JSON.stringify(error, null, 2))
-} else {
-  console.log('✅ INSERT/UPSERT RESULT:', data)
+  console.error(
+    "Supabase subscription error:",
+    error
+  );
 
-      return NextResponse.json({
-        success: false,
-        error,
-      })
-    }
+  return NextResponse.json(
+  {
+    success: false,
+    error: 'Internal server error',
+  },
+  {
+    status: 500,
+  }
+)
+}
 
     console.log('✅ Stored successfully:', data)
 

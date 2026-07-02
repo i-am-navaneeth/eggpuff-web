@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
+import { useNavigation } from '@/components/navigation/NavigationProvider'
 import { supabase } from '../lib/supabase'
 import { getEggPuffBalance } from '../lib/rewards'
 import BuyPuffModal from './BuyPuffModal'
@@ -20,7 +21,8 @@ export default function TopBar({
   const [balance, setBalance] = useState<number>(0)
   const [buyOpen, setBuyOpen] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
-
+  
+  const { openEditProfile } = useNavigation()
   const pathname = usePathname()
   const usernameFromPath =
   pathname?.startsWith('/u/')
@@ -516,7 +518,7 @@ const user = session?.user
   />
 </div>
     <div
-      className={`fixed top-0 left-0 right-0 z-[999] transition-transform duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-[2000] transition-transform duration-300 ${
         isProfilePage
   ? 'translate-y-0'
   : showUI
@@ -709,9 +711,7 @@ const user = session?.user
         {isOwnProfile ? (
 
           <button
-            onClick={() =>
-              router.push('/profile')
-            }
+            onClick={openEditProfile}
             className="
               px-4 py-1.5 rounded-full
               bg-gray-100 text-black

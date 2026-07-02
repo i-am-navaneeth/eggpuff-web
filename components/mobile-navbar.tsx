@@ -4,10 +4,13 @@ import { usePathname, useRouter } from 'next/navigation'
 import useScrollVisibility from '@/hooks/useScrollVisibility'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useNavigation } from '@/components/navigation/NavigationProvider'
 
 export default function MobileNavbar({ userId }: { userId?: string }) {
   const pathname = usePathname()
   const router = useRouter()
+
+  const { openProfile } = useNavigation()
   const hideNavbarRoutes = ['/ask', '/notifications', '/profile' ]
   const shouldHideNavbar = hideNavbarRoutes.some(route =>
   pathname.startsWith(route)
@@ -272,16 +275,26 @@ if (shouldHideNavbar) return null
 
   return (
     <div
-  className={`fixed bottom-0 left-0 right-0 z-[999] md:hidden transition-transform duration-300 ${
-    showUI ? 'translate-y-0' : 'translate-y-full'
-  }`}
+  className={`fixed bottom-0 left-0 right-0 z-[2000] md:hidden h-16 transition-transform duration-300 ${
+  showUI ? 'translate-y-0' : 'translate-y-full'
+}`}
 >
 
       {/* NAVBAR BACKGROUND */}
-      <div className="absolute inset-0 bg-white border-t border-black/10" />
+      <div
+  className="absolute inset-0 bg-white border-t border-black/10"
+  style={{
+    zIndex: 0,
+  }}
+/>
 
       {/* CONTENT */}
-      <div className="relative h-[58px] grid grid-cols-5 items-center px-1">
+      <div
+  className="relative h-full grid grid-cols-5 items-center px-1"
+  style={{
+    zIndex: 1,
+  }}
+>
 
         {/* HOME */}
         <NavItem
@@ -293,11 +306,11 @@ if (shouldHideNavbar) return null
 
         {/* SEARCH */}
         <NavItem
-          icon={<SearchIcon />}
-          label="Search"
-          active={isActive('/search')}
-          onClick={() => router.push('/search')}
-        />
+  icon={<SearchIcon />}
+  label="Search"
+  active={pathname === '/search'}
+  onClick={() => router.push('/search')}
+/>
 
         {/* COMMUNITIES */}
 
@@ -358,10 +371,10 @@ if (shouldHideNavbar) return null
   )
 }
   onClick={() => {
-    if (username) {
-      router.push(`/u/${username}`)
-    }
-  }}
+  if (!username) return
+
+  openProfile(username)
+}}
 />
 
       </div>

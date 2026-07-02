@@ -6,10 +6,9 @@ import { markHelpful, markNotUseful } from '@/lib/feedPrefs'
 import LinkPreviewCard from './LinkPreviewCard'
 import QuestionActionsMenu from './QuestionActionsMenu'
 import { supabase } from '@/lib/supabase'
-import QuestionShareCard
-from '@/components/share/QuestionShareCard'
-import { shareQuestionImage }
-from '@/lib/shareQuestionImage'
+import { useShare }
+from '@/contexts/ShareContext'
+import { useNavigation } from '@/components/navigation/NavigationProvider'
 
 type Props = {
   q: {
@@ -64,9 +63,16 @@ export default function QuestionCard({
 }: Props){
   const router = useRouter()
 
-  const shareCardRef =
-  useRef<HTMLDivElement>(null)
-
+const {
+  setShareData,
+  shareRendererRef,
+} = useShare()
+  
+  const {
+  open,
+  openProfile,
+  openQuestion,
+} = useNavigation()
   const [popped, setPopped] = useState(false)
   const menuButtonRef =
   useRef<HTMLButtonElement>(null)
@@ -130,13 +136,11 @@ const [showShareMenu, setShowShareMenu] =
   }
 
   // 🔥 slight delay for tap animation
-  setTimeout(() => {
-    setPopped(false)
+setTimeout(() => {
+  setPopped(false)
 
-    router.push(
-      `/question/${q.id}`
-    )
-  }, 85)
+  openQuestion(q.id)
+}, 85)
 }
 
   const hasAnswers =
@@ -314,45 +318,25 @@ if (error) throw error
   }
 }
 
-const handleImageShare =
-  async () => {
+const handleImageShare = async () => {
 
-    if (
-      !shareCardRef.current
-    ) {
-      return
-    }
+  setShareData({
+    question: q.text,
+    creator: q.user_name || "Anonymous",
+    username: q.username || "user",
+    helpfulCount,
+    answersCount: q.answers_count ?? 0,
+  })
 
-    try {
-
-      await shareQuestionImage(
-        shareCardRef.current
-      )
-
-    } catch (err) {
-
-      console.error(err)
-
-    }
-  }
-
-  useEffect(() => {
-  if (!showShareMenu) return
-
-  const close = () =>
-    setShowShareMenu(false)
-
-  document.addEventListener(
-    'click',
-    close
+  await new Promise(resolve =>
+    requestAnimationFrame(() =>
+      requestAnimationFrame(resolve)
+    )
   )
 
-  return () =>
-    document.removeEventListener(
-      'click',
-      close
-    )
-}, [showShareMenu])
+await shareRendererRef.current?.captureShare()
+
+}
 
   return (
   <div
@@ -433,7 +417,7 @@ const handleImageShare =
     e.stopPropagation()
 
     if (q.username) {
-      router.push(`/u/${q.username}`)
+      openProfile(q.username)
     }
   }}
   style={{
@@ -470,77 +454,152 @@ height: 38,
   }}
 >
   <div
-    onClick={(e) => {
-      e.stopPropagation()
+  onClick={(e) => {
+    e.stopPropagation()
 
-      if (q.username) {
-        router.push(`/u/${q.username}`)
-      }
-    }}
-    style={{
-      fontWeight: 600,
-fontSize: 14.5,
-letterSpacing: '-0.15px',
-      opacity: 1,
-
-      display: 'flex',
-
-      alignItems: 'flex-start',
-
-      gap: 4,
-
-      cursor: 'pointer',
-
-      width: 'fit-content',
-    }}
->
-  {q.hideStreak
-  ? (q.user_name || 'Anonymous')
-  : (
-      q.is_friend || q.user_id === currentUserId
-        ? `${q.user_name || 'Anonymous'} 🔥${q.streak_count ?? 0}`
-        : (q.user_name || 'Anonymous')
-    )
-}
-  {q.is_verified && (
-    <span
+    if (q.username) {
+      openProfile(q.username)
+    }
+  }}
   style={{
-    display: 'inline-flex',
+    fontWeight: 600,
+    fontSize: 14.5,
+    letterSpacing: '-0.15px',
+    display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 0,
+    gap: 4,
+    cursor: 'pointer',
+    width: 'fit-content',
+    flexWrap: 'wrap',
   }}
 >
-  <svg viewBox="0 0 24 24" width="19" height="19" style={{
-      transform: 'translateY(1px)', // 🔥 vertical alignment with text baseline
-    }}>
+  {/* Display Name */}
+  <span>
+    {q.user_name || 'Anonymous'}
+  </span>
 
+  {/* Verified */}
+  {q.is_verified && (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transform: 'translateY(1px)',
+      }}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="18"
+        height="18"
+      >
+        <path
+          fill="#1D9BF0"
+          d="
+            M12 2.5
+            L13.8 4.2 L16.2 3.8 L17 6.2 L19.4 7 L19 9.4
+            L20.5 11.5 L19 13.6 L19.4 16 L17 16.8
+            L16.2 19.2 L13.8 18.8 L12 20.5
+            L10.2 18.8 L7.8 19.2 L7 16.8 L4.6 16
+            L5 13.6 L3.5 11.5 L5 9.4
+            L4.6 7 L7 6.2 L7.8 3.8 L10.2 4.2 Z
+          "
+        />
+
+        <path
+          d="M8.6 11.7l2.4 2.4 4.8-4.8"
+          fill="none"
+          stroke="#FFF"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
+  )}
+
+  {/* Streak */}
+  {!q.hideStreak &&
+    (q.is_friend || q.user_id === currentUserId) && (
+      <span
+  style={{
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 4,
+    width: 28,
+    height: 28,
+    flexShrink: 0,
+    transform: "translateY(-4px)",
+  }}
+>
+  <svg
+    width="28"
+    height="28"
+    viewBox="0 0 64 64"
+    fill="none"
+  >
+    {/* Sparkles */}
+    <circle cx="9" cy="14" r="2.5" fill="#FFD54A" />
+    <circle cx="55" cy="15" r="2.5" fill="#FFD54A" />
+    <circle cx="12" cy="50" r="2.2" fill="#FFD54A" />
+    <circle cx="52" cy="48" r="2.2" fill="#FFD54A" />
+
+    {/* Flame */}
     <path
-      fill="#1D9BF0"
-      d="
-        M12 2.5
-        L13.8 4.2 L16.2 3.8 L17 6.2 L19.4 7 L19 9.4
-        L20.5 11.5 L19 13.6 L19.4 16 L17 16.8
-        L16.2 19.2 L13.8 18.8 L12 20.5
-        L10.2 18.8 L7.8 19.2 L7 16.8 L4.6 16
-        L5 13.6 L3.5 11.5 L5 9.4
-        L4.6 7 L7 6.2 L7.8 3.8 L10.2 4.2 Z
-      "
+      d="M32 4
+         C42 12 49 22 49 33
+         C49 47 41 58 32 58
+         C21 58 13 48 13 35
+         C13 25 19 18 25 12
+         C25 22 32 24 32 4Z"
+      fill="#FF7A1A"
     />
 
-    <circle cx="12" cy="12" r="6.5" fill="rgba(255,255,255,0.08)" />
-
+    {/* Inner Flame */}
     <path
-      d="M8.6 11.7l2.4 2.4 4.8-4.8"
+      d="M32 16
+         C38 22 42 28 42 35
+         C42 43 37 50 32 50
+         C26 50 22 44 22 37
+         C22 31 25 27 29 23
+         C29 29 32 31 32 16Z"
+      fill="#FFC547"
+    />
+
+    {/* White Badge */}
+    <circle
+      cx="32"
+      cy="39"
+      r="10.5"
+      fill="#FFF"
+    />
+
+    {/* Orange Border */}
+    <circle
+      cx="32"
+      cy="39"
+      r="9.5"
       fill="none"
-      stroke="#ffffff"
+      stroke="#FF8A24"
       strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
     />
+
+    {/* Number */}
+    <text
+      x="32"
+      y="43.5"
+      textAnchor="middle"
+      fontSize="16"
+      fontWeight="900"
+      fill="#F97316"
+      fontFamily="Inter, sans-serif"
+    >
+      {q.streak_count ?? 0}
+    </text>
   </svg>
 </span>
-  )}
+    )}
 </div>
 {q.is_trending && (
   <span
@@ -1031,7 +1090,20 @@ onClick={(e) => {
 
           setShowShareMenu(false)
 
-          await handleImageShare()
+          setShareData({
+  question: q.text,
+  creator:
+    q.user_name || 'Anonymous',
+  username:
+    q.username || 'user',
+  helpfulCount,
+  answersCount:
+    q.answers_count ?? 0,
+})
+
+requestAnimationFrame(async () => {
+  await handleImageShare()
+})
         }}
         style={{
           padding:
@@ -1213,24 +1285,6 @@ onClick={(e) => {
       'none',
   }}
 >
-  <QuestionShareCard
-    ref={shareCardRef}
-    question={q.text}
-    creator={
-      q.user_name ||
-      'Anonymous'
-    }
-    username={
-      q.username ||
-      'user'
-    }
-    helpfulCount={
-      helpfulCount
-    }
-    answersCount={
-      q.answers_count ?? 0
-    }
-  />
 </div>
 
       {/* FLOAT */}
