@@ -48,14 +48,21 @@ export default function EditProfileScreen({
   !!batchYear;
 
 const isChanged =
-  originalProfile &&
-  (
-    name !== (originalProfile.name || '') ||
-    username !== (originalProfile.username || '') ||
-    (batchYear || '') !== (originalProfile.batch_year || '') ||
-    (collegeId || '') !== (originalProfile.college_id || '') ||
-    avatar !== (originalProfile.avatar_url || avatars[0])
-  );
+  !!originalProfile &&
+  JSON.stringify({
+    name,
+    username,
+    batchYear,
+    collegeId,
+    avatar,
+  }) !==
+  JSON.stringify({
+    name: originalProfile.name || "",
+    username: originalProfile.username || "",
+    batchYear: originalProfile.batch_year || "",
+    collegeId: originalProfile.college_id || "",
+    avatar: originalProfile.avatar_url || avatars[0],
+  });
 
 const canSave = isFormValid && isChanged;
 
@@ -171,19 +178,20 @@ if (usernameStatus === 'taken') {
 
 const user = session?.user
 
-    const { error } = await supabase
-  .from('profiles')
+  const { data, error } = await supabase
+  .from("profiles")
   .update({
     name,
     username,
     batch_year: batchYear,
     college_id: collegeId,
     avatar_url: avatar,
-
-    // Mark onboarding complete
     profile_completed: true,
   })
-  .eq('user_id', user?.id);
+  .eq("user_id", user?.id)
+  .select();
+
+console.log(data, error);
 
     if (error) {
       console.error('Profile update failed:', error);
@@ -202,6 +210,7 @@ const user = session?.user
   return;
 } else {
       notify('Profile updated ✅');
+      setSaving(false)
       router.push('/feed');
     }
   };
@@ -309,6 +318,18 @@ useEffect(() => {
   };
 
   if (loading) return <div style={{ padding: 20 }}>Loading your profile...</div>;
+
+  console.log({
+  isFormValid,
+  isChanged,
+  canSave,
+  originalProfile,
+  name,
+  username,
+  batchYear,
+  collegeId,
+  avatar,
+});
 
   return (
     <div
@@ -591,11 +612,13 @@ const user = session?.user
       <div
         key={c.id}
         onClick={() => {
-          setCollegeId(c.id)
-          setCollegeName(c.name)
-          setCollegeSearch(c.name)
-          setColleges([])
-        }}
+  console.log("College selected:", c)
+
+  setCollegeId(c.id)
+  setCollegeName(c.name)
+  setCollegeSearch(c.name)
+  setColleges([])
+}}
         style={{
           padding: '10px 12px',
           cursor: 'pointer',
@@ -616,10 +639,13 @@ onMouseLeave={(e) => {
 )}
 
 
-        {/* BATCH */}
-        <select
+{/* BATCH */}
+<select
   value={batchYear}
-  onChange={(e) => setBatchYear(e.target.value)}
+  onChange={(e) => {
+  console.log("Batch:", e.target.value)
+  setBatchYear(e.target.value)
+}}
   style={{
     ...input(isLocked),
     appearance: 'none',
@@ -634,12 +660,22 @@ onMouseLeave={(e) => {
   }}
   disabled={isLocked}
 >
-          <option value="">Select batch</option>
-          <option value="2025-29">2025–29</option>
-          <option value="2024-28">2024–28</option>
-          <option value="2023-27">2023–27</option>
-          <option value="2022-26">2022–26</option>
-        </select>
+  <option value="">Select batch</option>
+
+{Array.from(
+  { length: Math.max(new Date().getFullYear(), 2026) - 2022 + 1 },
+  (_, i) => {
+    const start = Math.max(new Date().getFullYear(), 2026) - i;
+    const end = String(start + 4).slice(-2);
+
+    return (
+      <option key={start} value={`${start}-${end}`}>
+        {start}–{end}
+      </option>
+    );
+  }
+)}
+</select>
 
         <div
   style={{

@@ -64,20 +64,20 @@ const { data, error } = await supabaseAdmin
   .select();
 
 if (error) {
-  console.error(
-    "Supabase subscription error:",
-    error
-  );
+  console.error("🔥 Supabase subscription error:", error);
 
   return NextResponse.json(
-  {
-    success: false,
-    error: 'Internal server error',
-  },
-  {
-    status: 500,
-  }
-)
+    {
+      success: false,
+      error: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    },
+    {
+      status: 500,
+    }
+  );
 }
 
     console.log('✅ Stored successfully:', data)
@@ -86,12 +86,18 @@ if (error) {
       success: true,
       data,
     })
-  } catch (err) {
-    console.error('❌ Route error:', err)
+  } catch (err: any) {
+  console.error("🔥 Route error:", err);
 
-    return NextResponse.json({
+  return NextResponse.json(
+    {
       success: false,
-      error: err,
-    })
-  }
+      message: err.message,
+      stack: err.stack,
+    },
+    {
+      status: 500,
+    }
+  );
+}
 }
