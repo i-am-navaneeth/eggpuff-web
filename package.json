@@ -9,6 +9,15 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@lexical/code": "^0.46.0",
+    "@lexical/history": "^0.46.0",
+    "@lexical/link": "^0.46.0",
+    "@lexical/list": "^0.46.0",
+    "@lexical/plain-text": "^0.46.0",
+    "@lexical/react": "^0.46.0",
+    "@lexical/rich-text": "^0.46.0",
+    "@lexical/selection": "^0.46.0",
+    "@lexical/utils": "^0.46.0",
     "@sentry/nextjs": "^10.63.0",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/ssr": "^0.8.0",
@@ -16,6 +25,7 @@
     "browser-image-compression": "^2.0.2",
     "framer-motion": "^12.40.0",
     "html-to-image": "^1.11.13",
+    "lexical": "^0.46.0",
     "lucide-react": "^1.8.0",
     "next": "16.1.4",
     "react": "^19.2.3",
@@ -38,6 +48,6 @@
     "typescript": "^5"
   },
   "engines": {
-  "node": "24.x"
-}
+    "node": "24.x"
+  }
 }

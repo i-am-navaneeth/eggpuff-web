@@ -17,6 +17,8 @@ type Props = {
   loadMoreRef: React.MutableRefObject<
     () => Promise<void>
   >
+
+  hasMore: boolean
 }
 
 export function useInfiniteObserver({
@@ -26,48 +28,46 @@ export function useInfiniteObserver({
   observerRef,
   hardLockRef,
   loadMoreRef,
+  hasMore,
 }: Props) {
   useEffect(() => {
-    const el = loadMoreRefEl.current
+    if (!loaded || !hasMore) return
 
+    const el = loadMoreRefEl.current
     if (!el) return
 
     observerRef.current?.disconnect()
 
-    observerRef.current =
-      new IntersectionObserver(
-        (entries) => {
-          const entry = entries[0]
+    observerRef.current = new IntersectionObserver(
+      async (entries) => {
+        const entry = entries[0]
 
-          if (
-            entry.isIntersecting &&
-            !hardLockRef.current &&
-            !loadingMore
-          ) {
-            observerRef.current?.unobserve(
-              entry.target
-            )
-
-            loadMoreRef.current()
-          }
-        },
-        {
-          root: null,
-          rootMargin: '400px 0px',
-          threshold: 0,
+        if (
+          !entry.isIntersecting ||
+          hardLockRef.current ||
+          loadingMore
+        ) {
+          return
         }
-      )
+
+        await loadMoreRef.current()
+      },
+      {
+        root: null,
+        rootMargin: '600px 0px',
+        threshold: 0,
+      }
+    )
 
     observerRef.current.observe(el)
 
-    return () =>
+    return () => {
       observerRef.current?.disconnect()
+    }
   }, [
     loaded,
+    hasMore,
     loadingMore,
-    hardLockRef,
-    loadMoreRef,
     loadMoreRefEl,
-    observerRef,
   ])
 }

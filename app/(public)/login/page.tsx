@@ -45,10 +45,13 @@ export default function LoginPage() {
   }, [index, words.length])
 
   // 🔥 Handle Google login properly
-  const handleLogin = async () => {
+const handleLogin = async () => {
   setLoading(true)
 
-  const redirectUrl = `${window.location.origin}/feed`
+  const redirectUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/feed`
+      : 'http://localhost:3000/feed'
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
