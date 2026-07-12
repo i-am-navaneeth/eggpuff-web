@@ -10,9 +10,11 @@ type FeedbackType = 'issue' | 'idea' | null
 type Props = {
   onClose: () => void
 
-  // 🔥 QUESTION ACTIONS
   isOwner?: boolean
+
   questionId?: string
+  answerId?: string
+  replyId?: string
 
   onDelete?: () => void
   onReport?: () => void
@@ -23,6 +25,8 @@ export default function FeedbackDropdown({
 
   isOwner = false,
   questionId,
+answerId,
+replyId,
 
   onDelete,
   onReport,
@@ -136,37 +140,62 @@ const user = session?.user
   }
 
   // ===============================
-  // DELETE QUESTION
+  // DELETE
   // ===============================
-  const handleDeleteQuestion =
-  async () => {
-    if (!questionId) return
+  const handleDelete = async () => {
+  // Remove from UI immediately
+  onDelete?.()
 
-    // 🔥 remove instantly from UI
-    onDelete?.()
+  // Close menu immediately
+  onClose()
 
-    // 🔥 close menu instantly
-    onClose()
+  if (answerId) {
+    const { error } = await supabase
+      .from('answers')
+      .delete()
+      .eq('id', answerId)
 
-    // 🔥 async DB delete
-    supabase
+    if (error) {
+      console.error(error)
+      notify('❌ Failed to delete.')
+      return
+    }
+
+    notify('Deleted.')
+    return
+  }
+
+  if (replyId) {
+  const { error } = await supabase
+    .from('answer_replies')
+    .delete()
+    .eq('id', replyId)
+
+  if (error) {
+    console.error(error)
+    notify('❌ Failed to delete.')
+    return
+  }
+
+  notify('Deleted.')
+  return
+}
+
+  if (questionId) {
+    const { error } = await supabase
       .from('questions')
       .delete()
       .eq('id', questionId)
-      .then(({ error }) => {
-        if (error) {
-          console.error(error)
 
-          notify(
-            '❌ Failed to delete question.'
-          )
+    if (error) {
+      console.error(error)
+      notify('❌ Failed to delete.')
+      return
+    }
 
-          return
-        }
-
-        notify('Question deleted.')
-      })
+    notify('Deleted.')
   }
+}
 
   // ===============================
   // REPORT QUESTION
@@ -258,9 +287,7 @@ const user = session?.user
           {isOwner ? (
             <>
               <button
-                onClick={
-                  handleDeleteQuestion
-                }
+                onClick={handleDelete}
                 style={menuButtonDanger}
               >
                 <div
@@ -287,7 +314,7 @@ const user = session?.user
     <path d="M14 11v6" />
   </svg>
 
-  <span>Delete question</span>
+  <span>Delete</span>
 </div>
               </button>
 
@@ -350,7 +377,7 @@ const user = session?.user
     <path d="M5 4h10l-2 4 2 4H5" />
   </svg>
 
-  <span>Report question</span>
+  <span>Report</span>
 </div>
               </button>
 

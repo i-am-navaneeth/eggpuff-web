@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useNavigation } from '@/components/navigation/NavigationProvider'
+import useScrollVisibility from '@/hooks/useScrollVisibility'
 
 type Props = {
   open: boolean
@@ -11,6 +12,8 @@ type Props = {
   type: 'followers' | 'following' | 'friends'
   profileUserId: string
   currentUserId: string | null
+
+  bottomOffset?: number
 }
 
 export default function FollowListSheet({
@@ -19,19 +22,30 @@ export default function FollowListSheet({
   type,
   profileUserId,
   currentUserId,
+  bottomOffset = 64,
 }: Props) {
   const router = useRouter()
 
   const { openProfile } = useNavigation()
+  const showNavbar = useScrollVisibility()
   const [loading, setLoading] = useState(true)
   const [users, setUsers] = useState<any[]>([])
   const [followingIds, setFollowingIds] = useState<string[]>([])
 
   useEffect(() => {
-    if (!open) return
+  if (!open) {
+    setUsers([])
+    setFollowingIds([])
+    setLoading(true)
+    return
+  }
 
-    const load = async () => {
-      setLoading(true)
+  const load = async () => {
+  setLoading(true)
+
+  // Clear previous sheet data immediately
+  setUsers([])
+  setFollowingIds([])
       
 // ================= FOLLOWERS / FOLLOWING / FRIENDS =================
 
@@ -87,36 +101,34 @@ if (ids.length === 0) {
   return
 }
 
-// ================= LOAD PROFILES =================
-const { data: profiles } = await supabase
-  .from('profiles')
-  .select('*')
-  .in('user_id', ids)
-
-setUsers(profiles || [])
-
-if (ids.length === 0) {
-  setUsers([])
-  setLoading(false)
-  return
-}
+// ================= LOAD EVERYTHING TOGETHER =================
 
 const profilesPromise = supabase
   .from('profiles')
   .select('*')
   .in('user_id', ids)
 
-// ================= CURRENT USER FOLLOWING =================
-if (currentUserId) {
-  const { data } = await supabase
-    .from('follows')
-    .select('following_id')
-    .eq('follower_id', currentUserId)
+const followingPromise = currentUserId
+  ? supabase
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', currentUserId)
+  : Promise.resolve({ data: [] })
 
-  setFollowingIds(
-    data?.map((d) => d.following_id) || []
-  )
-}
+const [
+  { data: profiles },
+  { data: following },
+] = await Promise.all([
+  profilesPromise,
+  followingPromise,
+])
+
+// Update state only once everything is ready
+setUsers(profiles || [])
+
+setFollowingIds(
+  following?.map((d) => d.following_id) || []
+)
 
 setLoading(false)
 }
@@ -149,8 +161,32 @@ load()
       setFollowingIds((prev) => [...prev, targetUserId])
     }
   }
+  const startY = useRef<number | null>(null)
+
+const handleTouchStart = (
+  e: React.TouchEvent<HTMLDivElement>
+) => {
+  startY.current = e.touches[0].clientY
+}
+
+const handleTouchEnd = (
+  e: React.TouchEvent<HTMLDivElement>
+) => {
+  if (startY.current === null) return
+
+  const endY = e.changedTouches[0].clientY
+  const delta = endY - startY.current
+
+  // Dragged downward enough
+  if (delta > 70) {
+    onClose()
+  }
+
+  startY.current = null
+}
 
   if (!open) return null
+
 
   return (
     <>
@@ -161,49 +197,92 @@ load()
       />
 
       {/* SHEET */}
-      <div
-        className="
-          fixed z-50 bg-white
-          bottom-0 left-0 right-0
-          rounded-t-3xl
-          max-h-[80vh]
-          overflow-y-auto
-          p-4
-          shadow-2xl
+     <div
+  className="
+    fixed z-[2100]
+    left-0 right-0
 
-          lg:max-w-[420px]
-          lg:left-1/2
-          lg:bottom-auto
-          lg:top-1/2
-          lg:-translate-x-1/2
-          lg:-translate-y-1/2
-          lg:rounded-3xl
-        "
-      >
-        {/* HANDLE */}
-        <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4 lg:hidden" />
+    bg-white
+    rounded-t-3xl
 
-        {/* TITLE */}
-        <h2 className="text-lg font-semibold capitalize mb-4 text-center">
-          {type}
-        </h2>
+    h-[72vh]
+    max-h-[720px]
 
-        {/* LOADING */}
-        {loading && (
-          <p className="text-center text-sm text-gray-400 py-6">
-            Loading...
-          </p>
-        )}
+    flex
+    flex-col
 
-        {/* EMPTY */}
-        {!loading && users.length === 0 && (
-          <p className="text-center text-sm text-gray-400 py-6">
-            No users found
-          </p>
-        )}
+    shadow-2xl
 
-        {/* USERS */}
-        <div className="space-y-3">
+    overflow-hidden
+
+    lg:max-w-[420px]
+    lg:left-1/2
+    lg:bottom-auto
+    lg:top-1/2
+    lg:-translate-x-1/2
+    lg:-translate-y-1/2
+    lg:rounded-3xl
+  "
+  style={{
+    bottom: bottomOffset,
+    transition: 'bottom .25s ease',
+  }}
+>
+       {/* STICKY HEADER */}
+<div
+  className="
+    flex-shrink-0
+
+    pt-2
+    pb-4
+
+    bg-white
+
+    border-b border-gray-100
+
+    z-30
+  "
+  onTouchStart={handleTouchStart}
+  onTouchEnd={handleTouchEnd}
+>
+  {/* HANDLE */}
+  <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-5 lg:hidden" />
+
+  {/* TITLE */}
+  <h2 className="text-xl font-semibold capitalize text-center">
+    {type}
+  </h2>
+</div>
+
+{/* LOADING */}
+{loading && (
+  <p className="text-center text-sm text-gray-400 py-6">
+    Loading...
+  </p>
+)}
+
+{/* EMPTY */}
+{!loading && users.length === 0 && (
+  <p className="text-center text-sm text-gray-400 py-6">
+    No users found
+  </p>
+)}
+
+{/* USERS */}
+<div
+  className="
+    flex-1
+
+    overflow-y-auto
+    overscroll-contain
+
+    px-4
+    pt-2
+    pb-5
+
+    space-y-2
+  "
+>
           {users.map((u) => {
             const isMe = currentUserId === u.user_id
             const isFollowing =
@@ -227,15 +306,15 @@ load()
                 >
                   <img
                     src={u.avatar_url || '/default-avatar.png'}
-                    className="w-11 h-11 rounded-full object-cover"
+                    className="w-10 h-10 rounded-full object-cover"
                   />
 
                   <div>
-                    <div className="font-medium text-sm">
+                    <div className="font-medium text-[13px] leading-tight">
                       {u.name}
                     </div>
 
-                    <div className="text-xs text-gray-500">
+                    <div className="text-[11px] text-gray-500 leading-tight">
                       @{u.username}
                     </div>
                   </div>
@@ -247,7 +326,7 @@ load()
                     onClick={() =>
                       handleFollow(u.user_id)
                     }
-                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
+                    className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium transition ${
                       isFollowing
                         ? 'bg-gray-200 text-black'
                         : 'bg-black text-white'
