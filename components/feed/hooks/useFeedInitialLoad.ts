@@ -139,7 +139,8 @@ const questionsData =
 
     mergeBatch(questionsData)
 
-setOffset(PAGE_SIZE)
+// mergeBatch already advances the offset.
+// Don't manually set it again.
 setHasMore(questionsData.length === PAGE_SIZE)
 
 saveLastVisit()

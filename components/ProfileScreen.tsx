@@ -1321,6 +1321,11 @@ onClick={() => {
   type={followSheetType}
   profileUserId={profile.user_id}
   currentUserId={userId}
+  bottomOffset={
+    userId === profile.user_id
+      ? 64
+      : 0
+  }
 />
     </div>
   )

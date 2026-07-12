@@ -199,17 +199,25 @@ border: 'none',
       {step === 'utr' && (
         <>
           <input
-            placeholder="Enter 12-digit UTR number"
-            value={utr}
-            onChange={e => {
-              const onlyDigits = e.target.value.replace(/\D/g, '')
-              setUtr(onlyDigits.slice(0, 12))
-            }}
-            maxLength={12}
-            inputMode="numeric"
-            pattern="[0-9]*"
-            style={input}
-          />
+  type="text"
+  name="utr-number"
+  placeholder="Enter 12-digit UTR number"
+  value={utr}
+  onChange={(e) => {
+    const onlyDigits = e.target.value.replace(/\D/g, '')
+    setUtr(onlyDigits.slice(0, 12))
+  }}
+  maxLength={12}
+  inputMode="numeric"
+  pattern="[0-9]*"
+  autoComplete="off"
+  autoCorrect="off"
+  autoCapitalize="off"
+  spellCheck={false}
+  enterKeyHint="done"
+  data-form-type="other"
+  style={input}
+/>
 
           <button
   onClick={submitUTR}

@@ -177,15 +177,22 @@ useEffect(() => {
       )}
 
       {/* 🔍 INPUT */}
-      <div className="relative flex-1">
-        <input
-          autoFocus
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search people or questions..."
-          className="w-full bg-gray-100 px-4 py-2 pr-10 rounded-full text-sm outline-none"
-        />
-      </div>
+<div className="relative flex-1">
+  <input
+    type="search"
+    name="global-search"
+    autoFocus
+    value={query}
+    onChange={(e) => setQuery(e.target.value)}
+    placeholder="Search people or questions..."
+    autoComplete="off"
+    autoCorrect="off"
+    autoCapitalize="none"
+    spellCheck={false}
+    enterKeyHint="search"
+    className="w-full bg-gray-100 px-4 py-2 pr-10 rounded-full text-sm outline-none"
+  />
+</div>
 
     </div>
   </div>

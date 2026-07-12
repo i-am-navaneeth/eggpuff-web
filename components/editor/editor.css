@@ -1,0 +1,63 @@
+.editor-input {
+    outline: none;
+    border: none;
+
+    background: transparent;
+
+    width: 100%;
+
+    min-height: 34px;
+    max-height: 38vh;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    font-size: 17px;
+    font-weight: 400;
+
+    line-height: 1.8;
+
+    color: #111827;
+
+    caret-color: #111827;
+
+    white-space: pre-wrap;
+    word-break: break-word;
+
+    scrollbar-width: none;
+
+    -webkit-appearance: none;
+
+    overscroll-behavior: contain;
+}
+
+.editor-input::-webkit-scrollbar {
+    display: none;
+}
+
+.editor-input:focus {
+    outline: none;
+    border: none;
+}
+
+.editor-link {
+    color: #1D9BF0;
+    text-decoration: none;
+}
+
+.composer-placeholder {
+    color: #9CA3AF;
+
+    pointer-events: none;
+
+    position: absolute;
+
+    top: 0;
+    left: 0;
+
+    font-size: 17px;
+
+    line-height: 1.8;
+
+    user-select: none;
+}

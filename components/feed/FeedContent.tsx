@@ -141,6 +141,7 @@ useEffect(() => {
 useInfiniteObserver({
   loaded,
   loadingMore,
+  hasMore,
   loadMoreRefEl,
   observerRef,
   hardLockRef,

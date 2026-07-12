@@ -130,8 +130,14 @@ if (!user) return
     if (!data) return
 
     data.forEach((n) => {
-      notify(n.message)
-    })
+  notify(
+    n.type === 'answer'
+      ? `💬 ${n.message}`
+      : n.type === 'answer_like'
+      ? `❤️ ${n.message}`
+      : n.message
+  )
+})
 
     // ✅ mark as read
     await supabase
