@@ -30,46 +30,6 @@ const user = session?.user ?? null;
 
       const path = pathname;
 
-      // 🔥 Handle OAuth redirect properly
-if (
-  typeof window !== 'undefined' &&
-  window.location.search.includes('code=')
-) {
-
-  if (path !== '/feed') {
-
-    const {
-      data: { subscription: oauthSubscription },
-    } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
-
-        if (
-          event === 'SIGNED_IN' &&
-          newSession?.user
-        ) {
-
-          window.history.replaceState(
-            {},
-            document.title,
-            '/feed'
-          )
-
-          router.replace('/feed')
-        }
-      }
-    )
-
-    if (!mounted) {
-      oauthSubscription.unsubscribe()
-      return
-    }
-
-    setLoading(false)
-
-    return
-  }
-}
-
       const publicRoutes = ['/', '/login', '/what-is-eggpuff'];
 
       const isPublicRoute =
@@ -78,14 +38,17 @@ if (
 
       const isAdminRoute = path.startsWith('/admin$$$db');
 
-      // 🔐 fetch admin status
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('is_admin')
-        .eq('user_id', user?.id)
-        .maybeSingle();
+      let isAdmin = false;
 
-      const isAdmin = profile?.is_admin === true;
+if (user) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  isAdmin = profile?.is_admin === true;
+}
 
       // 🔥 Admin protection (KEEP)
       if (isAdminRoute && !isAdmin) {
@@ -121,19 +84,24 @@ if (
     const {
   data: { subscription },
 } = supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'INITIAL_SESSION') return;
-  if (event === 'SIGNED_OUT') return;
+  if (!mounted) return;
 
-  // 🔥 LOGIN SUCCESS → FORCE FEED
- if (event === 'SIGNED_IN' && session?.user) {
-  // 🔥 ONLY redirect if coming from login page
-  if (pathname === '/login') {
-    router.replace('/feed');
+  switch (event) {
+    case 'SIGNED_IN':
+      if (pathname === '/login') {
+        router.replace('/feed');
+      }
+      break;
+
+    case 'SIGNED_OUT':
+      if (!skipRedirect) {
+        router.replace('/login');
+      }
+      break;
+
+    default:
+      break;
   }
-  return;
-}
-
-  init();
 });
 
     return () => {

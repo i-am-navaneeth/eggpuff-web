@@ -1,6 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
@@ -10,6 +14,7 @@ import { useNotify } from '../../../components/NotificationProvider'
 import { extractUrl } from '@/lib/extractUrl'
 import { getLinkType } from '@/lib/getLinkType'
 import { highlightLinks } from '@/lib/highlightLinks'
+import ComposerEditor from '@/components/editor/ComposerEditor'
 
 type Category = {
   id: string
@@ -34,6 +39,23 @@ export default function AskPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
   const [pageLoading, setPageLoading] = useState(true)
+
+  const [profile, setProfile] = useState<{
+  name: string | null
+  avatar_url: string | null
+  college_id: string | null
+  batch_year: number | null
+} | null>(null)
+const [showCategories, setShowCategories] =
+  useState(false)
+  const [categoryExpanded, setCategoryExpanded] =
+  useState(true)
+  const [previewDismissed, setPreviewDismissed] =
+  useState(false)
+  const [keyboardHeight, setKeyboardHeight] =
+  useState(0)
+  const [showDiscardDialog, setShowDiscardDialog] =
+  useState(false)
   
 
   const [isProfileComplete, setIsProfileComplete] = useState(true);
@@ -48,16 +70,53 @@ export default function AskPage() {
 
 const [loadingPreview, setLoadingPreview] =
   useState(false)
+  const previewCache = useRef(
+  new Map<string, any>()
+)
+
+const abortController = useRef<AbortController | null>(
+  null
+)
+
+const [showBubbleInfo, setShowBubbleInfo] = useState(false)
+
+useEffect(() => {
+  const dismissed = localStorage.getItem(
+    'bubble-info-dismissed'
+  )
+
+  if (!dismissed && type === 'bubble') {
+    setShowBubbleInfo(true)
+  }
+}, [type])
 
   useEffect(() => {
-  const loadPreview = async () => {
-    const url = extractUrl(text)
+  const url = extractUrl(text)
 
-    // ❌ no link
-    if (!url) {
-      setLinkPreview(null)
-      return
-    }
+  if (!url) {
+    abortController.current?.abort()
+
+    setLoadingPreview(false)
+    setLinkPreview(null)
+
+    return
+  }
+
+  // Already have it
+  if (previewCache.current.has(url)) {
+    setLinkPreview(
+      previewCache.current.get(url)
+    )
+    return
+  }
+
+  const timer = setTimeout(async () => {
+    abortController.current?.abort()
+
+    const controller =
+      new AbortController()
+
+    abortController.current = controller
 
     try {
       setLoadingPreview(true)
@@ -66,35 +125,50 @@ const [loadingPreview, setLoadingPreview] =
         '/api/link-preview',
         {
           method: 'POST',
+
+          signal: controller.signal,
+
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
           },
-          body: JSON.stringify({ url }),
+
+          body: JSON.stringify({
+            url,
+          }),
         }
       )
-
-      const data = await res.json()
 
       if (!res.ok) {
         setLinkPreview(null)
         return
       }
 
+      const data = await res.json()
+
+      previewCache.current.set(
+        url,
+        data
+      )
+
       setLinkPreview(data)
 
-    } catch (err) {
-      setLinkPreview(null)
+    } catch (err: any) {
+
+      if (err.name !== 'AbortError') {
+        setLinkPreview(null)
+      }
+
     } finally {
-      setLoadingPreview(false)
+
+      if (!controller.signal.aborted) {
+        setLoadingPreview(false)
+      }
     }
-  }
 
-  // 🔥 tiny debounce
-  const timeout = setTimeout(() => {
-    loadPreview()
-  }, 500)
+  }, 800)
 
-  return () => clearTimeout(timeout)
+  return () => clearTimeout(timer)
 
 }, [text])
 
@@ -197,22 +271,38 @@ const userId = user.id
 
     const balance = await getEggPuffBalance(user.id)
 
-    // 🧠 Get user profile (college + batch)
+    // 🧠 Get user profile
 const { data: profile } = await supabase
   .from('profiles')
-  .select('college_id, batch_year')
+  .select(
+    'name, avatar_url, college_id, batch_year'
+  )
   .eq('user_id', userId)
   .single()
 
-  setIsProfileComplete(!!profile?.college_id && !!profile?.batch_year);
+// Save for UI
+setProfile(profile)
 
-  // 🚫 Block if profile incomplete
-if (!profile?.college_id || !profile?.batch_year) {
-  notify('⚠️ Complete your profile to ask questions');
-  router.push('/setup-profile');
-  return;
+setIsProfileComplete(
+  !!profile?.college_id &&
+  !!profile?.batch_year
+)
+
+// 🚫 Block if profile incomplete
+if (
+  !profile?.college_id ||
+  !profile?.batch_year
+) {
+  notify(
+    '⚠️ Complete your profile to ask questions'
+  )
+
+  router.push('/setup-profile')
+
+  return
 }
-    setLoading(true)
+
+setLoading(true)
 
     try {
       let categoryId: string | null = null
@@ -257,7 +347,7 @@ link_type: linkPreview?.type || null,
   hint: insertError?.hint,
   code: insertError?.code,
 })
-        notify('❌ Failed to post question.')
+        notify('❌ Failed to Ask.')
         return
       }
 
@@ -277,544 +367,1353 @@ link_type: linkPreview?.type || null,
   useEffect(() => {
   const checkProfile = async () => {
     const {
-  data: { session },
-} = await supabase.auth.getSession();
+      data: { session },
+    } = await supabase.auth.getSession()
 
-const user = session?.user ?? null;
+    const user = session?.user
 
-    if (!user) return;
+    if (!user) return
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('college_id, batch_year')
+      .select(
+        'name, avatar_url, college_id, batch_year'
+      )
       .eq('user_id', user.id)
-      .single();
+      .single()
+
+    if (!profile) return
+
+    setProfile(profile)
 
     setIsProfileComplete(
-      !!profile?.college_id && !!profile?.batch_year
-    );
-  };
+      !!profile.college_id &&
+      !!profile.batch_year
+    )
+  }
 
-  checkProfile();
-}, []);
+  checkProfile()
+}, [])
 
-  /* ---------------- UI ---------------- */
-  return (
+useEffect(() => {
+  if (!window.visualViewport) return
+
+  const viewport = window.visualViewport
+
+  const updateKeyboard = () => {
+    const keyboard =
+      window.innerHeight -
+      viewport.height -
+      viewport.offsetTop
+
+    setKeyboardHeight(
+      keyboard > 0 ? keyboard : 0
+    )
+  }
+
+  viewport.addEventListener(
+    'resize',
+    updateKeyboard
+  )
+
+  viewport.addEventListener(
+    'scroll',
+    updateKeyboard
+  )
+
+  updateKeyboard()
+
+  return () => {
+    viewport.removeEventListener(
+      'resize',
+      updateKeyboard
+    )
+
+    viewport.removeEventListener(
+      'scroll',
+      updateKeyboard
+    )
+  }
+}, [])
+
+ /* ---------------- UI ---------------- */
+return (
   <div
     style={{
-      width: '100%',
-
-      maxWidth: 720,
-
-      margin: '0 auto',
-
-      padding: '0 16px 120px',
-
-      boxSizing: 'border-box',
-    }}
+  width: '100%',
+  maxWidth: 720,
+  margin: '0 auto',
+  background: '#FFFFFF',
+  minHeight: '100vh',
+  overflowX: 'hidden',
+}}
   >
-      {pageLoading && (
-        <div
+    {pageLoading ? (
+      <div
         style={{
-          padding: 20,
-          maxWidth: 680,
-          margin: '0 auto',
+          padding: 24,
         }}
       >
-          <Skeleton width="40%" height={26} />
+        <Skeleton width="40%" height={26} />
 
-          <div style={{ marginTop: 24 }}>
-            <Skeleton height={16} width={120} />
-            <div style={{ marginTop: 6 }}>
-              <Skeleton height={48} radius={14} />
-            </div>
-          </div>
-
-          <div style={{ marginTop: 16 }}>
-            <Skeleton height={100} radius={14} />
-          </div>
-
-          <div style={{ marginTop: 16 }}>
-            <Skeleton height={16} width={140} />
-            <div style={{ marginTop: 6 }}>
-              <Skeleton height={48} radius={14} />
-            </div>
-          </div>
-
-          <div style={{ marginTop: 28 }}>
-            <Skeleton width={140} height={44} radius={999} />
-          </div>
+        <div style={{ marginTop: 24 }}>
+          <Skeleton height={52} radius={14} />
         </div>
-      )}
 
-      {!pageLoading && (
-        <div style={{ maxWidth: 600, margin: '0 auto', marginTop: 24 }}>
-          <h2
-            style={{
-              fontSize: 22,
-              fontWeight: 600,
-              marginBottom: 4,
-            }}
-          >
-            Ask the campus 🔥
-          </h2>
+        <div style={{ marginTop: 24 }}>
+          <Skeleton height={180} radius={20} />
+        </div>
+      </div>
+    ) : (
+      <>
+        {/* Header */}
 
-          <p
+        <div
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 100,
+            background: 'rgba(255,255,255,.92)',
+            backdropFilter: 'blur(14px)',
+            WebkitBackdropFilter: 'blur(14px)',
+
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+
+            padding: '14px 18px',
+
+            borderBottom: '1px solid #F3F4F6',
+          }}
+        >
+          <button
+  onClick={() => {
+    if (
+      document.activeElement instanceof HTMLElement
+    ) {
+      document.activeElement.blur()
+    }
+
+    const hasContent =
+      text.trim() ||
+      linkPreview ||
+      loadingPreview
+
+    if (!hasContent) {
+      router.back()
+      return
+    }
+
+    setTimeout(() => {
+      setShowDiscardDialog(true)
+    }, 180)
+  }}
             style={{
-              fontSize: 13,
+              border: 'none',
+              background: 'transparent',
               color: '#6B7280',
-              marginBottom: 20,
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: 'pointer',
             }}
           >
-            Ask clearly. Get better answers.
-          </p>
+            ✕
+          </button>
 
-          {/* CATEGORY */}
-          <div style={{ marginTop: 16 }}>
-            <label style={{ fontSize: 13, opacity: 0.7 }}>
-              Category
-            </label>
+         {/* Center Title */}
 
-            <select
-              value={category}
-              onChange={e => setCategory(e.target.value)}
-              style={{
-                width: '100%',
-                marginTop: 6,
-                padding: '12px 14px',
-                borderRadius: 14,
-                border: '1px solid #E5E7EB',
-                background: '#FFFFFF',
-                fontSize: 14,
-                appearance: 'none',
-              }}
-            >
-              <option value="general">
-                General (all topics)
-              </option>
-
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-         {/* QUESTION */}
 <div
   style={{
-    position: 'relative',
-    marginTop: 12,
+    position: 'absolute',
+    left: '50%',
+    transform: 'translateX(-50%)',
+
+    fontSize: 18,
+    fontWeight: 700,
+    color: '#111827',
+
+    pointerEvents: 'none',
   }}
 >
-  {/* HIGHLIGHT LAYER */}
-  <div
-    aria-hidden
-    dangerouslySetInnerHTML={{
-      __html: highlightLinks(
-        (text || ' ')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/\n$/g, '\n ')
-      ),
-    }}
-    style={{
-      position: 'absolute',
-
-      inset: 0,
-
-      padding: '20px 22px',
-
-      borderRadius: 30,
-
-      whiteSpace: 'pre-wrap',
-
-      wordBreak: 'break-word',
-
-      overflow: 'hidden',
-
-      fontSize: 16,
-
-      lineHeight: '27px',
-
-      fontFamily:
-        'Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-
-      fontWeight: 450,
-
-      letterSpacing: '-0.25px',
-
-      pointerEvents: 'none',
-
-      color: '#18181B',
-
-      zIndex: 2,
-
-      boxSizing: 'border-box',
-    }}
-  />
-
-  {/* PLACEHOLDER */}
-  {!text && (
-    <div
-      style={{
-        position: 'absolute',
-
-        top: 18,
-
-        left: 22,
-
-        fontSize: 16,
-
-        lineHeight: '28px',
-
-        fontFamily:
-          'Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-
-        fontWeight: 450,
-
-        letterSpacing: '-0.25px',
-
-        color: '#9CA3AF',
-
-        pointerEvents: 'none',
-
-        zIndex: 3,
-      }}
-    >
-      Type your thoughts here...
-    </div>
-  )}
-
-  {/* REAL TEXTAREA */}
-  <textarea
-    value={text}
-    onChange={(e) =>
-      setText(e.target.value)
-    }
-    onFocus={() =>
-      setFocused(true)
-    }
-    onBlur={() =>
-      setFocused(false)
-    }
-    spellCheck={false}
-    style={{
-      position: 'relative',
-
-      width: '100%',
-
-      minHeight: 130,
-
-      padding: '18px 22px 20px 22px',
-
-      borderRadius: 30,
-
-      border: focused
-  ? '1.5px solid #18181B'
-  : '1px solid #DADDE3',
-
-      background: 'transparent',
-
-      fontSize: 16,
-
-      lineHeight: '27px',
-
-      fontFamily:
-        'Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-
-      fontWeight: 100,
-
-      letterSpacing: '-0.15px',
-
-      resize: 'none',
-
-      outline: 'none',
-
-      // 🔥 invisible textarea text
-      color: 'transparent',
-
-      caretColor: '#18181B',
-
-      zIndex: 4,
-
-      WebkitTapHighlightColor:
-        'transparent',
-
-      overflow: 'hidden',
-
-      boxSizing: 'border-box',
-
-      transition:
-  'border-color 180ms cubic-bezier(0.4,0,0.2,1), box-shadow 220ms cubic-bezier(0.4,0,0.2,1), background-color 180ms ease',
-
-      boxShadow: focused
-  ? '0 0 0 4px rgba(24,24,27,0.035)'
-  : '0 1px 2px rgba(0,0,0,0.02)',
-    }}
-  />
+  New question
 </div>
 
- <div
+{/* Character Counter */}
+
+{text.length >= 265 && (
+  <div
+    style={{
+      marginLeft: 'auto',
+
+      fontSize: 13,
+
+      fontWeight: 600,
+
+      color:
+        text.length > 280
+          ? '#EF4444'
+          : '#9CA3AF',
+
+      letterSpacing: '-0.2px',
+
+      paddingRight: 2,
+
+      transition: 'opacity .2s ease',
+    }}
+  >
+    {text.length}/280
+  </div>
+)}
+        </div>
+
+        {/* Body */}
+
+        <div
+style={{
+padding:
+keyboardHeight > 0
+? '20px 18px 340px'
+: '20px 18px 170px',
+
+overflow: 'hidden',
+}}
+        >
+
+         {/* QUESTION */}
+
+<div
   style={{
-    marginTop: 4,
     display: 'flex',
-    gap: 10,
+    alignItems: 'flex-start',
+    gap: 16,
+    width: '100%',
   }}
 >
-  
+  {/* Avatar */}
 
-  {/* BUBBLE */}
+  <img
+  src={profile?.avatar_url || '/default-avatar.png'}
+  alt="Profile"
+  style={{
+    width: 48,
+    height: 48,
+
+    borderRadius: '50%',
+
+    objectFit: 'cover',
+
+    flexShrink: 0,
+
+    background: '#F3F4F6',
+
+    marginTop: 2,
+  }}
+/>
+
+  {/* Right */}
+
   <div
     style={{
       flex: 1,
-
-      display: 'flex',
-
-      alignItems: 'center',
-
-      justifyContent:
-        'space-between',
-
-      padding: '10px 14px',
-
-      borderRadius: 18,
-
-      border: '1px solid #E5E7EB',
-
-      background: '#FFFFFF',
-
-      boxShadow:
-        '0 1px 2px rgba(0,0,0,0.03)',
+      minWidth: 0,
+      width: 0,
+      overflow: 'hidden',
     }}
   >
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-      }}
-    >
-      <span
-        style={{
-          fontSize: 18,
-        }}
-      >
-        🫧
-      </span>
-
-      <span
-        style={{
-          fontSize: 14,
-          fontWeight: 700,
-        }}
-      >
-        Bubble
-      </span>
-    </div>
-
-    <div
-      onClick={() =>
-        setType(
-          type === 'bubble'
-            ? 'normal'
-            : 'bubble'
-        )
-      }
-      style={{
-        width: 40,
-        height: 22,
-
-        borderRadius: 999,
-
-        background:
-          type === 'bubble'
-            ? '#F4B860'
-            : '#E5E7EB',
-
-        position: 'relative',
-
-        cursor: 'pointer',
-
-        flexShrink: 0,
-      }}
-    >
-      <div
-        style={{
-          width: 18,
-          height: 18,
-
-          borderRadius: '50%',
-
-          background: '#FFFFFF',
-
-          position: 'absolute',
-
-          top: 2,
-
-          left:
-            type === 'bubble'
-              ? 20
-              : 2,
-
-          transition:
-            'all .2s ease',
-
-          boxShadow:
-            '0 2px 6px rgba(0,0,0,.12)',
-        }}
-      />
-    </div>
-  </div>
-
-  {/* PDF RESOURCE */}
-<button
-  type="button"
-onClick={() => {
-  router.push('/upload-resource')
-}}
+   <div
   style={{
-    width: 56,
-
-    height: 56,
-
     display: 'flex',
 
     alignItems: 'center',
 
-    justifyContent: 'center',
+    gap: 4,
 
-    borderRadius: 18,
+    marginBottom: 12,
+
+    width: '100%',
+  }}
+>
+  {/* Username */}
+
+  <span
+  style={{
+    flexShrink: 0,
+
+    fontWeight: 600,
+
+    fontSize: 15,
+
+    color: '#111827',
+
+    lineHeight: 1,
+
+    display: 'flex',
+
+    alignItems: 'center',
+  }}
+>
+    {profile?.name || 'You'}
+  </span>
+
+  {/* Category Area */}
+
+<div
+  style={{
+    display: 'flex',
+
+    alignItems: 'center',
+
+    gap: 2,
+
+    flex: 1,
+
+    minWidth: 0,
+  }}
+>
+  {/* Fixed Chevron */}
+
+  <button
+  type="button"
+  onClick={() =>
+    setCategoryExpanded(prev => !prev)
+  }
+  style={{
+  width: 16,
+  height: 16,
+
+  marginLeft: 2,
+
+  marginRight: 2,
+
+  padding: 0,
+
+  border: 'none',
+
+  background: 'transparent',
+
+  display: 'flex',
+
+  alignItems: 'center',
+
+  justifyContent: 'center',
+
+  flexShrink: 0,
+
+  cursor: 'pointer',
+
+  transform: 'translateY(1px)',
+}}
+>
+  {categoryExpanded ? (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <path
+        d="M9 6L15 12L9 18"
+        stroke="#6B7280"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ) : (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <path
+        d="M6 9L12 15L18 9"
+        stroke="#6B7280"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )}
+</button>
+
+ {/* Categories */}
+
+{categoryExpanded ? (
+  <div
+    style={{
+      flex: 1,
+      minWidth: 0,
+      position: 'relative',
+      overflow: 'hidden',
+    }}
+  >
+    {/* Left Fade */}
+
+    <div
+      style={{
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: 10,
+        zIndex: 2,
+        pointerEvents: 'none',
+        background:
+          'linear-gradient(to right,#fff,rgba(255,255,255,0))',
+      }}
+    />
+
+    {/* Right Fade */}
+
+    <div
+      style={{
+        position: 'absolute',
+        right: 0,
+        top: 0,
+        bottom: 0,
+        width: 10,
+        zIndex: 2,
+        pointerEvents: 'none',
+        background:
+          'linear-gradient(to left,#fff,rgba(255,255,255,0))',
+      }}
+    />
+
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+
+        gap: 4,
+
+        overflowX: 'auto',
+        overflowY: 'hidden',
+
+        whiteSpace: 'nowrap',
+
+        WebkitOverflowScrolling: 'touch',
+
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+
+        padding: '0 6px',
+      }}
+    >
+      <style jsx>{`
+        div::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+
+      {/* General */}
+
+      <button
+        type="button"
+        onClick={() => setCategory('general')}
+        style={{
+  flexShrink: 0,
+
+  border: 'none',
+
+  height: 28,
+
+  padding: '0 10px',
+
+  borderRadius: 999,
+
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+
+  background:
+    category === 'general'
+      ? '#EEF2F6'
+      : '#F7F7F8',
+
+  color:
+    category === 'general'
+      ? '#111827'
+      : '#6B7280',
+
+  fontSize: 12.5,
+
+  fontWeight:
+    category === 'general'
+      ? 600
+      : 500,
+
+  cursor: 'pointer',
+
+  whiteSpace: 'nowrap',
+
+  transition: '.15s',
+}}
+      >
+        🌍 General
+      </button>
+
+      {categories.map(cat => (
+        <button
+          key={cat.id}
+          type="button"
+          onClick={() => setCategory(cat.id)}
+          style={{
+  flexShrink: 0,
+
+  border: 'none',
+
+  height: 28,
+
+  padding: '0 10px',
+
+  borderRadius: 999,
+
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+
+  background:
+    category === cat.id
+      ? '#EEF2F6'
+      : '#F7F7F8',
+
+  color:
+    category === cat.id
+      ? '#111827'
+      : '#6B7280',
+
+  fontSize: 12.5,
+
+  fontWeight:
+    category === cat.id
+      ? 600
+      : 500,
+
+  cursor: 'pointer',
+
+  whiteSpace: 'nowrap',
+
+  transition: '.15s',
+}}
+        >
+          {cat.label}
+        </button>
+      ))}
+    </div>
+  </div>
+) : (
+  <button
+    type="button"
+    onClick={() => setCategoryExpanded(true)}
+    style={{
+  border: 'none',
+
+  height: 28,
+
+  padding: '0 10px',
+
+  borderRadius: 999,
+
+  display: 'flex',
+  alignItems: 'center',
+
+  background: '#EEF2F6',
+
+  color: '#111827',
+
+  fontSize: 12.5,
+
+  fontWeight: 600,
+
+  cursor: 'pointer',
+
+  whiteSpace: 'nowrap',
+}}
+  >
+    {category === 'general'
+      ? '🌍 General'
+      : categories.find(
+          c => c.id === category
+        )?.label}
+  </button>
+)}
+</div>
+</div>
+
+    <div
+  style={{
+    position: 'relative',
+
+    marginTop: 16,
+
+    display: 'flex',
+
+    flexDirection: 'column',
+
+    width: '100%',
+  }}
+>
+
+      <ComposerEditor
+  value={text}
+  onChange={(value) => {
+  setText(value)
+
+  setPreviewDismissed(false)
+}}
+/>
+
+      {loadingPreview && !linkPreview && !previewDismissed && (
+ <div
+  style={{
+    position: 'relative',
+
+    marginTop: 18,
 
     border: '1px solid #E5E7EB',
 
-    background: '#FFFFFF',
+    borderRadius: 18,
+
+    overflow: 'hidden',
+
+    background: '#fff',
+
+    animation: 'previewAppear .18s ease-out',
+  }}
+>
+  <button
+  type="button"
+  onClick={() => {
+    setPreviewDismissed(true)
+    setLinkPreview(null)
+  }}
+  style={{
+    position: 'absolute',
+
+    top: 10,
+    right: 10,
+
+    width: 28,
+    height: 28,
+
+    borderRadius: '50%',
+
+    border: 'none',
+
+    background: 'rgba(255,255,255,.94)',
+
+    backdropFilter: 'blur(12px)',
+
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
 
     cursor: 'pointer',
 
-    boxShadow:
-      '0 1px 2px rgba(0,0,0,0.03)',
+    zIndex: 20,
 
-    flexShrink: 0,
+    boxShadow:
+      '0 2px 10px rgba(0,0,0,.08)',
   }}
 >
   <svg
-  width="24"
-  height="24"
-  viewBox="0 0 24 24"
-  fill="none"
->
-  <path
-    d="M21.44 11.05l-8.49 8.49a5.5 5.5 0 01-7.78-7.78l8.49-8.49a3.5 3.5 0 114.95 4.95l-8.49 8.49a1.5 1.5 0 11-2.12-2.12l7.78-7.78"
-    stroke="#64748B"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  />
-</svg>
-</button>
-</div>
-
-          {/* ACTIONS */}
-          <div
-            style={{
-              marginTop: 20,
-              display: 'flex',
-              gap: 12,
-              alignItems: 'center',
-            }}
-          >
-            <button
-  onClick={() => {
-    if (!isProfileComplete) {
-      notify('⚠️ Complete your profile to ask questions');
-      router.push('/setup-profile');
-      return;
-    }
-    submit();
-  }}
-  disabled={loading || !isProfileComplete}
-  style={{
-    padding: '12px 18px',
-    borderRadius: 999,
-    border: 'none',
-    background: !isProfileComplete ? '#E5E7EB' : '#FCD34D',
-    color: !isProfileComplete ? '#9CA3AF' : '#111827',
-    fontWeight: 600,
-    fontSize: 14,
-    cursor:
-      loading || !isProfileComplete
-        ? 'not-allowed'
-        : 'pointer',
-    opacity: loading ? 0.7 : 1,
-    transition: 'all 0.2s ease',
-  }}
->
-  {!isProfileComplete
-    ? 'Complete profile to ask'
-    : loading
-    ? 'Posting…'
-    : 'Ask'}
-</button>
-
-            <button
-  onClick={() => router.back()}
-  style={{
-    padding: '12px 16px',
-
-    borderRadius: 999,
-
-    background: '#F3F4F6',
-
-    border: 'none',
-
-    fontSize: 14,
-
-    cursor: 'pointer',
-  }}
->
-  ← Back
-</button>
-          </div>
-          <div style={{ marginTop: 24 }}>
-
-  {/* 🔥 DIVIDER */}
-  <div
-    style={{
-      height: 1,
-      background: 'linear-gradient(to right, transparent, #E5E7EB, transparent)',
-      marginBottom: 12,
-      opacity: 0.6,
-    }}
-  />
-
-  {/* 🔥 FEEDBACK TEXT */}
-  <div
-    style={{
-      fontSize: 12,
-      color: '#6B7280',
-      textAlign: 'center',
-    }}
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
   >
-    Help us improve ✨{' '}
-    <span
-onClick={() => {
-  router.push('/feedback')
-}}
+    <path
+      d="M6 6L18 18M18 6L6 18"
+      stroke="#4B5563"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+    />
+  </svg>
+</button>
+    {/* Image */}
+
+    <div
       style={{
-        fontWeight: 600,
-        color: '#111827',
-        cursor: 'pointer',
+        width: '100%',
+        height: 180,
+
+        background:
+          'linear-gradient(90deg,#F3F4F6 25%,#ECEFF1 50%,#F3F4F6 75%)',
+
+        backgroundSize: '200% 100%',
+      }}
+    />
+
+    {/* Content */}
+
+    <div
+      style={{
+        padding: 14,
       }}
     >
-      Feedback
-    </span>
-  </div>
+      <div
+        style={{
+          width: '70%',
+          height: 16,
 
-</div>
+          borderRadius: 999,
+
+          background:
+            'linear-gradient(90deg,#F3F4F6 25%,#ECEFF1 50%,#F3F4F6 75%)',
+
+          backgroundSize: '200% 100%',
+        }}
+      />
+
+      <div
+        style={{
+          width: '100%',
+          height: 12,
+
+          marginTop: 12,
+
+          borderRadius: 999,
+
+          background:
+            'linear-gradient(90deg,#F3F4F6 25%,#ECEFF1 50%,#F3F4F6 75%)',
+
+          backgroundSize: '200% 100%',
+        }}
+      />
+
+      <div
+        style={{
+          width: '85%',
+          height: 12,
+
+          marginTop: 8,
+
+          borderRadius: 999,
+
+          background:
+            'linear-gradient(90deg,#F3F4F6 25%,#ECEFF1 50%,#F3F4F6 75%)',
+
+          backgroundSize: '200% 100%',
+        }}
+      />
+
+      <div
+        style={{
+          width: '35%',
+          height: 11,
+
+          marginTop: 16,
+
+          borderRadius: 999,
+
+          background:
+            'linear-gradient(90deg,#F3F4F6 25%,#ECEFF1 50%,#F3F4F6 75%)',
+
+          backgroundSize: '200% 100%',
+        }}
+      />
+    </div>
+
+    <style jsx>{`
+      @keyframes previewPulse {
+        0% {
+          opacity: 0.7;
+        }
+
+        50% {
+          opacity: 1;
+        }
+
+        100% {
+          opacity: 0.7;
+        }
+      }
+
+      @keyframes previewShimmer {
+        0% {
+          background-position: 200% 0;
+        }
+
+        100% {
+          background-position: -200% 0;
+        }
+      }
+
+      div div {
+        animation: previewShimmer 1.5s linear infinite;
+      }
+    `}</style>
+    <style jsx>{`
+  @keyframes previewAppear {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`}</style>
+  </div>
+)}
+
+      {linkPreview && (
+        <div
+          style={{
+            marginTop: 18,
+
+            border: '1px solid #E5E7EB',
+
+            borderRadius: 18,
+
+            overflow: 'hidden',
+
+            background: '#fff',
+          }}
+        >
+          {linkPreview.image &&
+  !linkPreview.image.includes('undefined') && (
+  <img
+              src={linkPreview.image}
+              onError={(e) => {
+    e.currentTarget.style.display = 'none'
+  }}
+              alt=""
+              style={{
+                width: '100%',
+                height: 180,
+                objectFit: 'cover',
+                display: 'block',
+              }}
+            />
+          )}
+
+          <div
+            style={{
+              padding: 14,
+            }}
+          >
+            <div
+              style={{
+                fontWeight: 700,
+                fontSize: 15,
+                marginBottom: 6,
+              }}
+            >
+              {linkPreview.title}
+            </div>
+
+            <div
+              style={{
+                fontSize: 13,
+                color: '#6B7280',
+                marginBottom: 10,
+              }}
+            >
+              {linkPreview.description}
+            </div>
+
+            <div
+              style={{
+                fontSize: 12,
+                color: '#9CA3AF',
+              }}
+            >
+              {linkPreview.domain}
+            </div>
+          </div>
         </div>
       )}
+      {/* Composer Options */}
+
+<div
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+
+    marginTop: 10,
+    marginLeft: -2,
+  }}
+>
+  <button
+    type="button"
+    onClick={() => router.push('/upload-resource')}
+    style={{
+      width: 40,
+      height: 40,
+
+      borderRadius: 14,
+
+      border: '1px solid #ECECEC',
+
+      background: '#FFFFFF',
+
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      padding: 0,
+
+      cursor: 'pointer',
+
+      transition: '.15s',
+
+      boxShadow: '0 1px 2px rgba(0,0,0,.03)',
+    }}
+  >
+    <svg
+      width="19"
+      height="19"
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <path
+        d="M9.6 12.4L16.1 5.9C17.5 4.5 19.8 4.5 21.2 5.9C22.6 7.3 22.6 9.6 21.2 11L12 20.2C9.4 22.8 5.4 22.8 2.9 20.2C0.4 17.7 0.4 13.7 2.9 11.2L12.1 2"
+        stroke="#98A2B3"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  </button>
+</div>
     </div>
-  )
+  </div>
+</div>
+</div>
+
+{showBubbleInfo && (
+  <div
+    style={{
+      position: 'fixed',
+
+      left: 16,
+      right: 16,
+
+      bottom: keyboardHeight + 72,
+
+      zIndex: 301,
+
+      background: '#FFFFFF',
+
+      border: '1px solid #ECECEC',
+
+      borderRadius: 18,
+
+      padding: '14px 48px 14px 16px',
+
+      boxShadow:
+        '0 8px 24px rgba(0,0,0,.08)',
+
+      animation:
+        'bubbleAppear .18s ease',
+    }}
+  >
+    <button
+      onClick={() => {
+        setShowBubbleInfo(false)
+
+        localStorage.setItem(
+          'bubble-info-dismissed',
+          '1'
+        )
+      }}
+      style={{
+        position: 'absolute',
+
+        right: 14,
+        top: 14,
+
+        border: 'none',
+
+        background: 'transparent',
+
+        cursor: 'pointer',
+
+        fontSize: 16,
+        opacity: 65,
+
+        color: '#9CA3AF',
+
+        lineHeight: 1,
+      }}
+    >
+      ✕
+    </button>
+
+    <div
+      style={{
+        fontSize: 13,
+
+        lineHeight: 1.45,
+
+        color: '#6B7280',
+      }}
+    >
+      Bubble questions disappear after <b>24 hours</b>.
+      People can still reply until they expire.
+    </div>
+
+    <style jsx>{`
+      @keyframes bubbleAppear {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    `}</style>
+  </div>
+)}
+
+{showDiscardDialog && (
+  <>
+    {/* Backdrop */}
+
+    <div
+      onClick={() => setShowDiscardDialog(false)}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,.28)',
+        zIndex: 398,
+      }}
+    />
+
+    {/* Sheet */}
+
+    <div
+      style={{
+        position: 'fixed',
+
+        left: 16,
+        right: 16,
+        bottom: 18,
+
+        background: '#FFFFFF',
+
+        borderRadius: 22,
+
+        padding: 18,
+
+        boxShadow:
+          '0 16px 40px rgba(0,0,0,.18)',
+
+        zIndex: 399,
+
+        animation:
+          'discardAppear .18s ease-out',
+      }}
+    >
+      <div
+        style={{
+          fontSize: 18,
+          fontWeight: 700,
+          color: '#111827',
+        }}
+      >
+        Discard question?
+      </div>
+
+      <div
+        style={{
+          marginTop: 6,
+
+          fontSize: 14,
+
+          lineHeight: 1.5,
+
+          color: '#6B7280',
+        }}
+      >
+        Your draft will be lost if you leave this page.
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+
+          gap: 12,
+
+          marginTop: 20,
+        }}
+      >
+        <button
+          onClick={() =>
+            setShowDiscardDialog(false)
+          }
+          style={{
+            flex: 1,
+
+            height: 46,
+
+            borderRadius: 999,
+
+            border: 'none',
+
+            background: '#F3F4F6',
+
+            color: '#374151',
+
+            fontWeight: 600,
+
+            cursor: 'pointer',
+          }}
+        >
+          Keep editing
+        </button>
+
+        <button
+          onClick={() => router.back()}
+          style={{
+            flex: 1,
+
+            height: 46,
+
+            borderRadius: 999,
+
+            border: 'none',
+
+            background: '#EF4444',
+
+            color: '#FFFFFF',
+
+            fontWeight: 700,
+
+            cursor: 'pointer',
+          }}
+        >
+          Discard
+        </button>
+      </div>
+
+      <style jsx>{`
+        @keyframes discardAppear {
+          from {
+            opacity: 0;
+            transform: translateY(18px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+    </div>
+  </>
+)}
+
+{/* Floating Bottom Bar */}
+
+<div
+  style={{
+    position: 'fixed',
+
+    left: 0,
+    right: 0,
+    bottom: keyboardHeight,
+
+    zIndex: 300,
+
+    background: 'rgba(255,255,255,.96)',
+
+    backdropFilter: 'blur(18px)',
+
+    WebkitBackdropFilter: 'blur(18px)',
+
+    borderTop: '1px solid #F3F4F6',
+
+    padding: '12px 18px',
+
+    transition:
+   'bottom .22s ease, padding .22s ease',
+
+    paddingBottom:
+   keyboardHeight > 0
+    ? 12
+    : 'calc(env(safe-area-inset-bottom) + 12px)',
+  }}
+>
+  <div
+    style={{
+      maxWidth: 720,
+
+      margin: '0 auto',
+
+      display: 'flex',
+
+      justifyContent: 'space-between',
+
+      alignItems: 'center',
+    }}
+  >
+    {/* Bubble Toggle */}
+
+<div
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  }}
+>
+
+  <button
+    type="button"
+    onClick={() => {
+  if (type === 'bubble') {
+    setType('normal')
+    setShowBubbleInfo(false)
+  } else {
+    setType('bubble')
+
+    if (
+      !localStorage.getItem(
+        'bubble-info-dismissed'
+      )
+    ) {
+      setShowBubbleInfo(true)
+    }
+  }
+}}
+    style={{
+  width: 66,
+  height: 36,
+
+  border: 'none',
+
+  borderRadius: 999,
+
+  cursor: 'pointer',
+
+  position: 'relative',
+
+  background:
+    type === 'bubble'
+      ? '#111827'
+      : '#E5E7EB',
+
+  transition: '.22s',
+}}
+  >
+    <div
+      style={{
+  position: 'absolute',
+
+  top: 3,
+
+  left:
+    type === 'bubble'
+      ? 33
+      : 3,
+
+  width: 30,
+  height: 30,
+
+  borderRadius: '50%',
+
+  background:
+    type === 'bubble'
+      ? '#FFF3DE'
+      : '#FFFFFF',
+
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+
+  transition: '.22s',
+
+  boxShadow:
+    '0 2px 8px rgba(0,0,0,.16)',
+}}
+    >
+      🫧
+    </div>
+  </button>
+</div>
+
+    {/* Ask */}
+
+    <button
+  onClick={() => {
+    if (!isProfileComplete) {
+      notify('⚠️ Complete your profile to ask questions')
+      router.push('/setup-profile')
+      return
+    }
+
+    submit()
+  }}
+  disabled={
+    loading ||
+    !text.trim() ||
+    !isProfileComplete ||
+    text.length > 280
+  }
+  style={{
+  border: 'none',
+
+  borderRadius: 999,
+
+  minWidth: 84,
+
+  height: 44,
+
+  padding: '0 20px',
+
+  background:
+    loading ||
+    !text.trim() ||
+    !isProfileComplete ||
+    text.length > 280
+      ? '#E5E7EB'
+      : '#F4B860',
+
+  color:
+    loading ||
+    !text.trim() ||
+    !isProfileComplete ||
+    text.length > 280
+      ? '#9CA3AF'
+      : '#111827',
+
+  fontWeight: 700,
+
+  fontSize: 15,
+
+  letterSpacing: '-0.2px',
+
+  cursor:
+    loading ||
+    !text.trim() ||
+    !isProfileComplete ||
+    text.length > 280
+      ? 'not-allowed'
+      : 'pointer',
+
+  transition:
+    'background .18s ease, transform .12s ease',
+
+  boxShadow:
+    loading ||
+    !text.trim() ||
+    !isProfileComplete ||
+    text.length > 280
+      ? 'none'
+      : '0 4px 12px rgba(244,184,96,.18)',
+}}
+>
+  {loading ? 'Posting...' : 'Ask'}
+</button>
+  </div>
+</div>
+   </>
+)}
+</div>
+)
 }

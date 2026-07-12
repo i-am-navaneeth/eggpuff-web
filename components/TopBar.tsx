@@ -8,6 +8,7 @@ import { getEggPuffBalance } from '../lib/rewards'
 import BuyPuffModal from './BuyPuffModal'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import useScrollVisibility from '@/hooks/useScrollVisibility'
+import AnimatedCounter from '@/components/AnimatedCounter'
 
 
 
@@ -865,7 +866,7 @@ const user = session?.user
     🥐
   </span>
 
-  <span>{balance}</span>
+  <AnimatedCounter value={balance} />
 </button>
       </div>
       )}

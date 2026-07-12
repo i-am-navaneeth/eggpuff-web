@@ -45,31 +45,26 @@ export default function LoginPage() {
   }, [index, words.length])
 
   // 🔥 Handle Google login properly
-  const handleLogin = async () => {
-    setLoading(true)
+const handleLogin = async () => {
+  setLoading(true)
 
-    const hostname =
-      typeof window !== 'undefined' ? window.location.hostname : ''
+  const redirectUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/feed`
+      : 'http://localhost:3000/feed'
 
-    const isLocalhost =
-      hostname === 'localhost' || hostname === '127.0.0.1'
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: redirectUrl,
+    },
+  })
 
-    const redirectUrl = isLocalhost
-  ? 'http://localhost:3000/feed'
-  : 'https://eggpuff.in/feed'
-  
-    const { error } = await supabase.auth.signInWithOAuth({
-  provider: 'google',
-  options: {
-    redirectTo: redirectUrl,
-  },
-})
-
-    if (error) {
-      alert(error.message)
-      setLoading(false)
-    }
+  if (error) {
+    alert(error.message)
+    setLoading(false)
   }
+}
   // ✅ On success → Supabase redirects → AuthProvider handles routing
 
   return (

@@ -1878,35 +1878,48 @@ if (loading) {
       }}
     >
 
-      {/* INPUT */}
+    {/* INPUT */}
 
-      <input
-
+<textarea
   value={postText}
+  onChange={(e) => {
+    setPostText(e.target.value)
 
-  onChange={(e) =>
-    setPostText(
-      e.target.value
-    )
-  }
-
+    e.currentTarget.style.height = 'auto'
+    e.currentTarget.style.height =
+      `${e.currentTarget.scrollHeight}px`
+  }}
   placeholder="Write something..."
+  rows={1}
+  autoComplete="off"
+  autoCorrect="on"
+  autoCapitalize="sentences"
+  spellCheck={true}
+  enterKeyHint="send"
+  style={{
+    flex: 1,
 
-        style={{
-          flex: 1,
+    border: 'none',
+    outline: 'none',
 
-          border: 'none',
+    background: 'transparent',
 
-          outline: 'none',
+    fontSize: 16,
+    lineHeight: 1.5,
 
-          background:
-            'transparent',
+    color: '#111827',
 
-          fontSize: 16,
+    resize: 'none',
+    overflow: 'hidden',
 
-          color: '#111827',
-        }}
-      />
+    minHeight: 24,
+    maxHeight: 180,
+
+    fontFamily: 'inherit',
+
+    boxSizing: 'border-box',
+  }}
+/>
 
       {/* SEND */}
 
@@ -2495,40 +2508,52 @@ if (loading) {
 
       {/* INPUT */}
 
-      <input
-
+<textarea
   value={replyText}
+  onChange={(e) => {
+    setReplyText(e.target.value)
 
-  onChange={(e) =>
-    setReplyText(
-      e.target.value
-    )
-  }
-
+    e.currentTarget.style.height = 'auto'
+    e.currentTarget.style.height =
+      `${Math.min(
+        e.currentTarget.scrollHeight,
+        160
+      )}px`
+  }}
   placeholder="Reply..."
+  rows={1}
+  autoComplete="off"
+  autoCorrect="on"
+  autoCapitalize="sentences"
+  spellCheck={true}
+  enterKeyHint="send"
+  style={{
+    flex: 1,
 
-        enterKeyHint="send"
+    border: 'none',
+    outline: 'none',
 
-        style={{
-          flex: 1,
+    background: 'transparent',
 
-          border: 'none',
+    fontSize: 16,
+    lineHeight: 1.5,
 
-          outline: 'none',
+    color: '#111827',
 
-          background:
-            'transparent',
+    minHeight: 48,
+    maxHeight: 160,
 
-          fontSize: 16,
+    resize: 'none',
+    overflowY: 'auto',
+    overflowX: 'hidden',
 
-          color: '#111827',
+    fontFamily: 'inherit',
 
-          height: 48,
+    WebkitAppearance: 'none',
 
-          WebkitAppearance:
-            'none',
-        }}
-      />
+    boxSizing: 'border-box',
+  }}
+/>
 
       {/* SEND */}
 

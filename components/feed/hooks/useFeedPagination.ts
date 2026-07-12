@@ -88,15 +88,6 @@ export function useFeedPagination({
             }
           }
 
-          if (added > 0) {
-            setOffset(
-              prev => prev + PAGE_SIZE
-            )
-
-            offsetRef.current +=
-              PAGE_SIZE
-          }
-
           return Array.from(
             map.values()
           )
@@ -144,14 +135,15 @@ export function useFeedPagination({
           return
         }
 
-        if (
-          batch.length <
-          PAGE_SIZE
-        ) {
-          setHasMore(false)
-        }
-
         mergeBatch(batch)
+
+offsetRef.current += PAGE_SIZE
+
+setOffset(offsetRef.current)
+
+if (batch.length < PAGE_SIZE) {
+  setHasMore(false)
+}
 
       } finally {
 

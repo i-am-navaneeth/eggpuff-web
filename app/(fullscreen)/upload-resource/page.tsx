@@ -163,42 +163,56 @@ if (
       </h1>
 
       <input
-        type="text"
-        placeholder="Title"
-        value={title}
-        onChange={(e) =>
-          setTitle(
-            e.target.value
-          )
-        }
-        style={{
-          width: '100%',
-          padding: 12,
-          marginBottom: 12,
-          border:
-            '1px solid #ddd',
-          borderRadius: 10,
-        }}
-      />
+  type="text"
+  placeholder="Title"
+  value={title}
+  onChange={(e) =>
+    setTitle(e.target.value)
+  }
+  autoComplete="off"
+  autoCorrect="off"
+  autoCapitalize="sentences"
+  spellCheck={true}
+  name="resource-title"
+  data-form-type="other"
+  style={{
+    width: '100%',
+    padding: 12,
+    marginBottom: 12,
+    border: '1px solid #ddd',
+    borderRadius: 10,
+  }}
+/>
 
       <textarea
-        placeholder="Description"
-        value={description}
-        onChange={(e) =>
-          setDescription(
-            e.target.value
-          )
-        }
-        rows={5}
-        style={{
-          width: '100%',
-          padding: 12,
-          marginBottom: 12,
-          border:
-            '1px solid #ddd',
-          borderRadius: 10,
-        }}
-      />
+  placeholder="Description"
+  value={description}
+  onChange={(e) => {
+    setDescription(e.target.value)
+
+    e.currentTarget.style.height = 'auto'
+    e.currentTarget.style.height =
+      `${e.currentTarget.scrollHeight}px`
+  }}
+  rows={1}
+  style={{
+    width: '100%',
+    minHeight: 52,
+
+    padding: 12,
+
+    marginBottom: 12,
+
+    border: '1px solid #ddd',
+    borderRadius: 10,
+
+    resize: 'none',
+    overflow: 'hidden',
+
+    font: 'inherit',
+    lineHeight: 1.5,
+  }}
+/>
 
       <input
   type="file"

@@ -102,19 +102,41 @@ const user = session?.user
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       <input
-        placeholder="Search College..."
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setSelected(null);
-        }}
-        style={{
-          padding: '10px 12px',
-          borderRadius: 12,
-          border: '1px solid #E5E7EB',
-          fontSize: 14,
-        }}
-      />
+  type="search"
+  name="college-search"
+  placeholder="Search college..."
+  value={search}
+  onChange={(e) => {
+    setSearch(e.target.value)
+    setSelected(null)
+  }}
+  autoComplete="off"
+  autoCorrect="off"
+  autoCapitalize="words"
+  spellCheck={false}
+  enterKeyHint="search"
+  data-form-type="other"
+  style={{
+    padding: '10px 12px',
+
+    borderRadius: 12,
+
+    border: '1px solid #E5E7EB',
+
+    fontSize: 14,
+
+    width: '100%',
+
+    outline: 'none',
+
+    boxSizing: 'border-box',
+
+    WebkitAppearance: 'none',
+
+    transition:
+      'border-color .18s ease, box-shadow .18s ease',
+  }}
+/>
 
       {/* Results */}
       {results.length > 0 && (

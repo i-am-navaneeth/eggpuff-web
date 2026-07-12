@@ -22,13 +22,46 @@ const user = session?.user
       if (!user) return
 
       const { data } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(10)
+  .from('notifications')
+  .select('*')
+  .eq('user_id', user.id)
+  .order('created_at', { ascending: false })
+  .limit(10)
 
-      setNotifications(data || [])
+if (!data) return
+
+const actorIds = [
+  ...new Set(
+    data
+      .map(n => n.actor_id)
+      .filter(Boolean)
+  ),
+]
+
+const { data: profiles } = await supabase
+  .from('profiles')
+  .select(`
+  user_id,
+  name,
+  username,
+  avatar_url,
+  is_verified
+`)
+  .in('user_id', actorIds)
+
+const profileMap = new Map(
+  (profiles || []).map(p => [
+    p.user_id,
+    p,
+  ])
+)
+
+setNotifications(
+  data.map(n => ({
+    ...n,
+    actor: profileMap.get(n.actor_id),
+  }))
+)
     }
 
     load()
@@ -175,48 +208,194 @@ const user = session?.user
             </p>
           )}
 
-          {notifications.map(n => (
-            <div
-              key={n.id}
-              onClick={async () => {
-               if (typeof n.link === 'string' && n.link.startsWith('/')) {
-  if (n.link && n.link !== 'null') {
-  router.push(n.link)
-}
-}
+        {notifications.map(n => (
+  <div
+    key={n.id}
+    onClick={async () => {
+      if (
+        typeof n.link === 'string' &&
+        n.link.startsWith('/') &&
+        n.link !== 'null'
+      ) {
+        router.push(n.link)
+      }
 
-                await supabase
-                  .from('notifications')
-                  .update({ read: true })
-                  .eq('id', n.id)
+      await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('id', n.id)
 
-                setNotifications(prev =>
-                  prev.map(x =>
-                    x.id === n.id ? { ...x, read: true } : x
-                  )
-                )
-              }}
-              style={{
-                padding: '10px 8px',
-                cursor: 'pointer',
-                borderBottom: '1px solid #f3f4f6',
-                fontSize: 13,
-                borderRadius: 8,
-                background: n.read ? '#fff' : '#F9FAFB',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-  e.currentTarget.style.backgroundColor = '#F3F4F6'
-}}
-onMouseLeave={(e) => {
-  e.currentTarget.style.backgroundColor = n.read
-    ? '#FFFFFF'
-    : '#F9FAFB'
-}}
-            >
-              {n.message}
-            </div>
-          ))}
+      setNotifications(prev =>
+        prev.map(x =>
+          x.id === n.id
+            ? { ...x, read: true }
+            : x
+        )
+      )
+    }}
+    style={{
+      padding: '12px',
+      cursor: 'pointer',
+      borderBottom: '1px solid #F3F4F6',
+      background: n.read ? '#fff' : '#FFFBEB',
+      transition: 'background .15s ease',
+      display: 'flex',
+      gap: 12,
+      alignItems: 'flex-start',
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.background = '#F9FAFB'
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.background = n.read
+        ? '#FFFFFF'
+        : '#FFFBEB'
+    }}
+  >
+    {/* Avatar */}
+    <img
+      src={
+        n.actor?.avatar_url ||
+        '/default-avatar.png'
+      }
+      alt=""
+      style={{
+        width: 38,
+        height: 38,
+        borderRadius: '50%',
+        objectFit: 'cover',
+        flexShrink: 0,
+      }}
+    />
+
+    <div
+      style={{
+        flex: 1,
+        minWidth: 0,
+      }}
+    >
+      {/* Name + Action */}
+      <div
+        style={{
+          fontSize: 14,
+          lineHeight: 1.45,
+          color: '#111827',
+        }}
+      >
+        <span
+          style={{
+            fontWeight: 700,
+          }}
+        >
+          {n.actor?.name || 'Someone'}
+        </span>{' '}
+
+        {n.type === 'answer' && (
+          <>answered your question</>
+        )}
+
+        {n.type === 'answer_like' && (
+          <>liked your answer</>
+        )}
+
+        {!['answer', 'answer_like'].includes(n.type) && (
+          <>sent you a notification</>
+        )}
+      </div>
+
+      {/* Preview */}
+      <div
+        style={{
+          marginTop: 4,
+          color: '#6B7280',
+          fontSize: 13,
+          lineHeight: 1.5,
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+          wordBreak: 'break-word',
+        }}
+      >
+        {n.message}
+      </div>
+
+      {/* Actions */}
+      {(n.type === 'answer' ||
+        n.type === 'answer_like') && (
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            marginTop: 10,
+          }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+
+              if (n.link) {
+                router.push(`${n.link}?reply=1`)
+              }
+            }}
+            style={{
+              border: 'none',
+              background: '#F3F4F6',
+              borderRadius: 999,
+              padding: '6px 12px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Reply
+          </button>
+
+          <button
+  onClick={async (e) => {
+    e.stopPropagation()
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    const user = session?.user
+
+    if (!user || !n.answer_id) return
+
+    const { data: existing } = await supabase
+      .from('answer_likes')
+      .select('id')
+      .eq('answer_id', n.answer_id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (existing) return
+
+    await supabase
+      .from('answer_likes')
+      .insert({
+        answer_id: n.answer_id,
+        user_id: user.id,
+      })
+  }}
+  style={{
+    border: 'none',
+    background: '#F3F4F6',
+    borderRadius: 999,
+    padding: '6px 12px',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+  }}
+>
+  ❤️ Like
+</button>
+        </div>
+      )}
+    </div>
+  </div>
+))}
         </div>
       )}
 

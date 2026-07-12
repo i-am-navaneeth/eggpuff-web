@@ -99,54 +99,78 @@ export default function PYPSetup({ userId, onDone }: Props) {
     </div>
 
     <input
-      placeholder="Instagram / YouTube / Link"
-      value={link}
-      onChange={(e) =>
-        setLink(e.target.value)
-      }
-      style={{
-        width: '100%',
+  type="url"
+  name="pyp-link"
+  placeholder="Instagram / YouTube / Link"
+  value={link}
+  onChange={(e) =>
+    setLink(e.target.value)
+  }
+  autoComplete="url"
+  autoCorrect="off"
+  autoCapitalize="none"
+  spellCheck={false}
+  enterKeyHint="next"
+  style={{
+    width: '100%',
 
-        padding: '16px 18px',
+    padding: '16px 18px',
 
-        borderRadius: 18,
+    borderRadius: 18,
 
-        border: '1px solid #E5E7EB',
+    border: '1px solid #E5E7EB',
 
-        fontSize: 16,
+    fontSize: 16,
 
-        outline: 'none',
+    outline: 'none',
 
-        marginBottom: 10,
+    marginBottom: 10,
 
-        background: '#FFFFFF',
-      }}
-    />
+    background: '#FFFFFF',
+
+    boxSizing: 'border-box',
+
+    transition:
+      'border-color .18s ease, box-shadow .18s ease',
+  }}
+/>
 
     <input
-      placeholder="Caption (optional)"
-      value={caption}
-      onChange={(e) =>
-        setCaption(e.target.value)
-      }
-      style={{
-        width: '100%',
+  type="text"
+  name="pyp-caption"
+  placeholder="Caption (optional)"
+  value={caption}
+  onChange={(e) =>
+    setCaption(e.target.value)
+  }
+  autoComplete="off"
+  autoCorrect="on"
+  autoCapitalize="sentences"
+  spellCheck={true}
+  enterKeyHint="done"
+  style={{
+    width: '100%',
 
-        padding: '16px 18px',
+    padding: '16px 18px',
 
-        borderRadius: 18,
+    borderRadius: 18,
 
-        border: '1px solid #E5E7EB',
+    border: '1px solid #E5E7EB',
 
-        fontSize: 16,
+    fontSize: 16,
 
-        outline: 'none',
+    outline: 'none',
 
-        marginBottom: 18,
+    marginBottom: 18,
 
-        background: '#FFFFFF',
-      }}
-    />
+    background: '#FFFFFF',
+
+    boxSizing: 'border-box',
+
+    transition:
+      'border-color .18s ease, box-shadow .18s ease',
+  }}
+/>
 
     <div
       style={{
