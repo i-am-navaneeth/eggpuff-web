@@ -487,18 +487,27 @@ return (
           }}
         >
           <button
-           onClick={() => {
-  const hasContent =
-    text.trim() ||
-    linkPreview ||
-    loadingPreview
+  onClick={() => {
+    if (
+      document.activeElement instanceof HTMLElement
+    ) {
+      document.activeElement.blur()
+    }
 
-  if (hasContent) {
-    setShowDiscardDialog(true)
-  } else {
-    router.back()
-  }
-}}
+    const hasContent =
+      text.trim() ||
+      linkPreview ||
+      loadingPreview
+
+    if (!hasContent) {
+      router.back()
+      return
+    }
+
+    setTimeout(() => {
+      setShowDiscardDialog(true)
+    }, 180)
+  }}
             style={{
               border: 'none',
               background: 'transparent',

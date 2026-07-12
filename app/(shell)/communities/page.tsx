@@ -1424,45 +1424,48 @@ if (loading) {
             </div>
 
             {/* INPUT */}
-            <input
+<input
+  type="text"
+  name="community-name"
+  placeholder="Community name"
+  value={name}
+  onChange={(e) =>
+    setName(e.target.value)
+  }
+  maxLength={32}
+  autoComplete="off"
+  autoCorrect="off"
+  autoCapitalize="words"
+  spellCheck={false}
+  enterKeyHint="done"
+  data-form-type="other"
+  style={{
+    marginTop: 24,
 
-              placeholder="Community name"
+    width: '100%',
+    height: 56,
 
-              value={name}
+    borderRadius: 18,
 
-              onChange={(e) =>
-                setName(
-                  e.target.value
-                )
-              }
+    border: '1px solid #E5E7EB',
 
-              maxLength={32}
+    padding: '0 18px',
 
-              style={{
-                marginTop: 24,
+    fontSize: 16,
+    fontWeight: 600,
 
-                width: '100%',
+    color: '#111827',
 
-                height: 56,
+    background: '#FFFFFF',
 
-                borderRadius: 18,
+    outline: 'none',
 
-                border:
-                  '1px solid #E5E7EB',
+    boxSizing: 'border-box',
 
-                padding:
-                  '0 18px',
-
-                fontSize: 16,
-
-                fontWeight: 600,
-
-                outline: 'none',
-
-                boxSizing:
-                  'border-box',
-              }}
-            />
+    transition:
+      'border-color .18s ease, box-shadow .18s ease',
+  }}
+/>
 
             {/* DESCRIPTION */}
             <textarea

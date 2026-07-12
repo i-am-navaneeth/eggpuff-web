@@ -438,41 +438,63 @@ useEffect(() => {
         </div>
 
         {/* NAME */}
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Name"
-          style={input(false)}
-        />
+<input
+  type="text"
+  name="profile-name"
+  value={name}
+  onChange={(e) => setName(e.target.value)}
+  placeholder="Name"
+  autoComplete="name"
+  autoCorrect="off"
+  autoCapitalize="words"
+  spellCheck={false}
+  enterKeyHint="next"
+  style={input(false)}
+/>
 
         {/* USERNAME */}
-        <input
-          value={username}
-          onChange={(e) => {
-  let value = e.target.value;
+<input
+  type="text"
+  name="profile-username"
+  value={username}
+  onChange={(e) => {
+    let value = e.target.value
 
-  // Lowercase + clean
-  value = value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    // Lowercase + clean
+    value = value
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '')
 
-  if (value.length > 20) return;
+    if (value.length > 20) return
 
-  setUsername(value);
+    setUsername(value)
 
-  // 🔥 Validation
-  if (value.length === 0) {
-    setUsernameError('');
-    setUsernameStatus('idle');
-  } else if (value.length < 3) {
-    setUsernameError('Minimum 3 characters required');
-  } else if (!/^[a-z0-9_]+$/.test(value)) {
-    setUsernameError('Only lowercase letters, numbers, "_" allowed');
-  } else {
-    setUsernameError('');
-  }
-}}
-          placeholder="Username"
-          style={input(false)}
-        />
+    // 🔥 Validation
+    if (value.length === 0) {
+      setUsernameError('')
+      setUsernameStatus('idle')
+    } else if (value.length < 3) {
+      setUsernameError(
+        'Minimum 3 characters required'
+      )
+    } else if (
+      !/^[a-z0-9_]+$/.test(value)
+    ) {
+      setUsernameError(
+        'Only lowercase letters, numbers, "_" allowed'
+      )
+    } else {
+      setUsernameError('')
+    }
+  }}
+  placeholder="Username"
+  autoComplete="off"
+  autoCorrect="off"
+  autoCapitalize="none"
+  spellCheck={false}
+  enterKeyHint="done"
+  style={input(false)}
+/>
 
         {usernameError && (
   <div
@@ -511,12 +533,22 @@ useEffect(() => {
 )}
 
         {/* COLLEGE */}
-        <input
+<input
+  type="search"
+  name="college-search"
   value={collegeSearch}
-  onChange={(e) => setCollegeSearch(e.target.value)}
+  onChange={(e) =>
+    setCollegeSearch(e.target.value)
+  }
   placeholder="Search college"
-  style={input(isLocked)}
   disabled={isLocked}
+  autoComplete="off"
+  autoCorrect="off"
+  autoCapitalize="words"
+  spellCheck={false}
+  enterKeyHint="search"
+  data-form-type="other"
+  style={input(isLocked)}
 />
 
         {/* 🔥 NO RESULTS → REQUEST COLLEGE */}
