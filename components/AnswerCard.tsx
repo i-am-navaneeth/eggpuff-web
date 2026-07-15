@@ -40,6 +40,11 @@ type Reply = {
   liked_by_me?: boolean
 }
 
+type CurrentUserProfile = {
+  name?: string
+  username?: string
+}
+
 type Props = {
   answer: Answer
   isAsker: boolean
@@ -108,6 +113,9 @@ const [loadedReplies, setLoadedReplies] =
 const [loadingReplies, setLoadingReplies] =
   useState(false)
 
+const [myProfile, setMyProfile] =
+  useState<CurrentUserProfile | null>(null)
+
   useEffect(() => {
   if (answer.replies) {
     setReplies(answer.replies)
@@ -172,6 +180,26 @@ useEffect(() => {
 useEffect(() => {
   setLiked(answer.liked_by_me ?? false)
 }, [answer.liked_by_me])
+
+useEffect(() => {
+  const loadMyProfile = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) return
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('name, username')
+      .eq('user_id', user.id)
+      .single()
+
+    setMyProfile(data)
+  }
+
+  loadMyProfile()
+}, [])
 
 // ===============================
 // LIKE & DISLIKE
@@ -248,6 +276,27 @@ const like = async () => {
 
       is_read: false,
     })
+
+  try {
+    await fetch('/api/push/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId: answer.user_id,
+
+        title: `👍 ${myProfile?.name || myProfile?.username || 'Someone'} liked your answer`,
+
+        message:
+          answer.text.length > 80
+            ? `${answer.text.slice(0, 80)}...`
+            : answer.text,
+
+        url: `/question/${questionId}`,
+      }),
+    })
+  } catch {}
 }
 
   if (error) {

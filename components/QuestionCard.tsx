@@ -184,7 +184,7 @@ const toggleHelpful = async (
 
   const nextState = !isHelpful
 
-  // optimistic update
+  // optimistic UI
   setIsHelpful(nextState)
 
   setHelpfulCount(prev =>
@@ -203,6 +203,56 @@ const toggleHelpful = async (
         })
 
       if (error) throw error
+
+      // 🔔 Notify question owner
+      if (q.user_id && q.user_id !== currentUserId) {
+        const { data: me } = await supabase
+          .from('profiles')
+          .select('name, username')
+          .eq('user_id', currentUserId)
+          .single()
+
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: q.user_id,
+            actor_id: currentUserId,
+
+            type: 'question_like',
+
+            message:
+              q.text.length > 80
+                ? `${q.text.slice(0, 80)}...`
+                : q.text,
+
+            link: `/question/${q.id}`,
+
+            is_read: false,
+          })
+
+        try {
+          await fetch('/api/push/send', {
+            method: 'POST',
+
+            headers: {
+              'Content-Type': 'application/json',
+            },
+
+            body: JSON.stringify({
+              userId: q.user_id,
+
+              title: `❤️ ${me?.name || me?.username || 'Someone'} liked your question`,
+
+              message:
+                q.text.length > 80
+                  ? `${q.text.slice(0, 80)}...`
+                  : q.text,
+
+              url: `/question/${q.id}`,
+            }),
+          })
+        } catch {}
+      }
 
     } else {
 
@@ -297,22 +347,72 @@ const toggleSave = async (
   try {
     if (next) {
       const { error } = await supabase
-  .from('question_saves')
-  .insert({
-    question_id: q.id,
-    user_id: currentUserId,
-  })
+        .from('question_saves')
+        .insert({
+          question_id: q.id,
+          user_id: currentUserId,
+        })
 
-if (error) throw error
+      if (error) throw error
+
+      // 🔔 Notify question owner
+      if (q.user_id && q.user_id !== currentUserId) {
+        const { data: me } = await supabase
+          .from('profiles')
+          .select('name, username')
+          .eq('user_id', currentUserId)
+          .single()
+
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: q.user_id,
+            actor_id: currentUserId,
+
+            type: 'question_save',
+
+            message:
+              q.text.length > 80
+                ? `${q.text.slice(0, 80)}...`
+                : q.text,
+
+            link: `/question/${q.id}`,
+
+            is_read: false,
+          })
+
+        try {
+          await fetch('/api/push/send', {
+            method: 'POST',
+
+            headers: {
+              'Content-Type': 'application/json',
+            },
+
+            body: JSON.stringify({
+              userId: q.user_id,
+
+              title: `🔖 ${me?.name || me?.username || 'Someone'} saved your question`,
+
+              message: 'Your question was saved.',
+
+              url: `/question/${q.id}`,
+            }),
+          })
+        } catch {}
+      }
+
     } else {
-     const { error } = await supabase
-  .from('question_saves')
-  .delete()
-  .eq('question_id', q.id)
-  .eq('user_id', currentUserId)
 
-if (error) throw error
+      const { error } = await supabase
+        .from('question_saves')
+        .delete()
+        .eq('question_id', q.id)
+        .eq('user_id', currentUserId)
+
+      if (error) throw error
     }
+
   } catch {
     setSaved(!next)
   }

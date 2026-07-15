@@ -26,7 +26,8 @@ const showFeedHost =
 
   const hideTopBar =
   pathname.startsWith('/search') ||
-  pathname.startsWith('/ask')
+  pathname.startsWith('/ask') ||
+  pathname.startsWith('/profile')
 
 const showTopBar = !hideTopBar
 
@@ -61,10 +62,6 @@ const user = session?.user
 const TOP_BAR_HEIGHT = showTopBar ? 55 : 0
 const BOTTOM_BAR_HEIGHT = 64
 
-
-console.log({
-  pathname,
-});
   return (
     <ShellLayoutProvider topInset={TOP_BAR_HEIGHT} bottomInset={BOTTOM_BAR_HEIGHT} >
 

@@ -79,6 +79,13 @@ type Answer = {
   _optimistic?: boolean
 }
 
+type CurrentUserProfile = {
+  name?: string
+  username?: string
+  avatar_url?: string
+  is_verified?: boolean
+}
+
 type Props = {
   questionId?: string
   scrollContainer?: React.RefObject<HTMLDivElement | null>
@@ -108,6 +115,9 @@ const [replyTarget, setReplyTarget] =
   } | null>(null)
 
 const [me, setMe] = useState<string | null>(null)
+
+const [myProfile, setMyProfile] =
+  useState<CurrentUserProfile | null>(null)
   const [posting, setPosting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [showMenu, setShowMenu] =
@@ -374,9 +384,28 @@ let repliesChannel: any
     ])
 
     const user =
-      authRes.data?.user
+  authRes.data?.user
 
-    setMe(user?.id || null)
+setMe(user?.id || null)
+
+// ===============================
+// LOAD MY PROFILE ONCE
+// ===============================
+if (user) {
+  const { data: meProfile } =
+    await supabase
+      .from('profiles')
+      .select(`
+        name,
+        username,
+        avatar_url,
+        is_verified
+      `)
+      .eq('user_id', user.id)
+      .single()
+
+  setMyProfile(meProfile)
+}
 
     if (questionRes.data) {
   const questionRow =
@@ -745,25 +774,13 @@ const orderedAnswers = useMemo(() => {
     return
   }
 
-  const { data: profile } =
-    await supabase
-      .from('profiles')
-      .select(`
-        username,
-        name,
-        avatar_url,
-        is_verified
-      `)
-      .eq('user_id', user.id)
-      .single()
-
-     const newReply: Reply = {
+  const newReply: Reply = {
   ...insertedReply,
 
-  username: profile?.username,
-  user_name: profile?.name,
-  avatar_url: profile?.avatar_url,
-  is_verified: profile?.is_verified,
+  username: myProfile?.username,
+  user_name: myProfile?.name,
+  avatar_url: myProfile?.avatar_url,
+  is_verified: myProfile?.is_verified,
 
   like_count: 0,
   liked_by_me: false,
@@ -827,14 +844,76 @@ if (
     await fetch('/api/push/send', {
       method: 'POST',
       headers: {
-        'Content-Type':
-          'application/json',
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         userId: answerOwner.user_id,
-        title: '💬 New reply',
+
+        title: `💬 ${myProfile?.name || myProfile?.username || 'Someone'} replied`,
+
         message:
-          'Someone replied to your answer.',
+          cleanText.length > 80
+            ? `${cleanText.slice(0, 80)}...`
+            : cleanText,
+
+        url: `/question/${id}`,
+      }),
+    })
+  } catch {}
+}
+
+// ===============================
+// ALSO NOTIFY REPLY OWNER
+// ===============================
+const replyOwnerUsername = replyTarget.username.replace(/^@/, '')
+
+const { data: replyOwner } = await supabase
+  .from('profiles')
+  .select('user_id')
+  .eq('username', replyOwnerUsername)
+  .maybeSingle()
+
+if (
+  replyOwner &&
+  replyOwner.user_id !== user.id &&
+  replyOwner.user_id !== answerOwner?.user_id
+) {
+  await supabase
+    .from('notifications')
+    .insert({
+      user_id: replyOwner.user_id,
+      actor_id: user.id,
+
+      type: 'reply_reply',
+
+      answer_id: replyTarget.answerId,
+
+      message:
+        cleanText.length > 80
+          ? `${cleanText.slice(0, 80)}...`
+          : cleanText,
+
+      link: `/question/${id}`,
+
+      is_read: false,
+    })
+
+  try {
+    await fetch('/api/push/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId: replyOwner.user_id,
+
+        title: `💬 ${myProfile?.name || myProfile?.username || 'Someone'} replied to you`,
+
+        message:
+          cleanText.length > 80
+            ? `${cleanText.slice(0, 80)}...`
+            : cleanText,
+
         url: `/question/${id}`,
       }),
     })
@@ -895,11 +974,17 @@ return
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        userId: question.user_id,
-        title: '💬 New answer',
-        message: 'New activity on your question',
-        url: `/question/${id}`,
-      }),
+  userId: question.user_id,
+
+  title: `💬 ${myProfile?.name || myProfile?.username || 'Someone'} answered your question`,
+
+  message:
+    text.length > 80
+      ? `${text.slice(0, 80)}...`
+      : text,
+
+  url: `/question/${id}`,
+}),
     })
 
     // 🔔 ALSO INSERT IN-APP NOTIFICATION

@@ -11,6 +11,7 @@ import { useNotificationDrafts } from '@/hooks/useNotificationDrafts'
 import { useScheduledNotifications } from '@/hooks/useScheduledNotifications'
 import { useNotificationHistory } from '@/hooks/useNotificationHistory'
 import { useState } from 'react'
+import { supabase } from '@/lib/supabase'
 
 import type {
   NotificationForm,
@@ -48,20 +49,26 @@ const {
 
   async function handleSend(form: NotificationForm) {
     try {
-      const response = await fetch(
-        '/api/admin/notifications/send',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title: form.title.trim(),
-            body: form.body.trim(),
-            link: form.link.trim() || null,
-          }),
-        }
-      )
+
+     const {
+  data: { session },
+} = await supabase.auth.getSession()
+
+const response = await fetch(
+  '/api/admin/notifications/send',
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      title: form.title.trim(),
+      body: form.body.trim(),
+      link: form.link.trim() || null,
+      actorId: session?.user?.id ?? null,
+    }),
+  }
+)
 
       const result = await response.json()
 
@@ -132,21 +139,26 @@ const {
       )
     }
 
-    const response = await fetch(
-      '/api/admin/notifications/schedule',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: form.title.trim(),
-          body: form.body.trim(),
-          link: form.link.trim() || null,
-          scheduledFor: form.scheduledFor,
-        }),
-      }
-    )
+    const {
+  data: { session },
+} = await supabase.auth.getSession()
+
+const response = await fetch(
+  '/api/admin/notifications/schedule',
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      title: form.title.trim(),
+      body: form.body.trim(),
+      link: form.link.trim() || null,
+      scheduledFor: form.scheduledFor,
+      actorId: session?.user?.id ?? null,
+    }),
+  }
+)
 
     const result = await response.json()
 

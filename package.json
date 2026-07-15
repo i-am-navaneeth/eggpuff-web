@@ -23,7 +23,7 @@
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.91.0",
     "browser-image-compression": "^2.0.2",
-    "framer-motion": "^12.40.0",
+    "framer-motion": "^12.42.2",
     "html-to-image": "^1.11.13",
     "lexical": "^0.46.0",
     "lucide-react": "^1.8.0",

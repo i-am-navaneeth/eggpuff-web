@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 import type {
@@ -66,6 +66,8 @@ export function useFeedInitialLoad({
   setProfileLoading,
 }: Props) {
 
+  const router = useRouter()
+
 useEffect(() => {
 
 let mounted = true
@@ -80,38 +82,47 @@ let mounted = true
 
       setUserId(user?.id ?? null)
 
-const feedPromise = supabase.rpc(
-  'get_smart_feed',
-  {
-    p_user_id: user?.id,
-    p_limit: PAGE_SIZE,
-    p_offset: 0,
-  }
-)
+// 1️⃣ Check profile FIRST
+const { data: profile } = await supabase
+  .from('profiles')
+  .select('college_id, batch_year')
+  .eq('user_id', user?.id)
+  .single()
 
+if (!mounted) return
+
+const onboardingComplete =
+  !!profile?.college_id &&
+  !!profile?.batch_year
+
+if (!onboardingComplete) {
+  router.replace('/profile')
+  return
+}
+
+// 2️⃣ Only load the feed for completed users
 const [
   feedRes,
   catsRes,
   promoRes,
-  profileRes,
 ] = await Promise.all([
 
-  feedPromise,
+  supabase.rpc('get_smart_feed', {
+    p_user_id: user?.id,
+    p_limit: PAGE_SIZE,
+    p_offset: 0,
+  }),
 
   supabase
     .from('categories')
-    .select(
-      'id, slug, label'
-    )
+    .select('id, slug, label')
     .order('created_at', {
       ascending: true,
     }),
 
   supabase
     .from('pyp_promotions')
-    .select(
-      'link, user_id'
-    )
+    .select('link, user_id')
     .gt(
       'expires_at',
       new Date().toISOString()
@@ -119,20 +130,7 @@ const [
     .order('started_at', {
       ascending: false,
     }),
-
-  supabase
-    .from('profiles')
-    .select(
-      'college_id, batch_year'
-    )
-    .eq(
-      'user_id',
-      user?.id
-    )
-    .single(),
 ])
-
-      if (!mounted) return
 
 const questionsData =
   (feedRes.data ?? []) as QuestionRow[]
@@ -177,7 +175,7 @@ saveLastVisit()
               link: p.link,
               creator: profileMap[p.user_id],
             }))
-            .filter(p => p.creator?.college_id === profileRes.data?.college_id) || []
+            .filter(p => p.creator?.college_id === profile?.college_id) || []
 
         setPromoted(promoItems)
 
@@ -224,7 +222,7 @@ saveLastVisit()
         })
 
         setLoading(false)
-        setProfile(profileRes.data)
+        setProfile(profile)
         setProfileLoading(false)
 
         setTimeout(() => {

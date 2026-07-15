@@ -26,27 +26,6 @@ export default function MobileNavbar({ userId }: { userId?: string }) {
   const [username, setUsername] = useState<string | null>(null)
 
 useEffect(() => {
-  const loadProfile = async () => {
-    const { data } = await supabase.auth.getSession()
-    const user = data?.session?.user
-
-    if (!user) return
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('user_id', user.id)
-      .single()
-
-    if (profile?.username) {
-      setUsername(profile.username)
-    }
-  }
-
-  loadProfile()
-}, [])
-
-useEffect(() => {
   if (!userId) return
 
   const fetchUnread = async () => {
@@ -370,10 +349,26 @@ if (shouldHideNavbar) return null
     pathname.startsWith(`/u/${username}/`)
   )
 }
-  onClick={() => {
-  if (!username) return
+  onClick={async () => {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
 
-  openProfile(username)
+  const user = session?.user
+
+  if (!user) return
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('username')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!profile?.username) return
+
+  setUsername(profile.username)
+
+  openProfile(profile.username)
 }}
 />
 

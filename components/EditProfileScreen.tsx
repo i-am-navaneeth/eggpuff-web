@@ -4,12 +4,15 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { useNotify } from '@/components/NotificationProvider';
+import { setCurrentProfile } from '@/lib/currentProfile';
+import ConfirmationSheet from '@/components/ui/ConfirmationSheet'
 
 const avatars = [
   '/avatars/a1.png',
   '/avatars/a2.png',
   '/avatars/a3.png',
   '/avatars/a4.png',
+  '/avatars/eggpuff.png',
 ];
 
 type Props = {
@@ -28,7 +31,10 @@ export default function EditProfileScreen({
   const [username, setUsername] = useState('');
   const [batchYear, setBatchYear] = useState('');
   const [collegeId, setCollegeId] = useState('');
-  const [avatar, setAvatar] = useState(avatars[0]);
+  const [bio, setBio] = useState('');
+  const [avatar, setAvatar] = useState(
+  avatars[Math.floor(Math.random() * (avatars.length - 1))]
+);
 
   const [colleges, setColleges] = useState<any[]>([]);
   const [collegeSearch, setCollegeSearch] = useState('');
@@ -37,6 +43,7 @@ export default function EditProfileScreen({
   'idle' | 'checking' | 'available' | 'taken'
 >('idle');
   const [usernameError, setUsernameError] = useState('');
+  const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
   const [originalProfile, setOriginalProfile] = useState<any>(null);
 
  const isFormValid =
@@ -52,6 +59,7 @@ const isChanged =
   JSON.stringify({
     name,
     username,
+    bio,
     batchYear,
     collegeId,
     avatar,
@@ -59,6 +67,7 @@ const isChanged =
   JSON.stringify({
     name: originalProfile.name || "",
     username: originalProfile.username || "",
+    bio: originalProfile.bio || "",
     batchYear: originalProfile.batch_year || "",
     collegeId: originalProfile.college_id || "",
     avatar: originalProfile.avatar_url || avatars[0],
@@ -81,6 +90,7 @@ const dangerTexts = [
 
 const [dangerIndex, setDangerIndex] = useState(0);
 const [dangerFade, setDangerFade] = useState(true);
+const [showLogoutSheet, setShowLogoutSheet] = useState(false)
   /* ---------------- LOAD PROFILE ---------------- */
   useEffect(() => {
     const load = async () => {
@@ -104,6 +114,7 @@ const user = session?.user
       if (profile) {
         setName(profile.name || '');
         setUsername(profile.username || '');
+        setBio(profile.bio || '');
         setBatchYear(profile.batch_year || '');
         setCollegeId(profile.college_id || '');
         setAvatar(profile.avatar_url || avatars[0]);
@@ -183,10 +194,16 @@ const user = session?.user
   .update({
     name,
     username,
+    bio,
     batch_year: batchYear,
     college_id: collegeId,
     avatar_url: avatar,
     profile_completed: true,
+
+    // Legal acceptance
+  terms_accepted: true,
+  terms_accepted_at: new Date().toISOString(),
+  terms_version: '2026-07-14',
   })
   .eq("user_id", user?.id)
   .select();
@@ -210,50 +227,86 @@ console.log(data, error);
   return;
 } else {
       notify('Profile updated ✅');
-      setSaving(false)
-      router.push('/feed');
+setSaving(false);
+
+// 🔥 Update global profile instantly
+setCurrentProfile({
+  user_id: user!.id,
+  username,
+  name,
+  avatar_url: avatar,
+});
+
+if (isSetupMode) {
+  window.location.replace('/feed');
+} else {
+  router.replace(`/u/${username}`);
+}
     }
   };
 
  useEffect(() => {
   const checkUsername = async () => {
     if (
-  !username ||
-  username.length < 3 ||
-  username === (originalProfile?.username || '')
-) {
-  setUsernameStatus('idle'); // 🔥 don't show anything
-  return;
-}
+      !username ||
+      username.length < 3 ||
+      username === (originalProfile?.username || '')
+    ) {
+      setUsernameStatus('idle');
+      setUsernameSuggestions([]);
+      return;
+    }
 
     setUsernameStatus('checking');
 
-    // 🔥 Get current user (FIXED)
     const {
-  data: { session },
-} = await supabase.auth.getSession();
+      data: { session },
+    } = await supabase.auth.getSession();
 
-const user = session?.user ?? null;
+    const user = session?.user;
 
     if (!user) return;
 
+    // Fast indexed lookup
     const { data } = await supabase
       .from('profiles')
-      .select('id')
+      .select('username')
       .eq('username', username)
       .neq('user_id', user.id)
       .limit(1);
 
-    if (data && data.length > 0) {
-      setUsernameStatus('taken');
-    } else {
+    if (!data || data.length === 0) {
       setUsernameStatus('available');
+      setUsernameSuggestions([]);
+      return;
     }
+
+    setUsernameStatus('taken');
+
+    // Candidate suggestions
+    const candidates = [
+      `${username}${Math.floor(Math.random() * 99)}`,
+      `${username}_${Math.floor(Math.random() * 999)}`,
+      `${username}01`,
+      `${username}07`,
+      `${username}${new Date().getFullYear()}`,
+    ];
+
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('username')
+      .in('username', candidates);
+
+    const taken = new Set(existing?.map((x) => x.username));
+
+    setUsernameSuggestions(
+      candidates.filter((x) => !taken.has(x))
+    );
   };
 
-  const delay = setTimeout(checkUsername, 500); // debounce
+  const timer = setTimeout(checkUsername, 180);
 
-  return () => clearTimeout(delay);
+  return () => clearTimeout(timer);
 }, [username, originalProfile]);
 
 useEffect(() => {
@@ -331,113 +384,221 @@ useEffect(() => {
   avatar,
 });
 
-  return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: '#F9FAFB',
-        display: 'flex',
-        justifyContent: 'center',
-        padding: 16,
-      }}
-    >
-      <div
+return (
+  <div
   style={{
+    minHeight: '100dvh',
     width: '100%',
-    maxWidth: 420,
     background: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
-    marginTop: 48, 
-    boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
-  }}
->
-
-      <div
-  style={{
     display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'center',
+    paddingTop: 0,
+    paddingRight: 16,
+    paddingBottom: 0,      // ← remove bottom padding
+    paddingLeft: 16,
+    boxSizing: 'border-box',
   }}
 >
-  {/* Back */}
-  {!isSetupMode && (
-  <button
-    onClick={() => router.back()}
+  <div
     style={{
-      background: 'none',
-      border: 'none',
-      fontSize: 14,
-      cursor: 'pointer',
-      color: '#6B7280',
+      width: '100%',
+      maxWidth: 420,
+      minHeight: '100dvh',  // ← fill entire screen
+      background: '#FFFFFF',
+      paddingTop: 8,
+      paddingRight: 20,
+      paddingBottom: 40,
+      paddingLeft: 20,
+      boxSizing: 'border-box',
     }}
   >
-    ← Back
-  </button>
-)}
 
-  {/* Save */}
+    {/* TOP BAR */}
+<div
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 58,
+    paddingBottom: 12,
+    marginBottom: 18,
+    borderBottom: '1px solid #ECECEC',
+  }}
+>
+  <div
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14,
+    }}
+  >
+    {!isSetupMode && (
+      <button
+        onClick={() => router.back()}
+        style={{
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          width: 28,
+          height: 28,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          color: '#1F2937',
+          fontSize: 28,
+          lineHeight: 1,
+        }}
+      >
+        ‹
+      </button>
+    )}
+
+    <div
+      style={{
+        fontSize: 18,
+        fontWeight: 700,
+        color: '#111827',
+        letterSpacing: '-0.02em',
+      }}
+    >
+      {isSetupMode ? 'Complete Profile' : 'Edit Profile'}
+    </div>
+  </div>
+
   <button
     onClick={handleSave}
     disabled={saving || !canSave}
     style={{
-      padding: '8px 14px',
-      borderRadius: 10,
+      minWidth: 84,
+      height: 42,
       border: 'none',
-      background: canSave ? '#F4B860' : '#E5E7EB',
+      borderRadius: 14,
+      background: canSave ? '#F4B860' : '#ECEFF3',
       color: canSave ? '#111827' : '#9CA3AF',
-      fontWeight: 600,
+      fontSize: 15,
+      fontWeight: 700,
       cursor: canSave ? 'pointer' : 'not-allowed',
+      transition: '0.18s',
     }}
   >
-    {saving ? 'Saving...' : 'Save'}
+    {saving ? 'Saving…' : 'Save'}
   </button>
 </div>
-        {/* TITLE */}
-        <h2 style={{ fontSize: 22, fontWeight: 600, marginBottom: 8 }}>
-  {isSetupMode ? 'Complete your profile 🚀' : 'Your Profile'}
-</h2>
 
-{isSetupMode && (
-  <p
+        {/* PROFILE HEADER */}
+<div
+  style={{
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    marginBottom: 28,
+  }}
+>
+  <img
+    src={avatar}
+    alt="avatar"
     style={{
-      fontSize: 13,
-      color: '#6B7280',
-      marginBottom: 16,
+      width: 88,
+      height: 88,
+      borderRadius: '50%',
+      objectFit: 'cover',
+      border: '3px solid #F4B860',
+      marginBottom: 12,
+    }}
+  />
+
+  <div
+  style={{
+    fontSize: 24,
+    fontWeight: 700,
+    color: '#111827',
+  }}
+>
+  @{username || 'username'}
+</div>
+
+<div
+  style={{
+    marginTop: 4,
+    fontSize: 16,
+    color: '#4B5563',
+    fontWeight: 500,
+  }}
+>
+  {name || 'Your Name'}
+</div>
+</div>
+
+<div
+  style={{
+    height:0,
+    background: '#F3F4F6',
+    margin: '22px 0',
+  }}
+/>
+
+{/* PROFILE */}
+<div
+  style={{
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#9CA3AF',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 14,
+  }}
+>
+  Profile
+</div>
+
+{/* PROFILE PICTURE */}
+<div style={{ marginBottom: 26 }}>
+<p style={label}>Select your avatar</p>
+
+  <div
+    style={{
+      display: 'flex',
+      gap: 12,
+      flexWrap: 'wrap',
     }}
   >
-    Add your college & batch to unlock your campus feed
-  </p>
-)}
+    {avatars
+      .filter(
+        (a) =>
+          a !== '/avatars/eggpuff.png' ||
+          username === 'eggpuffofficial'
+      )
+      .map((a) => (
+        <img
+          key={a}
+          src={a}
+          alt="avatar"
+          onClick={() => setAvatar(a)}
+          style={{
+  width: 56,
+  height: 56,
+  borderRadius: '50%',
+  cursor: 'pointer',
+  transition: 'transform .18s ease, border-color .18s ease',
+  border:
+    avatar === a
+      ? '3px solid #F4B860'
+      : '2px solid #E5E7EB',
+  transform:
+    avatar === a ? 'scale(1.08)' : 'scale(1)',
+  boxSizing: 'border-box',
+}}
+        />
+      ))}
+  </div>
+</div>
 
-        {/* AVATAR */}
-        <div style={{ marginBottom: 20 }}>
-          <p style={label}>Profile Picture</p>
 
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {avatars.map((a) => (
-              <img
-                alt="avatar"
-                key={a}
-                src={a}
-                onClick={() => setAvatar(a)}
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: '50%',
-                  cursor: 'pointer',
-                  border:
-                    avatar === a
-                      ? '3px solid #F4B860'
-                      : '2px solid #E5E7EB',
-                }}
-              />
-            ))}
-          </div>
-        </div>
 
-        {/* NAME */}
+{/* Name */}
+<p style={label}>Display Name</p>
+
 <input
   type="text"
   name="profile-name"
@@ -452,7 +613,16 @@ useEffect(() => {
   style={input(false)}
 />
 
-        {/* USERNAME */}
+       {/* Username */}
+<p
+  style={{
+    ...label,
+    marginTop: 14,
+  }}
+>
+  Username
+</p>
+
 <input
   type="text"
   name="profile-username"
@@ -507,15 +677,143 @@ useEffect(() => {
     {usernameError}
   </div>
 )}
-        <div style={{ fontSize: 12, marginBottom: 10 }}>
-  {usernameStatus === 'checking' && 'Checking...'}
-  {usernameStatus === 'available' && (
-    <span style={{ color: 'green' }}>Awesome! Username is available.</span>
+        <div
+  style={{
+    fontSize: 12,
+    marginBottom: 12,
+  }}
+>
+  {usernameStatus === 'checking' && (
+    <span style={{ color: '#6B7280' }}>
+      Checking...
+    </span>
   )}
+
+  {usernameStatus === 'available' && (
+    <span style={{ color: '#16A34A' }}>
+      ✓ Username available
+    </span>
+  )}
+
   {usernameStatus === 'taken' && (
-    <span style={{ color: 'red' }}>Oops! Username already taken.</span>
+    <>
+      <div
+        style={{
+          color: '#DC2626',
+          marginBottom: 8,
+        }}
+      >
+        Username already taken.
+      </div>
+
+      {usernameSuggestions.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
+        >
+          {usernameSuggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setUsername(s)}
+              style={{
+                border: '1px solid #E5E7EB',
+                background: '#F9FAFB',
+                borderRadius: 999,
+                padding: '6px 12px',
+                fontSize: 12,
+                cursor: 'pointer',
+              }}
+            >
+              @{s}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
   )}
 </div>
+
+<div
+  style={{
+    height: 1,
+    background: '#F3F4F6',
+    margin: '22px 0',
+  }}
+/>
+
+{/* ABOUT */}
+<div
+  style={{
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#9CA3AF',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 14,
+  }}
+>
+  About
+</div>
+
+<p style={label}>Bio</p>
+
+<textarea
+  value={bio}
+  onChange={(e) => {
+    if (e.target.value.length <= 80)
+      setBio(e.target.value);
+  }}
+  placeholder="Helping juniors with coding • Coffee addict ☕ (optional)"
+  rows={3}
+  style={{
+    ...input(false),
+    resize: 'none',
+    minHeight: 82,
+    fontFamily: 'inherit',
+    lineHeight: 1.5,
+  }}
+/>
+
+<div
+  style={{
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'right',
+    marginTop: -8,
+    marginBottom: 12,
+  }}
+>
+  {bio.length}/80
+</div>
+<div
+  style={{
+    height: 1,
+    background: '#F3F4F6',
+    margin: '22px 0',
+  }}
+/>
+
+{/* CAMPUS */}
+<div
+  style={{
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#9CA3AF',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 14,
+  }}
+>
+  Campus
+</div>
+
+<p style={label}>College Name</p>
+
+
 
 {!isLocked && collegeId && (
   <div
@@ -670,7 +968,14 @@ onMouseLeave={(e) => {
   </div>
 )}
 
-
+<p
+  style={{
+    ...label,
+    marginTop: 14,
+  }}
+>
+  Graduation Batch
+</p>
 {/* BATCH */}
 <select
   value={batchYear}
@@ -709,31 +1014,6 @@ onMouseLeave={(e) => {
 )}
 </select>
 
-        <div
-  style={{
-    marginTop: 16,
-    padding: 14,
-    borderRadius: 14,
-    background: '#F9FAFB',
-    border: '1px solid #E5E7EB',
-  }}
->
-  <p style={{ fontSize: 12, color: '#6B7280' }}>Preview</p>
-
-  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-    <img
-      src={avatar}
-      style={{ width: 40, height: 40, borderRadius: '50%' }}
-    />
-
-    <div>
-      <div style={{ fontWeight: 600 }}>{name || 'Your Name'}</div>
-      <div style={{ fontSize: 12, color: '#6B7280' }}>
-        @{username || 'username'}
-      </div>
-    </div>
-  </div>
-</div>
 {/* DANGER ZONE TEXT */}
         {!isSetupMode && (
 <div
@@ -769,11 +1049,29 @@ onMouseLeave={(e) => {
 
    {/* LOGOUT */}
         {!isSetupMode && (     
-  <button onClick={handleLogout} style={logoutBtn}>
-    Logout
-  </button>
+  <button
+  onClick={() => setShowLogoutSheet(true)}
+  style={logoutBtn}
+>
+  Logout
+</button>
 )}
       </div>
+
+      <ConfirmationSheet
+  open={showLogoutSheet}
+  title="Log out?"
+  description="You'll need to sign in again to access your EggPuff account."
+  confirmText="Log out"
+  cancelText="Cancel"
+  confirmColor="#DC2626"
+  onCancel={() => setShowLogoutSheet(false)}
+  onConfirm={async () => {
+    setShowLogoutSheet(false)
+    await handleLogout()
+  }}
+/>
+
     </div>
   );
 }

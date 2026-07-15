@@ -8,10 +8,10 @@ function initWebPush() {
   }
 
   webpush.setVapidDetails(
-    'mailto:you@example.com',
-    process.env.VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  )
+  'mailto:support@eggpuff.in',
+  process.env.VAPID_PUBLIC_KEY!,
+  process.env.VAPID_PRIVATE_KEY!
+)
 }
 
 export async function sendPushToAll(title: string, body: string) {
@@ -21,10 +21,9 @@ export async function sendPushToAll(title: string, body: string) {
     .from('push_subscriptions')
     .select('id, endpoint, p256dh, auth')
 
-  if (error) {
-    console.error('❌ Supabase fetch error:', error)
-    return
-  }
+  if (error || !data || data.length === 0) {
+  return
+}
 
   for (const row of data) {
     try {
@@ -39,10 +38,14 @@ export async function sendPushToAll(title: string, body: string) {
       await webpush.sendNotification(
         pushSub,
         JSON.stringify({
-          title,
-          body,
-          url: '/feed',
-        })
+  title,
+  body,
+  url: '/feed',
+  icon: '/icon-192.png',
+  badge: '/badge.png',
+  vibrate: [120, 50, 120],
+  timestamp: Date.now(),
+})
       )
     } catch (err: any) {
       console.error('❌ Push error:', err)
@@ -70,7 +73,23 @@ export async function sendPushToUser(
     .select('id, endpoint, p256dh, auth')
     .eq('user_id', userId)
 
-  if (error || !data) return
+  if (error || !data || data.length === 0) return
+
+// 🚫 SKIP IF USER IS ACTIVE (last 2 min)
+      const { data: profile } = await supabase
+  .from('profiles')
+  .select('last_active_at')
+  .eq('user_id', userId)
+  .maybeSingle()
+
+      const isActive =
+        profile?.last_active_at &&
+        Date.now() - new Date(profile.last_active_at).getTime() < 2 * 60 * 1000
+
+      if (isActive) {
+        console.log('🚫 Skipped push (user active)')
+        return
+      }
 
   for (const row of data) {
     try {
@@ -82,32 +101,17 @@ export async function sendPushToUser(
         },
       }
 
-      // 🚫 SKIP IF USER IS ACTIVE (last 2 min)
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('last_active_at')
-        .eq('id', userId)
-        .maybeSingle()
-
-      const isActive =
-        profile?.last_active_at &&
-        Date.now() - new Date(profile.last_active_at).getTime() < 2 * 60 * 1000
-
-      if (isActive) {
-        console.log('🚫 Skipped push (user active)')
-        return
-      }
-
-      // ⏳ SMALL DELAY (ANTI-SPAM GROUPING)
-      await new Promise((res) => setTimeout(res, 15000))
-
       await webpush.sendNotification(
         pushSub,
         JSON.stringify({
-          title,
-          body,
-          url,
-        })
+  title,
+  body,
+  url,
+  icon: '/icon-192.png',
+  badge: '/badge.png',
+  vibrate: [120, 50, 120],
+  timestamp: Date.now(),
+})
       )
     } catch (err: any) {
       if (err.statusCode === 410 || err.statusCode === 404) {
