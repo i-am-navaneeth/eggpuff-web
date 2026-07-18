@@ -446,11 +446,17 @@ await shareRendererRef.current?.captureShare()
   onKeyDown={(e) => {
     if (e.key === 'Enter') goToQuestion()
   }}
-  onMouseDown={() => setPopped(true)}
-  onMouseUp={() => setPopped(false)}
-  onMouseLeave={() => setPopped(false)}
-  onTouchStart={() => setPopped(true)}
-  onTouchEnd={() => setPopped(false)}
+  onPointerDown={(e) => {
+  if (e.pointerType !== 'touch') {
+    setPopped(true)
+  }
+}}
+
+onPointerUp={() => setPopped(false)}
+
+onPointerLeave={() => setPopped(false)}
+
+onPointerCancel={() => setPopped(false)}
   style={{
     marginBottom: 0,
 
@@ -458,14 +464,25 @@ await shareRendererRef.current?.captureShare()
 
     borderRadius: 0,
 
+    border: 'none',
+
     backgroundColor:
   popped
-    ? 'rgba(15,20,25,0.03)'
+    ? 'rgba(15,20,25,0.02)'
     : q.type === 'bubble'
     ? '#F8FAFC'
     : 'transparent',
 
-    border: 'none',
+boxShadow: 'none',
+
+transform: popped
+  ? 'scale(0.996)'
+  : 'scale(1)',
+
+opacity: 1,
+
+transition:
+  'transform 120ms ease, background-color 120ms ease',
 
     borderBottom:
       q.type === 'bubble'
@@ -479,21 +496,6 @@ await shareRendererRef.current?.captureShare()
     position: 'relative',
 
     zIndex: 'auto',
-
-    boxShadow: popped
-      ? '0 2px 10px rgba(0,0,0,0.04)'
-      : 'none',
-
-    transform: popped
-      ? 'scale(0.988)'
-      : 'scale(1)',
-
-    opacity: popped
-      ? 0.92
-      : 1,
-
-    transition:
-  'transform 0.12s ease, opacity 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease',
 
     animation: undefined,
 
