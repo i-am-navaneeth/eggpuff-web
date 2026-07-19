@@ -130,14 +130,6 @@ export default function FeedContent() {
   setOffset,
 })
 
-useEffect(() => {
-  console.log('Feed mounted')
-
-  return () => {
-    console.log('Feed unmounted')
-  }
-}, [])
-
 useInfiniteObserver({
   loaded,
   loadingMore,
@@ -178,7 +170,7 @@ useInfiniteObserver({
     }
   }
 
-  useFeedCache({
+useFeedCache({
   setQuestions,
   setLoading,
 })
@@ -249,6 +241,13 @@ useFeedRefresh({
   setHasMore,
 })
 
+useFeedRealtime({
+  questionsRef,
+  setQuestions,
+  setNewQuestions,
+  setShowNewBanner,
+})
+
   /* -------------------- UI -------------------- */
 
   return (
@@ -265,22 +264,7 @@ useFeedRefresh({
 
           {!loading && (
             <div className="space-y-2">
-              <button
-                onClick={openFilterSheet}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 999,
-                  border: '1px solid #E5E7EB',
-                  background: '#FFFFFF',
-                  fontSize: 'clamp(13px,0.9vw,15px)',
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap',
-                  width: '100%',
-                  textAlign: 'left',
-                }}
-              >
-                {filterLabel} ▾
-              </button>
+              {/* Filter temporarily hidden */}
 
 <button
   onClick={() => router.push('/resources')}
@@ -297,59 +281,10 @@ useFeedRefresh({
 >
   📄 Resources
 </button>
-
-<button
-  onClick={() => handleCategoryClick('all')}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 999,
-                  border: activeCategorySlug === 'all' ? '1px solid #F4B860' : '1px solid #E5E7EB',
-                  background: activeCategorySlug === 'all' ? '#FFF7ED' : '#FFFFFF',
-                  fontSize: 'clamp(13px,0.9vw,15px)',
-                  fontWeight: 500,
-                  width: '100%',
-                  textAlign: 'left',
-                }}
-              >
-                All
-              </button>
-
-              {categories.map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => handleCategoryClick(cat.slug)}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: 999,
-                    border: activeCategorySlug === cat.slug ? '1px solid #F4B860' : '1px solid #E5E7EB',
-                    background: activeCategorySlug === cat.slug ? '#FFF7ED' : '#FFFFFF',
-                    fontSize: 'clamp(13px,0.9vw,15px)',
-                    fontWeight: 500,
-                    whiteSpace: 'nowrap',
-                    flexShrink: '0',
-                  }}
-                >
-                  {cat.label}
-                </button>
-              ))}
-
-              <button
-                onClick={handleCreateCategory}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 999,
-                  border: '1px dashed #F4B860',
-                  background: '#FFFFFF',
-                  fontSize: 'clamp(13px,0.9vw,15px)',
-                  fontWeight: 500,
-                  width: '100%',
-                  textAlign: 'left',
-                }}
-              >
-                + Create
-              </button>
+{/* Categories temporarily hidden */}
             </div>
           )}
+          
         </aside>
 
         {/* CENTER FEED */}
@@ -401,101 +336,25 @@ pointerEvents: 'none',
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
               style={{
-                position: 'sticky',
-                top: 64,
-                zIndex: 50,
-                margin: '10px auto',
-                width: 'fit-content',
-                padding: '8px 14px',
-                borderRadius: 20,
-                background: '#111',
-                color: '#fff',
-                fontSize: 13,
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              }}
+  position: 'sticky',
+  top: 72, // Keep it just below the Foundation header
+  zIndex: 250, // Above feed, below dialogs/modals
+  margin: '10px auto',
+  width: 'fit-content',
+  padding: '8px 14px',
+  borderRadius: 999,
+  background: '#111827',
+  color: '#FFFFFF',
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: 'pointer',
+  boxShadow: '0 8px 24px rgba(0,0,0,.18)',
+}}
             >
               ↑ {newQuestions.length} new question{newQuestions.length > 1 ? 's' : ''}
             </div>
           )}
-
-          <div className="lg:hidden mb-4">
-            {!loading && (
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 10,
-                  alignItems: 'center',
-                  overflowX: 'auto',
-                  paddingBottom: 8,
-                }}
-              >
-                <button
-                  onClick={openFilterSheet}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: 999,
-                    border: '1px solid #E5E7EB',
-                    background: '#FFFFFF',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {filterLabel} ▾
-                </button>
-     
-                <button
-  onClick={() => router.push('/resources')}
-  style={{
-    padding: '6px 14px',
-    borderRadius: 999,
-    border: '1px solid #E5E7EB',
-    background: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 500,
-    whiteSpace: 'nowrap',
-    flexShrink: 0,
-  }}
->
-  📄 Resources
-</button>
-
-                <button
-                  onClick={() => handleCategoryClick('all')}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: 999,
-                    border: activeCategorySlug === 'all' ? '1px solid #F4B860' : '1px solid #E5E7EB',
-                    background: activeCategorySlug === 'all' ? '#FFF7ED' : '#FFFFFF',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  All
-                </button>
-
-                {categories.map(cat => (
-                  <button
-                    key={cat.id}
-                    onClick={() => handleCategoryClick(cat.slug)}
-                    style={{
-                      padding: '6px 14px',
-                      borderRadius: 999,
-                      border: activeCategorySlug === cat.slug ? '1px solid #F4B860' : '1px solid #E5E7EB',
-                      background: activeCategorySlug === cat.slug ? '#FFF7ED' : '#FFFFFF',
-                      fontSize: 13,
-                      fontWeight: 500,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {cat.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+{/* Mobile top actions temporarily hidden */}
 
           {/* IPL SCOREBOARD */}
           {/* <IPLScoreCard /> */}
@@ -542,16 +401,7 @@ pointerEvents: 'none',
             <PromoteBanner links={promoted} />
           )}
 
-          {filterSheetOpen && (
-            <QuestionFilterSheet
-              value={filter}
-              onChange={val => {
-                setFilter(val)
-                setFilterSheetOpen(false)
-              }}
-              onClose={closeFilterSheet}
-            />
-          )}
+          {/* Filter sheet temporarily hidden */}
 
           {!loading &&
   visibleQuestions.length === 0 && (
@@ -668,13 +518,15 @@ pointerEvents: 'none',
               )
 
               try {
-                localStorage.setItem(
-                  'feed_cache',
-                  JSON.stringify(
-                    updated.slice(0, 10)
-                  )
-                )
-              } catch {}
+  if (userId) {
+    localStorage.setItem(
+      `feed_cache_${userId}`,
+      JSON.stringify(
+        updated.slice(0, 10)
+      )
+    )
+  }
+} catch {}
 
               return updated
             })

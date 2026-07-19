@@ -474,7 +474,11 @@ const user = session?.user
 
   /* ---------------- UI ---------------- */
 
-  return (
+if (pathname.startsWith('/communities')) {
+  return null
+}
+
+return (
   <>
     {/* ===================== TOP BAR ===================== */}
     <div

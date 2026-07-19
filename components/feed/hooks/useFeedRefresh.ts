@@ -105,14 +105,30 @@ export function useFeedRefresh({
           fresh.length === PAGE_SIZE
         )
 
-        try {
-          localStorage.setItem(
-            'feed_cache',
-            JSON.stringify(
-              fresh.slice(0, 10)
-            )
-          )
-        } catch {}
+       try {
+  const deletedIds = JSON.parse(
+    localStorage.getItem(
+      'deleted_questions'
+    ) || '[]'
+  )
+
+  const cleaned = fresh.filter(
+    (q: any) =>
+      !deletedIds.includes(q.id)
+  )
+
+  if (userId) {
+    localStorage.setItem(
+      `feed_cache_${userId}`,
+      JSON.stringify(cleaned)
+    )
+  }
+} catch (err) {
+  console.warn(
+    'Failed to save feed cache',
+    err
+  )
+}
       } catch (e) {
         console.warn(
           'refreshFeed error',

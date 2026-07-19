@@ -30,11 +30,20 @@ const user = session?.user ?? null;
 
       const path = pathname;
 
-      const publicRoutes = ['/', '/login', '/what-is-eggpuff'];
+      const PUBLIC_ROUTES = [
+  '/',
+  '/login',
+  '/what-is-eggpuff',
+  '/privacy',
+  '/terms',
+  '/community-guidelines',
+  '/support',
+  '/contact',
+];
 
-      const isPublicRoute =
-        publicRoutes.includes(path) ||
-        path.startsWith('/what-is-eggpuff');
+     const isPublicRoute = PUBLIC_ROUTES.some((route) =>
+  path.startsWith(route)
+);
 
       const isAdminRoute = path.startsWith('/admin$$$db');
 

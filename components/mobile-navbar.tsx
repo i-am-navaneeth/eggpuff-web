@@ -23,28 +23,56 @@ export default function MobileNavbar({ userId }: { userId?: string }) {
 
   const isActive = (path: string) => pathname === path
 
-  const [username, setUsername] = useState<string | null>(null)
+  const handleHomeClick = () => {
+  // Already on Feed
+  if (pathname === '/feed') {
+    // Smooth scroll to top
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
 
-useEffect(() => {
-  const loadProfile = async () => {
-    const { data } = await supabase.auth.getSession()
-    const user = data?.session?.user
+    let cancelled = false
 
-    if (!user) return
+    const cancelRefresh = () => {
+      cancelled = true
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('user_id', user.id)
-      .single()
-
-    if (profile?.username) {
-      setUsername(profile.username)
+      window.removeEventListener('touchstart', cancelRefresh)
+      window.removeEventListener('wheel', cancelRefresh)
+      window.removeEventListener('keydown', cancelRefresh)
     }
+
+    window.addEventListener('touchstart', cancelRefresh, {
+      once: true,
+      passive: true,
+    })
+
+    window.addEventListener('wheel', cancelRefresh, {
+      once: true,
+      passive: true,
+    })
+
+    window.addEventListener('keydown', cancelRefresh, {
+      once: true,
+    })
+
+    setTimeout(() => {
+      cancelRefresh()
+
+      if (!cancelled) {
+        window.dispatchEvent(
+          new CustomEvent('feed-refresh')
+        )
+      }
+    }, 700)
+
+    return
   }
 
-  loadProfile()
-}, [])
+  router.push('/feed')
+}
+
+  const [username, setUsername] = useState<string | null>(null)
 
 useEffect(() => {
   if (!userId) return
@@ -298,11 +326,11 @@ if (shouldHideNavbar) return null
 
         {/* HOME */}
         <NavItem
-          icon={<HomeIcon />}
-          label="Home"
-          active={isActive('/feed')}
-          onClick={() => router.push('/feed')}
-        />
+  icon={<HomeIcon />}
+  label="Home"
+  active={isActive('/feed')}
+  onClick={handleHomeClick}
+/>
 
         {/* SEARCH */}
         <NavItem
@@ -370,10 +398,26 @@ if (shouldHideNavbar) return null
     pathname.startsWith(`/u/${username}/`)
   )
 }
-  onClick={() => {
-  if (!username) return
+  onClick={async () => {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
 
-  openProfile(username)
+  const user = session?.user
+
+  if (!user) return
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('username')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!profile?.username) return
+
+  setUsername(profile.username)
+
+  openProfile(profile.username)
 }}
 />
 

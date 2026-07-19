@@ -20,20 +20,19 @@ export default function Layout({
 
   const [userId, setUserId] = useState<string | null>(null)
   const pathname = usePathname()
+  console.log(pathname)
 
 const showFeedHost =
   pathname !== '/notifications'
 
   const hideTopBar =
   pathname.startsWith('/search') ||
-  pathname.startsWith('/ask')
+  pathname.startsWith('/ask') ||
+  pathname.startsWith('/profile') ||
+  pathname.startsWith('/communities')
 
 const showTopBar = !hideTopBar
 
-console.log({
-  pathname,
-  showTopBar,
-})
   const isSearch = pathname.startsWith('/search')
   const onRefreshFeed = () => {
   window.dispatchEvent(
@@ -61,10 +60,6 @@ const user = session?.user
 const TOP_BAR_HEIGHT = showTopBar ? 55 : 0
 const BOTTOM_BAR_HEIGHT = 64
 
-
-console.log({
-  pathname,
-});
   return (
     <ShellLayoutProvider topInset={TOP_BAR_HEIGHT} bottomInset={BOTTOM_BAR_HEIGHT} >
 

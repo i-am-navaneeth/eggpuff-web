@@ -10,6 +10,7 @@ import QuestionCard from '@/components/QuestionCard'
 import Link from 'next/link'
 import FollowListSheet from '@/components/FollowListSheet'
 import { useNavigation } from '@/components/navigation/NavigationProvider'
+import ConnectionsSheet from '@/components/profile/ConnectionsSheet'
 
 function timeAgo(date: string) {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
@@ -54,6 +55,12 @@ const [loading, setLoading] = useState(true)
 
 const [profile, setProfile] =
   useState<any>(null)
+const [connectionsOpen, setConnectionsOpen] = useState(false)
+const [showEpInfo, setShowEpInfo] = useState(false)
+const [tooltipLeft, setTooltipLeft] = useState(0)
+const [tooltipTop, setTooltipTop] = useState(0)
+const [tooltipArrow, setTooltipArrow] = useState(50)
+const [tooltipPlacement, setTooltipPlacement] = useState<'top' | 'bottom'>('top')
 
   const [currentUser, setCurrentUser] =
   useState<any>(null)
@@ -335,7 +342,33 @@ useEffect(() => {
 
     setFriendsCount(mutual.length)
 
-    setEp(epValue || 0)
+    const cacheKey =
+  `ep_points_${profileData.user_id}`
+
+const cachedEp =
+  localStorage.getItem(cacheKey)
+
+if (cachedEp !== null) {
+  setEp(Number(cachedEp))
+}
+
+    const nextEp = epValue || 0
+
+setEp(nextEp)
+
+localStorage.setItem(
+  cacheKey,
+  String(nextEp)
+)
+
+window.dispatchEvent(
+  new CustomEvent('ep-updated', {
+    detail: {
+      userId: profileData.user_id,
+      ep: nextEp,
+    },
+  })
+)
 
     setIsFollowing(
       !!followState.data
@@ -379,15 +412,39 @@ const handleFollow = async () => {
   }
 
   // 🔔 Notification (only when FOLLOW, not unfollow)
-  if (!isFollowing) {
+if (!isFollowing) {
   await supabase.from('notifications').insert({
     user_id: profile.user_id,
     actor_id: userId,
+
     type: 'follow',
+
     message: 'started following you',
+
     link: `/u/${profile.username}`,
+
     is_read: false,
   })
+
+  try {
+    await fetch('/api/push/send', {
+      method: 'POST',
+
+      headers: {
+        'Content-Type': 'application/json',
+      },
+
+      body: JSON.stringify({
+        userId: profile.user_id,
+
+        title: `👋 ${currentUser?.name || currentUser?.username || 'Someone'} followed you`,
+
+        message: 'Tap to view their profile.',
+
+        url: `/u/${profile.username}`,
+      }),
+    })
+  } catch {}
 }
 
   setLoadingFollow(false)
@@ -508,25 +565,39 @@ useEffect(() => {
   const fetchQuestions = async () => {
     setLoadingQuestions(true)
 
-    const { data, error } = await supabase
-      .from("questions")
-      .select("*")
-      .eq("user_id", profile.user_id)
-      .order("created_at", { ascending: false })
-      .range(0, QUESTIONS_PAGE_SIZE - 1)
+const { data, error } = await supabase
+  .from("questions")
+  .select("*")
+  .eq("user_id", profile.user_id)
+  .order("created_at", { ascending: false })
+  .range(0, QUESTIONS_PAGE_SIZE - 1)
+
+if (error) {
+  console.error("Questions error:", error)
+}
 
     if (!error) {
-      setQuestions(data || [])
+  const formatted =
+    (data || []).map((q: any) => ({
+      ...q,
+      helpful_count: q.question_helpful?.length ?? 0,
+      is_helpful:
+        q.question_helpful?.some(
+          (h: any) => h.user_id === currentUserId
+        ) ?? false,
+    }))
 
-      const nextOffset = data?.length || 0
+  setQuestions(formatted)
 
-questionsOffsetRef.current = nextOffset
-setQuestionsOffset(nextOffset)
+  const nextOffset = formatted.length
 
-      setQuestionsHasMore(
-        (data?.length || 0) === QUESTIONS_PAGE_SIZE
-      )
-    }
+  questionsOffsetRef.current = nextOffset
+  setQuestionsOffset(nextOffset)
+
+  setQuestionsHasMore(
+    formatted.length === QUESTIONS_PAGE_SIZE
+  )
+}
 
     setLoadingQuestions(false)
   }
@@ -550,21 +621,36 @@ const loadMoreQuestions = async () => {
   setLoadingMoreQuestions(true)
 
   const { data, error } = await supabase
-    .from("questions")
-    .select("*")
-    .eq("user_id", profile.user_id)
-    .order("created_at", { ascending: false })
-    .range(
-  questionsOffsetRef.current,
-  questionsOffsetRef.current + QUESTIONS_PAGE_SIZE - 1
-)
+  .from("questions")
+  .select(`
+    *,
+    question_helpful (
+      user_id
+    )
+  `)
+  .eq("user_id", profile.user_id)
+  .order("created_at", { ascending: false })
+  .range(
+    questionsOffsetRef.current,
+    questionsOffsetRef.current + QUESTIONS_PAGE_SIZE - 1
+  )
 
   if (!error && data) {
+const formatted =
+  (data || []).map((q: any) => ({
+    ...q,
+    helpful_count: q.question_helpful?.length ?? 0,
+    is_helpful:
+      q.question_helpful?.some(
+        (h: any) => h.user_id === currentUserId
+      ) ?? false,
+  }))
+
 setQuestions(prev => {
   const map = new Map()
 
   prev.forEach(q => map.set(q.id, q))
-  data.forEach(q => map.set(q.id, q))
+  formatted.forEach(q => map.set(q.id, q))
 
   return [...map.values()]
 })
@@ -914,16 +1000,45 @@ setAnswersHasMore(
 useEffect(() => {
   const loadUser = async () => {
     const {
-  data: { session },
-} = await supabase.auth.getSession()
+      data: { session },
+    } = await supabase.auth.getSession()
 
-const user = session?.user
+    const user = session?.user
 
-    setCurrentUser(user)
+    if (!user) return
+
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select(`
+  name,
+  username,
+  avatar_url,
+  is_verified,
+  bio,
+  batch_year,
+  college:colleges(name),
+  streak_count
+`)
+      .eq('user_id', user.id)
+      .single()
+
+    setCurrentUser(profileData)
   }
 
   loadUser()
 }, [])
+
+useEffect(() => {
+  if (!showEpInfo) return
+
+  const close = () => setShowEpInfo(false)
+
+  document.addEventListener('click', close)
+
+  return () => {
+    document.removeEventListener('click', close)
+  }
+}, [showEpInfo])
 
   if (loading) {
     return <div className="p-5">Loading...</div>
@@ -947,9 +1062,9 @@ if (pathname.startsWith('/question/')) {
 >
 
       {/* HEADER */}
-      <div className="flex flex-col items-center text-center -mt-4">
+<div className="flex flex-col items-center text-center -mt-4">
 
-       {/* AVATAR */}
+  {/* Avatar */}
 <div
   style={{
     position: 'relative',
@@ -959,170 +1074,221 @@ if (pathname.startsWith('/question/')) {
   }}
 >
   <img
-    src={
-      profile.avatar_url ||
-      '/default-avatar.png'
-    }
+    src={profile.avatar_url || '/default-avatar.png'}
     className="w-24 h-24 rounded-full object-cover"
   />
 
-  {/* EDIT BUTTON — OWNER ONLY */}
-  {currentUser?.id === profile.user_id && (
+  {/* Own profile */}
+  {userId === profile.user_id ? (
     <button
-    id="profile-follow-button"
-onClick={() => {
-  openEditProfile()
-}}
-      style={{
-        position: 'absolute',
-        right: -2,
-        bottom: -2,
-
-        width: 38,
-        height: 38,
-
-        borderRadius: '50%',
-
-        border: '1px solid #E5E7EB',
-
-        background: '#FFFFFF',
-
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-
-        boxShadow:
-          '0 4px 14px rgba(0,0,0,0.08)',
-
-        cursor: 'pointer',
-
-        transition:
-          'transform 0.15s ease',
-      }}
+      onClick={openEditProfile}
+      className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-gray-700 hover:scale-105 active:scale-95 transition"
     >
       <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M4 20H8L18.5 9.5C19.1 8.9 19.1 7.9 18.5 7.3L16.7 5.5C16.1 4.9 15.1 4.9 14.5 5.5L4 16V20Z"
-          stroke="#111111"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+  xmlns="http://www.w3.org/2000/svg"
+  width="18"
+  height="18"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  strokeWidth="2.2"
+  strokeLinecap="round"
+  strokeLinejoin="round"
+>
+  <path d="M12 20h9" />
+  <path d="M16.5 3.5a2.12 2.12 0 113 3L7 19l-4 1 1-4 12.5-12.5z" />
+</svg>
     </button>
+  ) : (
+   <button
+  onClick={handleFollow}
+  disabled={loadingFollow}
+  className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-gray-700 transition hover:scale-105 active:scale-95"
+  title={isFollowing ? 'Following' : 'Follow'}
+>
+  {isFollowing ? (
+    /* Check */
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  ) : (
+    /* Plus */
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  )}
+</button>
   )}
 </div>
 
-        {/* USERNAME */}
-        <h2 className="mt-3 text-lg font-semibold">
-          @{profile.username}
-        </h2>
+  <h1 className="mt-4 text-3xl font-bold">
+    @{profile.username}
+  </h1>
 
-        {/* NAME */}
-        {profile.name && (
-          <p className="text-sm text-gray-500">{profile.name}</p>
-        )}
+  <p className="text-lg text-gray-600 mt-1">
+    {profile.name}
+  </p>
 
-        {/* STATS */}
-<div className="flex gap-4 mt-3 text-sm text-gray-600">
-  <span>🔥 {profile.streak_count || 0}</span>
+  {profile.bio && (
+    <p className="mt-3 max-w-xs text-sm text-gray-700 leading-relaxed">
+      {profile.bio}
+    </p>
+  )}
 
-  
-    <span>🥐 {ep}</span>
+<div className="mt-6 flex w-full max-w-sm gap-3">
 
-</div>
+  {/* Badges */}
+  <div className="flex-1 rounded-2xl border border-dashed border-gray-300 p-4 text-center">
 
-        {/* BUTTON */}
-        {userId !== profile.user_id && ( 
-           <div className="mt-4 flex justify-center">
-          <button
-          id="profile-follow-button"
-  onClick={handleFollow}
-  disabled={loadingFollow}
-  className={`px-5 py-2 rounded-full text-sm font-medium transition ${
-    isFollowing
-      ? 'bg-gray-200 text-black'
-      : 'bg-black text-white'
+    <div className="text-xl">🏅</div>
+
+    <div className="mt-1 font-semibold">
+      Badges
+    </div>
+
+  </div>
+
+{/* EP Points */}
+<div className="flex-1 flex">
+
+  {/* Tooltip */}
+  <div
+  className={`fixed z-[9999] rounded-2xl bg-neutral-800 text-white p-4 text-left shadow-2xl border border-neutral-700 transition-all duration-200 ${
+    showEpInfo
+      ? 'opacity-100 scale-100'
+      : 'opacity-0 scale-95 pointer-events-none'
   }`}
+  style={{
+  width: 260,
+  left: tooltipLeft,
+  top: tooltipTop,
+}}
 >
-  {loadingFollow
-    ? '...'
-    : isFollowing
-    ? 'Following'
-    : 'Follow'}
+  <div className="text-[14px] font-semibold mb-1">
+    EP Points
+  </div>
+
+  <p className="text-[11px] leading-5 text-neutral-200">
+    Earn <span className="font-medium">EP(EggPuff)</span> Points by asking, answering, and contributing.
+    Spend them to <span className="font-medium">Promote your profile</span> or unlock exciting EggPuff features.
+  </p>
+
+  <div
+  className={`absolute w-3 h-3 bg-neutral-800 border-neutral-700 rotate-45 -translate-x-1/2 ${
+    tooltipPlacement === 'top'
+      ? 'bottom-[-6px] border-r border-b'
+      : 'top-[-6px] border-l border-t'
+  }`}
+  style={{
+    left: tooltipArrow,
+  }}
+/>
+</div>
+
+  {/* Card */}
+  <div
+    onClick={(e) => {
+  e.stopPropagation()
+  const card = e.currentTarget.getBoundingClientRect()
+
+  const TOOLTIP_WIDTH = 260
+  const TOOLTIP_HEIGHT = 132
+  const GAP = 10
+  const SCREEN_PADDING = 12
+
+  const tapX = e.clientX
+  const tapY = e.clientY
+
+  let left = tapX - TOOLTIP_WIDTH / 2
+
+  left = Math.max(
+    SCREEN_PADDING,
+    Math.min(
+      left,
+      window.innerWidth - TOOLTIP_WIDTH - SCREEN_PADDING
+    )
+  )
+
+  let arrow = tapX - left
+
+  arrow = Math.max(
+    18,
+    Math.min(TOOLTIP_WIDTH - 18, arrow)
+  )
+
+  const touchedBottomHalf =
+    tapY > card.top + card.height / 2
+
+  let top = 0
+
+  if (touchedBottomHalf) {
+    setTooltipPlacement('bottom')
+    top = tapY + GAP
+  } else {
+    setTooltipPlacement('top')
+    top = tapY - TOOLTIP_HEIGHT - GAP
+  }
+
+  setTooltipLeft(left)
+  setTooltipTop(top)
+  setTooltipArrow(arrow)
+
+  setShowEpInfo(prev => !prev)
+}}
+    className="w-full flex flex-col justify-center rounded-2xl border border-gray-200 p-4 text-center cursor-pointer select-none"
+  >
+    <div className="text-xl font-bold">
+      🥐 {ep}
+    </div>
+
+    <div className="mt-1 text-xs text-gray-500">
+      EP Points
+    </div>
+  </div>
+
+</div>
+
+</div>
+
+<button
+  onClick={() => setConnectionsOpen(true)}
+  className="
+    mt-3
+    mb-3
+    text-sm
+    text-gray-400
+    hover:text-black
+    active:text-black
+    active:scale-95
+    transition
+    duration-150
+  "
+>
+  See connections
 </button>
+
 </div>
-)}
-      </div>
-
-      {/* ===================== STATS ===================== */}
-<div className="flex justify-center gap-8 mt-6 text-center">
-
-  {/* FRIENDS */}
-  <button
-    onClick={() => {
-      setFollowSheetType('friends')
-      setFollowSheetOpen(true)
-    }}
-    className="flex flex-col items-center"
-  >
-    <p className="text-lg font-semibold">
-      {friendsCount}
-    </p>
-
-    <p className="text-xs text-gray-500">
-      Friends
-    </p>
-  </button>
-
-  {/* FOLLOWERS */}
-  <button
-    onClick={() => {
-      setFollowSheetType('followers')
-      setFollowSheetOpen(true)
-    }}
-    className="flex flex-col items-center"
-  >
-    <p className="text-lg font-semibold">
-      {followersCount}
-    </p>
-
-    <p className="text-xs text-gray-500">
-      Followers
-    </p>
-  </button>
-
-  {/* FOLLOWING */}
-  {userId === profile.user_id && (
-    <button
-    onClick={() => {
-      setFollowSheetType('following')
-      setFollowSheetOpen(true)
-    }}
-    className="flex flex-col items-center"
-  >
-    
-  <div>
-    <p className="text-lg font-semibold">{followingCount}</p>
-    <p className="text-xs text-gray-500">Following</p>
-  </div>
-
-  </button>
-)}
-</div>
-
-{/* ===================== BIO ===================== */}
-{profile.bio && (
-  <div className="mt-4 text-center text-sm text-gray-700 px-4">
-    {profile.bio}
-  </div>
-)}
 
 {/* ===================== TABS ===================== */}
 <div
@@ -1131,7 +1297,7 @@ onClick={() => {
     top: topInset,
   }}
 >
-  <div className="max-w-[600px] mx-auto px-5 flex justify-center gap-8 text-sm font-medium h-[44px] items-end">
+  <div className="max-w-[600px] mx-auto px-5 flex justify-center gap-8 text-sm font-medium h-[40px] items-end">
     <button
       onClick={() => setActiveTab('questions')}
       className={`pb-2 ${
@@ -1197,25 +1363,25 @@ onClick={() => {
   })
   .map((q) => (
     <QuestionCard
-      key={q.id}
-      q={{
-        ...q,
-        user_name: profile.name,
-        username: profile.username,
-        avatar_url: profile.avatar_url,
-        is_anonymous: false,
-        answers_count: q.answers_count ?? 0,
-        hideStreak: true,
-      }}
-      currentUserId={profile.user_id}
-      onDelete={(deletedId) => {
-        setQuestions((prev) =>
-          prev.filter(
-            (q) => q.id !== deletedId
-          )
-        )
-      }}
-    />
+  key={q.id}
+  q={{
+    ...q,
+    user_name: profile.name,
+    username: profile.username,
+    avatar_url: profile.avatar_url,
+    is_anonymous: false,
+    answers_count: q.answers_count ?? 0,
+    hideStreak: true,
+  }}
+  currentUserId={currentUserId}
+  onDelete={(deletedId) => {
+    setQuestions((prev) =>
+      prev.filter(
+        (q) => q.id !== deletedId
+      )
+    )
+  }}
+/>
   ))}
 {questionsHasMore && (
   <div
@@ -1326,6 +1492,13 @@ onClick={() => {
       ? 64
       : 0
   }
+/>
+
+<ConnectionsSheet
+  open={connectionsOpen}
+  onClose={() => setConnectionsOpen(false)}
+  profileUserId={profile.user_id}
+  currentUserId={userId}
 />
     </div>
   )

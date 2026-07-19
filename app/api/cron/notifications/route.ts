@@ -43,14 +43,15 @@ export async function GET() {
       try {
         // Insert notification rows
         const { error: rpcError } =
-          await supabaseAdmin.rpc(
-            "send_notification_to_everyone",
-            {
-              p_title: schedule.title,
-              p_body: schedule.body,
-              p_link: schedule.link,
-            }
-          );
+  await supabaseAdmin.rpc(
+    "send_notification_to_everyone",
+    {
+      p_title: schedule.title,
+      p_body: schedule.body,
+      p_link: schedule.link,
+      p_actor_id: schedule.created_by,
+    }
+  );
 
         if (rpcError) {
           console.error(

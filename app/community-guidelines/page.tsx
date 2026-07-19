@@ -1,387 +1,262 @@
+export const metadata = {
+     title: "Community Guidelines • EggPuff",
+};
+
 export default function CommunityGuidelinesPage() {
   return (
     <div
       style={{
-        minHeight: '100vh',
+        maxWidth: 860,
+        margin: '0 auto',
+        padding: '56px 24px 80px',
         background: '#FFFFFF',
-        paddingLeft: 28,
-        paddingRight: 28,
-        paddingTop: 54,
-        paddingBottom: 80,
       }}
     >
-      {/* TITLE */}
-
-      <div
+      <h1
         style={{
-          fontSize: 54,
-          lineHeight: '62px',
+          fontSize: 44,
           fontWeight: 800,
-          color: '#000000',
-          letterSpacing: '-2px',
+          lineHeight: 1.1,
+          letterSpacing: '-1px',
+          color: '#111827',
         }}
       >
-        Community
-        <br />
-        Guidelines
-      </div>
-
-      {/* INTRO */}
+        Community Guidelines
+      </h1>
 
       <div
         style={{
-          marginTop: 30,
+          marginTop: 18,
+          color: '#6B7280',
+          fontSize: 14,
+          lineHeight: 1.7,
+        }}
+      >
+        <div>
+          <strong>Effective date:</strong> July 13, 2026
+        </div>
 
-          fontSize: 22,
+        <div>
+          <strong>Last updated:</strong> July 13, 2026
+        </div>
+      </div>
 
-          lineHeight: '42px',
-
+      <p
+        style={{
+          marginTop: 28,
+          fontSize: 19,
+          lineHeight: 1.8,
           color: '#475569',
-
-          fontWeight: 400,
         }}
       >
-        EggPuff communities are built for students
-        to share ideas, ask questions, connect with
-        others, and grow together safely.
-      </div>
+        EggPuff exists to help students learn, connect, collaborate, and
+        grow within their own college community. These guidelines help keep
+        the platform respectful, trustworthy, and safe for everyone.
+      </p>
 
-      <div
-        style={{
-          marginTop: 22,
+      {/* ---------------- */}
 
-          fontSize: 18,
+      <Section
+        title="1. Respect every student"
+        body={
+          <>
+            Treat others with kindness and respect.
+            <br />
+            Bullying, harassment, discrimination, hate speech, intimidation,
+            threats, or targeted abuse are never allowed.
+          </>
+        }
+      />
 
-          lineHeight: '34px',
+      <Section
+        title="2. Keep conversations genuine"
+        body={
+          <>
+            Ask honest questions.
+            Give genuine answers.
+            <br />
+            Do not intentionally spread false information, manipulate
+            discussions, or post misleading content.
+          </>
+        }
+      />
 
-          color: '#64748B',
-        }}
-      >
-        We want communities to feel comfortable,
-        respectful, and positive for everyone —
-        especially young students discovering new
-        people and opportunities.
-      </div>
+      <Section
+        title="3. No spam or fake engagement"
+        body={
+          <>
+            Don't repeatedly post the same content, create fake accounts,
+            artificially increase engagement, or misuse EggPuff Points.
+            Communities should stay useful—not noisy.
+          </>
+        }
+      />
 
-      {/* SECTION 1 */}
+      <Section
+        title="4. Protect everyone's privacy"
+        body={
+          <>
+            Never share someone else's private information without permission,
+            including phone numbers, addresses, student IDs, emails, private
+            chats, or personal photos.
+          </>
+        }
+      />
+
+      <Section
+        title="5. No impersonation"
+        body={
+          <>
+            Do not pretend to be another student, college representative,
+            organization, faculty member, or the EggPuff team.
+          </>
+        }
+      />
+
+      <Section
+        title="6. Keep your college community relevant"
+        body={
+          <>
+            Stay on topic.
+            Communities should focus on meaningful discussions, learning,
+            events, opportunities, projects, clubs, placements, friendships,
+            and campus life.
+          </>
+        }
+      />
+
+      <Section
+        title="7. Academic integrity"
+        body={
+          <>
+            EggPuff supports learning—not cheating.
+            <br />
+            Do not share exam leaks, cheating services, forged attendance,
+            fake certificates, or other dishonest academic material.
+          </>
+        }
+      />
+
+      <Section
+        title="8. Illegal or harmful content"
+        body={
+          <>
+            Content involving illegal activities, violence, terrorism,
+            exploitation, scams, fraud, or anything that may harm individuals
+            or communities is strictly prohibited.
+          </>
+        }
+      />
+
+      <Section
+        title="9. Respect intellectual property"
+        body={
+          <>
+            Only share content that you own or have permission to share.
+            Respect copyrights, trademarks, and the work of other creators.
+          </>
+        }
+      />
+
+      <Section
+        title="10. Responsible promotion"
+        body={
+          <>
+            Promoting your projects, startups, portfolios, communities, or
+            opportunities is welcome when relevant. Excessive advertising,
+            deceptive promotions, or repeated self-promotion may be removed.
+          </>
+        }
+      />
+
+      <Section
+        title="11. Report problems"
+        body={
+          <>
+            If you notice spam, harassment, fake accounts, scams, or other
+            rule violations, please report them. Community safety is a shared
+            responsibility.
+          </>
+        }
+      />
+
+      <Section
+        title="12. Enforcement"
+        body={
+          <>
+            EggPuff may review reported content and take appropriate action,
+            including removing content, limiting features, suspending
+            communities, temporarily restricting accounts, or permanently
+            removing accounts that repeatedly or seriously violate these
+            guidelines.
+          </>
+        }
+      />
+
+      <Section
+        title="13. Updates to these Guidelines"
+        body={
+          <>
+            As EggPuff evolves, these Community Guidelines may be updated to
+            reflect new features, improve community safety, or comply with
+            applicable laws. Continued use of EggPuff means you agree to the
+            latest version.
+          </>
+        }
+      />
 
       <div
         style={{
           marginTop: 70,
+          paddingTop: 24,
+          borderTop: '1px solid #E5E7EB',
         }}
       >
-        <div
+        <p
           style={{
-            fontSize: 38,
-
-            lineHeight: '44px',
-
-            fontWeight: 800,
-
-            color: '#000000',
-          }}
-        >
-          Respect everyone
-        </div>
-
-        <div
-          style={{
-            marginTop: 22,
-
-            fontSize: 20,
-
-            lineHeight: '38px',
-
-            color: '#475569',
-          }}
-        >
-          Be kind in conversations.
-          <br />
-          Don’t bully, shame, harass, or target
-          other students.
-          <br />
-          Healthy discussions are welcome —
-          personal attacks are not.
-        </div>
-      </div>
-
-      {/* SECTION 2 */}
-
-      <div
-        style={{
-          marginTop: 64,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 38,
-
-            lineHeight: '44px',
-
-            fontWeight: 800,
-
-            color: '#000000',
-          }}
-        >
-          No spam or fake activity
-        </div>
-
-        <div
-          style={{
-            marginTop: 22,
-
-            fontSize: 20,
-
-            lineHeight: '38px',
-
-            color: '#475569',
-          }}
-        >
-          Avoid repeated posts, fake engagement,
-          scam links, or misleading promotions.
-          <br />
-          Communities should feel real and useful —
-          not noisy.
-        </div>
-      </div>
-
-      {/* SECTION 3 */}
-
-      <div
-        style={{
-          marginTop: 64,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 38,
-
-            lineHeight: '44px',
-
-            fontWeight: 800,
-
-            color: '#000000',
-          }}
-        >
-          Keep communities relevant
-        </div>
-
-        <div
-          style={{
-            marginTop: 22,
-
-            fontSize: 20,
-
-            lineHeight: '38px',
-
-            color: '#475569',
-          }}
-        >
-          Stay close to the purpose of the community.
-          <br />
-          Off-topic flooding, unrelated promotions,
-          or constant distractions make the experience
-          worse for everyone.
-        </div>
-      </div>
-
-      {/* SECTION 4 */}
-
-      <div
-        style={{
-          marginTop: 64,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 38,
-
-            lineHeight: '44px',
-
-            fontWeight: 800,
-
-            color: '#000000',
-          }}
-        >
-          Keep it safe
-        </div>
-
-        <div
-          style={{
-            marginTop: 22,
-
-            fontSize: 20,
-
-            lineHeight: '38px',
-
-            color: '#475569',
-          }}
-        >
-          Do not share violent, explicit,
-          hateful, or illegal content.
-          <br />
-          EggPuff is designed for students and campus
-          communities — safety always comes first.
-        </div>
-      </div>
-
-      {/* SECTION 5 */}
-
-      <div
-        style={{
-          marginTop: 64,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 38,
-
-            lineHeight: '44px',
-
-            fontWeight: 800,
-
-            color: '#000000',
-          }}
-        >
-          Respect privacy
-        </div>
-
-        <div
-          style={{
-            marginTop: 22,
-
-            fontSize: 20,
-
-            lineHeight: '38px',
-
-            color: '#475569',
-          }}
-        >
-          Don’t leak private chats, student details,
-          screenshots, or personal information
-          without permission.
-          <br />
-          Trust matters here.
-        </div>
-      </div>
-
-      {/* SECTION 6 */}
-
-      <div
-        style={{
-          marginTop: 64,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 38,
-
-            lineHeight: '44px',
-
-            fontWeight: 800,
-
-            color: '#000000',
-          }}
-        >
-          No academic manipulation
-        </div>
-
-        <div
-          style={{
-            marginTop: 22,
-
-            fontSize: 20,
-
-            lineHeight: '38px',
-
-            color: '#475569',
-          }}
-        >
-          Don’t sell exam leaks, fake attendance,
-          cheating services, or dishonest academic
-          shortcuts.
-          <br />
-          EggPuff should help students grow —
-          not harm their future.
-        </div>
-      </div>
-
-      {/* SECTION 7 */}
-
-      <div
-        style={{
-          marginTop: 64,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 38,
-
-            lineHeight: '44px',
-
-            fontWeight: 800,
-
-            color: '#000000',
-          }}
-        >
-          Community responsibility
-        </div>
-
-        <div
-          style={{
-            marginTop: 22,
-
-            fontSize: 20,
-
-            lineHeight: '38px',
-
-            color: '#475569',
-          }}
-        >
-          Community owners should guide discussions
-          responsibly and avoid misuse of influence,
-          manipulation, or harmful behavior.
-        </div>
-      </div>
-
-      {/* SWEET WARNING */}
-
-      <div
-        style={{
-          marginTop: 80,
-
-          paddingTop: 28,
-
-          borderTop: '1px solid #E2E8F0',
-        }}
-      >
-        <div
-          style={{
-            fontSize: 17,
-
-            lineHeight: '32px',
-
             color: '#64748B',
-          }}
-        >
-          If content seriously harms the community
-          experience, EggPuff may remove posts,
-          restrict communities, or limit accounts
-          to help keep the platform safe for students.
-        </div>
-
-        <div
-          style={{
-            marginTop: 22,
-
+            lineHeight: 1.8,
             fontSize: 16,
-
-            color: '#94A3B8',
           }}
         >
-          Last updated • May 2026
-        </div>
+          Our goal isn't to punish students—it's to build a campus where
+          everyone feels comfortable asking questions, helping others, making
+          friends, and discovering opportunities.
+        </p>
       </div>
     </div>
+  )
+}
+
+function Section({
+  title,
+  body,
+}: {
+  title: string
+  body: React.ReactNode
+}) {
+  return (
+    <section style={{ marginTop: 48 }}>
+      <h2
+        style={{
+          fontSize: 28,
+          fontWeight: 700,
+          color: '#111827',
+          marginBottom: 16,
+        }}
+      >
+        {title}
+      </h2>
+
+      <div
+        style={{
+          color: '#475569',
+          fontSize: 18,
+          lineHeight: 1.9,
+        }}
+      >
+        {body}
+      </div>
+    </section>
   )
 }

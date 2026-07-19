@@ -22,6 +22,11 @@ type Reply = {
   liked_by_me?: boolean
 }
 
+type CurrentUserProfile = {
+  name?: string
+  username?: string
+}
+
 type Props = {
   reply: Reply
 
@@ -68,6 +73,9 @@ export default function ReplyCard({
   const [showMenu, setShowMenu] =
   useState(false)
 
+const [myProfile, setMyProfile] =
+  useState<CurrentUserProfile | null>(null)
+
   useEffect(() => {
     setLiked(reply.liked_by_me ?? false)
   }, [reply.liked_by_me])
@@ -75,6 +83,26 @@ export default function ReplyCard({
   useEffect(() => {
     setCount(reply.like_count ?? 0)
   }, [reply.like_count])
+
+  useEffect(() => {
+  const loadMyProfile = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) return
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('name, username')
+      .eq('user_id', user.id)
+      .single()
+
+    setMyProfile(data)
+  }
+
+  loadMyProfile()
+}, [])
 
   const like = async () => {
   if (navigator.vibrate) {
@@ -117,16 +145,59 @@ export default function ReplyCard({
   setCount(c => c + 1)
 
   const { error } = await supabase
-    .from('answer_reply_likes')
+  .from('answer_reply_likes')
+  .insert({
+    reply_id: reply.id,
+    user_id: user.id,
+  })
+
+if (!error && reply.user_id !== user.id) {
+  await supabase
+    .from('notifications')
     .insert({
+      user_id: reply.user_id,
+      actor_id: user.id,
+
+      type: 'reply_like',
+
       reply_id: reply.id,
-      user_id: user.id,
+
+      message:
+        reply.text.length > 80
+          ? `${reply.text.slice(0, 80)}...`
+          : reply.text,
+
+      link: window.location.pathname,
+
+      is_read: false,
     })
 
-  if (error) {
-    setLiked(false)
-    setCount(c => Math.max(0, c - 1))
-  }
+  try {
+    await fetch('/api/push/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId: reply.user_id,
+
+        title: `👍 ${myProfile?.name || myProfile?.username || 'Someone'} liked your reply`,
+
+        message:
+          reply.text.length > 80
+            ? `${reply.text.slice(0, 80)}...`
+            : reply.text,
+
+        url: window.location.pathname,
+      }),
+    })
+  } catch {}
+}
+
+if (error) {
+  setLiked(false)
+  setCount(c => Math.max(0, c - 1))
+}
 }
 
   return (

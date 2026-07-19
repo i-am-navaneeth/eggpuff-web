@@ -9,6 +9,7 @@ export async function POST(req: NextRequest) {
     const body = payload.body?.trim() ?? "";
     const link = payload.link?.trim() || null;
     const scheduledFor = payload.scheduledFor;
+const actorId = payload.actorId ?? null;
 
     /* ==========================================================
        Validation
@@ -93,13 +94,14 @@ export async function POST(req: NextRequest) {
     const { data, error } = await supabaseAdmin
   .from("notification_schedule")
   .insert({
-  title,
-  body,
-  link,
-  audience: "everyone",
-  scheduled_for: scheduleDate.toISOString(),
-  status: "pending",
-})
+    title,
+    body,
+    link,
+    audience: "everyone",
+    scheduled_for: scheduleDate.toISOString(),
+    status: "pending",
+    created_by: actorId,
+  })
   .select()
   .single();
 

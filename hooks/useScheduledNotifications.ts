@@ -30,11 +30,8 @@ export function useScheduledNotifications() {
               ascending: true,
             })
 
-            console.log("Scheduled rows:", data)
-console.log("Scheduled error:", error)
-
         if (error) {
-  console.error('Supabase Error:', error)
+
   throw error
 }
 

@@ -184,7 +184,7 @@ const toggleHelpful = async (
 
   const nextState = !isHelpful
 
-  // optimistic update
+  // optimistic UI
   setIsHelpful(nextState)
 
   setHelpfulCount(prev =>
@@ -203,6 +203,56 @@ const toggleHelpful = async (
         })
 
       if (error) throw error
+
+      // 🔔 Notify question owner
+      if (q.user_id && q.user_id !== currentUserId) {
+        const { data: me } = await supabase
+          .from('profiles')
+          .select('name, username')
+          .eq('user_id', currentUserId)
+          .single()
+
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: q.user_id,
+            actor_id: currentUserId,
+
+            type: 'question_like',
+
+            message:
+              q.text.length > 80
+                ? `${q.text.slice(0, 80)}...`
+                : q.text,
+
+            link: `/question/${q.id}`,
+
+            is_read: false,
+          })
+
+        try {
+          await fetch('/api/push/send', {
+            method: 'POST',
+
+            headers: {
+              'Content-Type': 'application/json',
+            },
+
+            body: JSON.stringify({
+              userId: q.user_id,
+
+              title: `❤️ ${me?.name || me?.username || 'Someone'} liked your question`,
+
+              message:
+                q.text.length > 80
+                  ? `${q.text.slice(0, 80)}...`
+                  : q.text,
+
+              url: `/question/${q.id}`,
+            }),
+          })
+        } catch {}
+      }
 
     } else {
 
@@ -229,35 +279,72 @@ const toggleHelpful = async (
 }
 
 useEffect(() => {
-  if (!showMenu) return
-
-  let ticking = false
+  if (!showShareMenu) return
 
   const closeMenu = () => {
-    if (ticking) return
-
-    ticking = true
-
-    requestAnimationFrame(() => {
-      setShowMenu(false)
-      ticking = false
-    })
+    setShowShareMenu(false)
   }
 
+  // Close when scrolling
+  window.addEventListener('scroll', closeMenu, {
+    passive: true,
+  })
+
+  // Close when clicking anywhere outside
+  document.addEventListener(
+  'click',
+  closeMenu
+)
+
+  // Close when navigating away
   window.addEventListener(
-    'scroll',
-    closeMenu,
-    true
+    'popstate',
+    closeMenu
   )
 
   return () => {
     window.removeEventListener(
       'scroll',
-      closeMenu,
-      true
+      closeMenu
+    )
+
+    document.removeEventListener(
+  'click',
+  closeMenu
+)
+
+    window.removeEventListener(
+      'popstate',
+      closeMenu
     )
   }
-}, [showMenu])
+}, [showShareMenu])
+
+useEffect(() => {
+  const handler = (
+    e: Event
+  ) => {
+    const id = (
+      e as CustomEvent
+    ).detail
+
+    if (id !== q.id) {
+      setShowShareMenu(false)
+    }
+  }
+
+  window.addEventListener(
+    'ep-share-open',
+    handler
+  )
+
+  return () => {
+    window.removeEventListener(
+      'ep-share-open',
+      handler
+    )
+  }
+}, [q.id])
 
 useEffect(() => {
   if (showMenu) {
@@ -297,22 +384,72 @@ const toggleSave = async (
   try {
     if (next) {
       const { error } = await supabase
-  .from('question_saves')
-  .insert({
-    question_id: q.id,
-    user_id: currentUserId,
-  })
+        .from('question_saves')
+        .insert({
+          question_id: q.id,
+          user_id: currentUserId,
+        })
 
-if (error) throw error
+      if (error) throw error
+
+      // 🔔 Notify question owner
+      if (q.user_id && q.user_id !== currentUserId) {
+        const { data: me } = await supabase
+          .from('profiles')
+          .select('name, username')
+          .eq('user_id', currentUserId)
+          .single()
+
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: q.user_id,
+            actor_id: currentUserId,
+
+            type: 'question_save',
+
+            message:
+              q.text.length > 80
+                ? `${q.text.slice(0, 80)}...`
+                : q.text,
+
+            link: `/question/${q.id}`,
+
+            is_read: false,
+          })
+
+        try {
+          await fetch('/api/push/send', {
+            method: 'POST',
+
+            headers: {
+              'Content-Type': 'application/json',
+            },
+
+            body: JSON.stringify({
+              userId: q.user_id,
+
+              title: `🔖 ${me?.name || me?.username || 'Someone'} saved your question`,
+
+              message: 'Your question was saved.',
+
+              url: `/question/${q.id}`,
+            }),
+          })
+        } catch {}
+      }
+
     } else {
-     const { error } = await supabase
-  .from('question_saves')
-  .delete()
-  .eq('question_id', q.id)
-  .eq('user_id', currentUserId)
 
-if (error) throw error
+      const { error } = await supabase
+        .from('question_saves')
+        .delete()
+        .eq('question_id', q.id)
+        .eq('user_id', currentUserId)
+
+      if (error) throw error
     }
+
   } catch {
     setSaved(!next)
   }
@@ -346,11 +483,17 @@ await shareRendererRef.current?.captureShare()
   onKeyDown={(e) => {
     if (e.key === 'Enter') goToQuestion()
   }}
-  onMouseDown={() => setPopped(true)}
-  onMouseUp={() => setPopped(false)}
-  onMouseLeave={() => setPopped(false)}
-  onTouchStart={() => setPopped(true)}
-  onTouchEnd={() => setPopped(false)}
+  onPointerDown={(e) => {
+  if (e.pointerType !== 'touch') {
+    setPopped(true)
+  }
+}}
+
+onPointerUp={() => setPopped(false)}
+
+onPointerLeave={() => setPopped(false)}
+
+onPointerCancel={() => setPopped(false)}
   style={{
     marginBottom: 0,
 
@@ -358,14 +501,25 @@ await shareRendererRef.current?.captureShare()
 
     borderRadius: 0,
 
+    border: 'none',
+
     backgroundColor:
   popped
-    ? 'rgba(15,20,25,0.03)'
+    ? 'rgba(15,20,25,0.02)'
     : q.type === 'bubble'
     ? '#F8FAFC'
     : 'transparent',
 
-    border: 'none',
+boxShadow: 'none',
+
+transform: popped
+  ? 'scale(0.996)'
+  : 'scale(1)',
+
+opacity: 1,
+
+transition:
+  'transform 120ms ease, background-color 120ms ease',
 
     borderBottom:
       q.type === 'bubble'
@@ -379,21 +533,6 @@ await shareRendererRef.current?.captureShare()
     position: 'relative',
 
     zIndex: 'auto',
-
-    boxShadow: popped
-      ? '0 2px 10px rgba(0,0,0,0.04)'
-      : 'none',
-
-    transform: popped
-      ? 'scale(0.988)'
-      : 'scale(1)',
-
-    opacity: popped
-      ? 0.92
-      : 1,
-
-    transition:
-  'transform 0.12s ease, opacity 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease',
 
     animation: undefined,
 
@@ -1024,14 +1163,25 @@ onClick={(e) => {
 
   {/* SHARE */}
 <div
-  onClick={(e) => {
-    e.preventDefault()
-    e.stopPropagation()
+ onPointerDown={(e) => {
+  e.stopPropagation()
+}}
 
-    setShowShareMenu(
-      (prev) => !prev
+onClick={(e) => {
+  e.stopPropagation()
+
+  const next = !showShareMenu
+
+  if (next) {
+    window.dispatchEvent(
+      new CustomEvent('ep-share-open', {
+        detail: q.id,
+      })
     )
-  }}
+  }
+
+  setShowShareMenu(next)
+}}
   style={{
     ...actionStyle,
     position: 'relative',
@@ -1056,9 +1206,12 @@ onClick={(e) => {
 
   {showShareMenu && (
     <div
-      onClick={(e) => {
-        e.stopPropagation()
-      }}
+  onPointerDown={(e) => {
+    e.stopPropagation()
+  }}
+  onClick={(e) => {
+    e.stopPropagation()
+  }}
      style={{
   position: 'absolute',
 
@@ -1122,7 +1275,22 @@ requestAnimationFrame(async () => {
           fontWeight: 500,
         }}
       >
-        🖼 Share as post
+        <svg
+  width="18"
+  height="18"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  strokeWidth="2"
+  strokeLinecap="round"
+  strokeLinejoin="round"
+>
+  <rect x="4" y="5" width="16" height="14" rx="3" />
+  <path d="M12 15V8" />
+  <path d="M9 11l3-3 3 3" />
+</svg>
+
+<span>Share as image</span>
       </div>
 
       {/* COPY LINK */}
@@ -1153,7 +1321,21 @@ requestAnimationFrame(async () => {
           fontWeight: 500,
         }}
       >
-        🔗 Copy link
+        <svg
+  width="18"
+  height="18"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  strokeWidth="2"
+  strokeLinecap="round"
+  strokeLinejoin="round"
+>
+  <path d="M10 13a4 4 0 0 1 0-6l2-2a4 4 0 1 1 6 6l-1 1" />
+  <path d="M14 11a4 4 0 0 1 0 6l-2 2a4 4 0 1 1-6-6l1-1" />
+</svg>
+
+<span>Copy link</span>
       </div>
 
       {/* MORE OPTIONS */}
@@ -1193,7 +1375,22 @@ requestAnimationFrame(async () => {
           fontWeight: 500,
         }}
       >
-        📤 More options
+        <svg
+  width="18"
+  height="18"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  strokeWidth="2"
+  strokeLinecap="round"
+  strokeLinejoin="round"
+>
+  <circle cx="12" cy="5" r="1.8" />
+  <circle cx="12" cy="12" r="1.8" />
+  <circle cx="12" cy="19" r="1.8" />
+</svg>
+
+<span>More options</span>
       </div>
     </div>
   )}

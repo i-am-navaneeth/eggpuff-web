@@ -10,199 +10,365 @@ type QA = {
 
 const FAQ: QA[] = [
   {
-    q: 'What is EggPuff 🥐?',
-    a: `EggPuff is a campus Q&A platform. Ask questions, help others with answers, and earn 🥐 (EggPuffs) for good participation.
+    q: 'Welcome to EggPuff',
+    a: `EggPuff is your college's private student community.
 
-EggPuffs are internal points used only inside the app — for things like PYP (Promote Your Profile: Instagram, YouTube, etc.). They have no real-world cash value.`,
+Ask questions.
+
+Help classmates.
+
+Join communities.
+
+Earn EggPuff Points by contributing.
+
+Everything happens inside your own campus.`,
   },
+
   {
-    q: 'How does asking a question work?',
-    a: `Asking a question costs 1 🥐.
-Each question can receive up to 2 answers from other users.`,
+    q: 'How do I ask a question?',
+    a: `Tap the Ask button from the feed, write your question, choose the most relevant community, and post it.
+
+Your question becomes visible to students in your college community, where others can answer and help you.`,
   },
-  {
-    q: 'What is PYP?',
-    a: `PYP (Promote Your Profile) is a feature in EggPuff that lets you promote your social media profile
-across the platform.
-When you use PYP, it helps you grow your reach, views, and engagement within the campus community.`,
-  },
+
   {
     q: 'How do answers work?',
-    a: `Anyone (except the asker) can answer.
-Once two answers are submitted, no more answers are allowed.`,
+    a: `Students from your college can answer your question.
+
+Read every answer carefully before choosing the one that helped you the most.
+
+Good answers help everyone in the community learn together.`,
   },
+
   {
-    q: 'What does “Approve” mean?',
-    a: `The person who asked the question can approve ONE correct answer.
-That answer is marked as approved and the question is closed.`,
+    q: 'What is an Approved Answer?',
+    a: `When your question is solved, you can approve one answer.
+
+The approved answer is highlighted so future students can quickly find the best solution.`,
   },
+
   {
-    q: 'How do rewards work?',
-    a: `• Approved answerer gets +1 🥐
-• Users who supported (👍) the approved answer get +0.5 🥐
-• Rewards are given only once and are permanent`,
+    q: 'Why can`t I answer some questions?',
+    a: `Some questions may already be closed, have reached their answer limit, or belong to communities where replying is no longer available.
+
+If replying isn't available, you'll still be able to read the discussion.`,
   },
+
   {
-    q: 'What happens when a question is closed?',
-    a: `Once an answer is approved:
-• No more answers can be submitted
-• Likes are locked
-• The approved answer stays highlighted`,
+    q: 'How do EggPuff Points work?',
+    a: `EggPuff Points are earned by making positive contributions to your campus community.
+
+Examples include writing helpful answers, participating in community activities, and other future features.
+
+Reward values may evolve as EggPuff grows.`,
   },
+
   {
-    q: 'Can I buy 🥐?',
-    a: `Yes.
-Tap your 🥐 balance on the top bar to buy EggPuffs using UPI.`,
+    q: 'What are EggPuff Points used for?',
+    a: `EggPuff Points unlock features inside EggPuff.
+
+One example is Promote Your Profile (PYP), where you can showcase your Instagram, YouTube channel, portfolio, startup, website, and more.
+
+New uses for EggPuff Points will continue to be introduced over time.`,
+  },
+
+  {
+    q: 'Do EggPuff Points have real-world value?',
+    a: `No.
+
+EggPuff Points are virtual points used only inside EggPuff.
+
+They cannot be exchanged for cash or transferred outside the platform.`,
+  },
+
+  {
+    q: 'What is Promote Your Profile (PYP)?',
+    a: `Promote Your Profile (PYP) lets you use EggPuff Points to showcase your public profiles to more students on your campus.
+
+This can include your Instagram, YouTube channel, GitHub, portfolio, startup, website, or other creator profiles.`,
+  },
+
+  {
+    q: 'Can students from other colleges see my posts?',
+    a: `No.
+
+EggPuff is designed around college communities.
+
+Your questions, answers, communities, and interactions stay within your own campus unless a future feature clearly states otherwise.`,
+  },
+
+  {
+    q: 'How do Communities work?',
+    a: `Communities help organize discussions around interests such as coding, placements, startups, gaming, clubs, academics, sports, and more.
+
+Join communities that match your interests to discover more relevant conversations.`,
+  },
+
+  {
+    q: 'How do I report inappropriate content?',
+    a: `If you find spam, harassment, fake accounts, or content that violates our Community Guidelines, please report it.
+
+Reports help keep EggPuff safe and welcoming for every student.`,
   },
 ]
 
 export default function AboutPage() {
-  const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const [openIndex, setOpenIndex] = useState<number | null>(0)
 
   return (
-    <>
-      <div style={{ padding: 24, maxWidth: 720, margin: '0 auto' }}>
-        {/* PAGE HEADER */}
-        <div style={{ marginBottom: 28 }}>
-          <h2
-            style={{
-              marginBottom: 6,
-              fontSize: 22,
-              fontWeight: 600,
-            }}
-          >
-            About EggPuff 🥐
-          </h2>
-          <p
-            style={{
-              color: '#6B7280',
-              fontSize: 14,
-            }}
-          >
-            Everything you need to know, explained simply.
-          </p>
-        </div>
+    <div
+      style={{
+        maxWidth: 760,
+        margin: '0 auto',
+        padding: '32px 20px 80px',
+      }}
+    >
+      {/* Header */}
 
-        {/* FAQ */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {FAQ.map((item, i) => {
-            const open = openIndex === i
+      <div
+        style={{
+          marginBottom: 34,
+        }}
+      >
+        <h1
+          style={{
+            fontSize: 32,
+            fontWeight: 800,
+            letterSpacing: '-0.8px',
+            color: '#111827',
+            marginBottom: 10,
+          }}
+        >
+          Help & FAQ
+        </h1>
 
-            return (
-              <div
-                key={i}
-                style={{
-                  border: '1px solid #E5E7EB',
-                  borderRadius: 14,
-                  overflow: 'hidden',
-                  background: '#FFFFFF',
-                  transition: 'box-shadow 0.15s ease',
-                  boxShadow: open
-                    ? '0 2px 8px rgba(0,0,0,0.04)'
-                    : '0 1px 2px rgba(0,0,0,0.03)',
-                }}
-              >
-                {/* QUESTION */}
-                <button
-                  onClick={() => setOpenIndex(open ? null : i)}
-                  style={{
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: 16,
-                    background: open ? '#F9FAFB' : '#F9FAFB',
-                    border: 'none',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    fontSize: 15,
-                    fontWeight: 500,
-                  }}
-                >
-                  <span>{item.q}</span>
-                  <span
-                    style={{
-                      transform: open
-                        ? 'rotate(180deg)'
-                        : 'rotate(0deg)',
-                      transition: 'transform 0.2s ease',
-                      fontSize: 12,
-                      opacity: 0.7,
-                    }}
-                  >
-                    ▾
-                  </span>
-                </button>
+        <p
+          style={{
+            color: '#6B7280',
+            fontSize: 16,
+            lineHeight: 1.7,
+            maxWidth: 560,
+          }}
+        >
+          Learn how EggPuff works, discover helpful tips,
+          and find answers to common questions.
+        </p>
+      </div>
 
-                {/* ANSWER (Smooth Animation) */}
-                <div
-                  style={{
-                    maxHeight: open ? 300 : 0,
-                    overflow: 'hidden',
-                    transition:
-                      'max-height 0.25s ease, opacity 0.2s ease',
-                    opacity: open ? 1 : 0,
-                  }}
-                >
-                  <div
-                    style={{
-                      padding: 16,
-                      background: '#FFFFFF',
-                      fontSize: 14,
-                      color: '#374151',
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {item.a}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+      {/* FAQ */}
 
-        {/* BACK BUTTON */}
-        <div style={{ marginTop: 36 }}>
-          <Link href="/feed">
-            <button
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 14,
+        }}
+      >
+        {FAQ.map((item, i) => {
+          const open = openIndex === i
+
+          return (
+            <div
+              key={i}
               style={{
-                padding: '8px 14px',
-                borderRadius: 10,
                 border: '1px solid #E5E7EB',
+                borderRadius: 18,
+                overflow: 'hidden',
                 background: '#FFFFFF',
-                cursor: 'pointer',
-                fontSize: 14,
+                boxShadow: open
+                  ? '0 6px 18px rgba(0,0,0,.05)'
+                  : '0 1px 3px rgba(0,0,0,.03)',
+                transition: 'all .2s ease',
               }}
             >
-              ← Back to feed
-            </button>
-          </Link>
-        </div>
+              {/* Question */}
 
-        {/* SUPPORT FOOTER */}
-        <div
+              <button
+                onClick={() =>
+                  setOpenIndex(open ? null : i)
+                }
+                style={{
+                  width: '100%',
+                  padding: '18px 20px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: '#FFFFFF',
+                  textAlign: 'left',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 600,
+                    color: '#111827',
+                  }}
+                >
+                  {item.q}
+                </span>
+
+                <span
+                  style={{
+                    fontSize: 18,
+                    color: '#9CA3AF',
+                    transform: open
+                      ? 'rotate(180deg)'
+                      : 'rotate(0deg)',
+                    transition: '.2s',
+                    userSelect: 'none',
+                  }}
+                >
+                  ▾
+                </span>
+              </button>
+
+              <div
+                style={{
+                  maxHeight: open ? 500 : 0,
+                  overflow: 'hidden',
+                  transition:
+                    'max-height .25s ease, opacity .2s ease',
+                  opacity: open ? 1 : 0,
+                }}
+              >
+                <div
+                  style={{
+                    padding: '0 20px 20px',
+                    color: '#4B5563',
+                    fontSize: 15,
+                    lineHeight: 1.8,
+                    whiteSpace: 'pre-line',
+                  }}
+                >
+                  {item.a}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+            {/* Need More Help */}
+
+      <div
+        style={{
+          marginTop: 44,
+          padding: 24,
+          borderRadius: 18,
+          background: '#FFF8ED',
+          border: '1px solid #FDE7B0',
+        }}
+      >
+        <h2
           style={{
-            marginTop: 48,
-            paddingTop: 18,
-            borderTop: '1px solid rgba(0,0,0,0.06)',
-            textAlign: 'center',
-            fontSize: 13,
+            fontSize: 22,
+            fontWeight: 700,
+            color: '#111827',
+            marginBottom: 12,
+          }}
+        >
+          Need more help?
+        </h2>
+
+        <p
+          style={{
+            color: '#4B5563',
+            lineHeight: 1.8,
+            fontSize: 15,
+          }}
+        >
+          Can't find what you're looking for?
+          <br />
+          Send us an email and we'll be happy to help.
+        </p>
+
+        <a
+          href="mailto:support@eggpuff.in"
+          style={{
+            display: 'inline-block',
+            marginTop: 18,
+            color: '#D97706',
+            fontWeight: 700,
+            fontSize: 17,
+            textDecoration: 'none',
+          }}
+        >
+          support@eggpuff.in
+        </a>
+
+        <p
+          style={{
+            marginTop: 14,
+            fontSize: 14,
             color: '#6B7280',
           }}
         >
-          Need help or feedback? Contact us 📩{' '}
-          <a
-            href="mailto:support@eggpuff.in"
+          We usually respond within <strong>24–48 hours.</strong>
+        </p>
+      </div>
+
+      {/* Back */}
+
+      <div
+        style={{
+          marginTop: 36,
+        }}
+      >
+        <Link href="/feed">
+          <button
             style={{
+              width: '100%',
+              height: 52,
+              borderRadius: 14,
+              border: '1px solid #E5E7EB',
+              background: '#FFFFFF',
+              cursor: 'pointer',
+              fontSize: 15,
+              fontWeight: 600,
               color: '#111827',
-              fontWeight: 500,
-              textDecoration: 'none',
+              transition: '.15s',
             }}
           >
-            support@eggpuff.in
-          </a>
-        </div>
+            Back
+          </button>
+        </Link>
       </div>
-    </>
+
+      {/* Footer */}
+
+      <div
+        style={{
+          marginTop: 48,
+          paddingTop: 22,
+          borderTop: '1px solid #E5E7EB',
+          textAlign: 'center',
+        }}
+      >
+        <p
+          style={{
+            color: '#6B7280',
+            fontSize: 14,
+            lineHeight: 1.8,
+          }}
+        >
+          We're constantly improving EggPuff.
+          <br />
+          Every question, bug report, and suggestion helps us build a better
+          campus experience.
+        </p>
+
+        <p
+          style={{
+            marginTop: 14,
+            color: '#9CA3AF',
+            fontSize: 13,
+          }}
+        >
+          Thank you for being part of EggPuff ❤️
+        </p>
+      </div>
+    </div>
   )
 }

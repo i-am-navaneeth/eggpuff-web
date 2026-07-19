@@ -7,8 +7,10 @@ export async function POST(req: NextRequest) {
     const payload = await req.json();
 
     const title = payload.title?.trim() ?? "";
-    const body = payload.body?.trim() ?? "";
-    const link = payload.link?.trim() || null;
+const body = payload.body?.trim() ?? "";
+const link = payload.link?.trim() || null;
+
+const actorId = payload.actorId ?? null;
 
     /* ==========================================================
        Validation
@@ -67,14 +69,15 @@ export async function POST(req: NextRequest) {
     ========================================================== */
 
     const { data: sentCount, error } =
-      await supabaseAdmin.rpc(
-        "send_notification_to_everyone",
-        {
-          p_title: title,
-          p_body: body,
-          p_link: link,
-        }
-      );
+  await supabaseAdmin.rpc(
+    "send_notification_to_everyone",
+    {
+      p_title: title,
+      p_body: body,
+      p_link: link,
+      p_actor_id: actorId,
+    }
+  );
 
       
     if (error) {
@@ -108,7 +111,7 @@ const { error: historyError } =
       status: "sent",
       recipient_count: sentCount ?? 0,
       source: "manual",
-      created_by: null, // We'll improve this next
+      created_by: actorId,
     });
 
 if (historyError) {

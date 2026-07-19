@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 
 import type {
   QuestionRow,
+  CategoryWithCount,
 } from '../types'
 
 type Options = {
@@ -21,45 +23,52 @@ export function useFeedCache({
   setLoading,
 }: Options) {
   useEffect(() => {
+  const loadCache = async () => {
     try {
-      const cached =
-        localStorage.getItem(
-          'feed_cache'
-        )
+      const {
+  data: { session },
+} = await supabase.auth.getSession()
 
-      if (!cached) return
+const userId = session?.user?.id
 
-      const parsed =
-        JSON.parse(cached)
+if (!userId) return
 
-      if (!Array.isArray(parsed))
-        return
+const cacheKey =
+  `feed_cache_${userId}`
 
-      const deletedIds =
-        JSON.parse(
-          localStorage.getItem(
-            'deleted_questions'
-          ) || '[]'
-        )
+const cached =
+  localStorage.getItem(cacheKey)
 
-      const cleaned =
-        parsed.filter(
-          (q: any) =>
-            !deletedIds.includes(
-              q.id
-            )
-        )
+if (!cached) return
 
-      setQuestions(cleaned)
+const parsed = JSON.parse(cached)
 
-      setLoading(false)
+if (!Array.isArray(parsed))
+  return
+
+const deletedIds = JSON.parse(
+  localStorage.getItem(
+    'deleted_questions'
+  ) || '[]'
+)
+
+const cleaned = parsed.filter(
+  (q: any) =>
+    !deletedIds.includes(q.id)
+)
+
+setQuestions(cleaned)
+setLoading(false)
     } catch (e) {
       console.warn(
         'cache parse failed',
         e
       )
     }
-  }, [setQuestions, setLoading])
+  }
+
+  loadCache()
+}, [setQuestions, setLoading])
 }
 
 export default useFeedCache

@@ -36,7 +36,7 @@ export default function PushInit() {
         await navigator.serviceWorker.ready
 
         if (!navigator.serviceWorker.controller) {
-          console.log('⚠️ No controller yet — reloading...')
+         
           window.location.reload()
           return
         }
@@ -53,7 +53,6 @@ export default function PushInit() {
           })
         }
 
-        console.log('🚀 Sending subscription...')
 
 const {
   data: { session },
