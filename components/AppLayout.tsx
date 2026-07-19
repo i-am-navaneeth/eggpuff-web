@@ -20,6 +20,7 @@ export default function Layout({
 
   const [userId, setUserId] = useState<string | null>(null)
   const pathname = usePathname()
+  console.log(pathname)
 
 const showFeedHost =
   pathname !== '/notifications'
@@ -27,14 +28,11 @@ const showFeedHost =
   const hideTopBar =
   pathname.startsWith('/search') ||
   pathname.startsWith('/ask') ||
-  pathname.startsWith('/profile')
+  pathname.startsWith('/profile') ||
+  pathname.startsWith('/communities')
 
 const showTopBar = !hideTopBar
 
-console.log({
-  pathname,
-  showTopBar,
-})
   const isSearch = pathname.startsWith('/search')
   const onRefreshFeed = () => {
   window.dispatchEvent(

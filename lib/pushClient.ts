@@ -73,5 +73,4 @@ export async function registerBrowserSubscription() {
     throw error
   }
 
-  console.log('✅ Push subscription saved.')
 }

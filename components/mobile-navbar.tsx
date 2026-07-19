@@ -23,6 +23,55 @@ export default function MobileNavbar({ userId }: { userId?: string }) {
 
   const isActive = (path: string) => pathname === path
 
+  const handleHomeClick = () => {
+  // Already on Feed
+  if (pathname === '/feed') {
+    // Smooth scroll to top
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
+
+    let cancelled = false
+
+    const cancelRefresh = () => {
+      cancelled = true
+
+      window.removeEventListener('touchstart', cancelRefresh)
+      window.removeEventListener('wheel', cancelRefresh)
+      window.removeEventListener('keydown', cancelRefresh)
+    }
+
+    window.addEventListener('touchstart', cancelRefresh, {
+      once: true,
+      passive: true,
+    })
+
+    window.addEventListener('wheel', cancelRefresh, {
+      once: true,
+      passive: true,
+    })
+
+    window.addEventListener('keydown', cancelRefresh, {
+      once: true,
+    })
+
+    setTimeout(() => {
+      cancelRefresh()
+
+      if (!cancelled) {
+        window.dispatchEvent(
+          new CustomEvent('feed-refresh')
+        )
+      }
+    }, 700)
+
+    return
+  }
+
+  router.push('/feed')
+}
+
   const [username, setUsername] = useState<string | null>(null)
 
 useEffect(() => {
@@ -277,11 +326,11 @@ if (shouldHideNavbar) return null
 
         {/* HOME */}
         <NavItem
-          icon={<HomeIcon />}
-          label="Home"
-          active={isActive('/feed')}
-          onClick={() => router.push('/feed')}
-        />
+  icon={<HomeIcon />}
+  label="Home"
+  active={isActive('/feed')}
+  onClick={handleHomeClick}
+/>
 
         {/* SEARCH */}
         <NavItem

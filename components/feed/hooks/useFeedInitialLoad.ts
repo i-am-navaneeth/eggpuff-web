@@ -14,6 +14,8 @@ import { PAGE_SIZE } from '../constants'
 
 import { saveLastVisit } from '../utils'
 
+import { saveLaunchCache } from '../launchCache'
+
 type Props = {
   questions: QuestionRow[]
   loaded: boolean
@@ -73,39 +75,36 @@ useEffect(() => {
 let mounted = true
 
     const load = async () => {
+      
       if (!questions.length && !loaded) setLoading(true)
 
       createProfileIfNotExists()
 
-      const sessionRes = await supabase.auth.getSession()
-      const user = sessionRes.data?.session?.user
+      
 
-      setUserId(user?.id ?? null)
+const sessionRes = await supabase.auth.getSession()
 
-// 1️⃣ Check profile FIRST
-const { data: profile } = await supabase
-  .from('profiles')
-  .select('college_id, batch_year')
-  .eq('user_id', user?.id)
-  .single()
 
-if (!mounted) return
+const user = sessionRes.data?.session?.user
 
-const onboardingComplete =
-  !!profile?.college_id &&
-  !!profile?.batch_year
+setUserId(user?.id ??null)
 
-if (!onboardingComplete) {
-  router.replace('/profile')
-  return
-}
 
-// 2️⃣ Only load the feed for completed users
+// 🚀 Fetch everything in parallel
+
+
 const [
+  profileRes,
   feedRes,
   catsRes,
   promoRes,
 ] = await Promise.all([
+
+  supabase
+    .from('profiles')
+    .select('college_id, batch_year')
+    .eq('user_id', user?.id)
+    .single(),
 
   supabase.rpc('get_smart_feed', {
     p_user_id: user?.id,
@@ -132,10 +131,28 @@ const [
     }),
 ])
 
+
+const profile = profileRes.data
+
+if (!mounted) return
+
+const onboardingComplete =
+  !!profile?.college_id &&
+  !!profile?.batch_year
+
+if (!onboardingComplete) {
+  router.replace('/profile')
+  return
+}
+
 const questionsData =
   (feedRes.data ?? []) as QuestionRow[]
 
-    mergeBatch(questionsData)
+
+
+mergeBatch(questionsData)
+
+
 
 // mergeBatch already advances the offset.
 // Don't manually set it again.
@@ -148,6 +165,7 @@ saveLastVisit()
       setLoaded(true)
 
       setTimeout(() => {
+       
         if (!mounted) return
 
         const nowTime = Date.now()
@@ -171,12 +189,27 @@ saveLastVisit()
 
         const promoItems =
           (promoRes.data ?? [])
-            .map((p: any) => ({
-              link: p.link,
-              creator: profileMap[p.user_id],
-            }))
-            .filter(p => p.creator?.college_id === profile?.college_id) || []
+            .map((p: any) => {
+  console.log(
+    'Promotion creator:',
+    profileMap[p.user_id]
+  )
 
+  return {
+    link: p.link,
+    creator: profileMap[p.user_id],
+  }
+})           
+            .filter(p => p.creator?.college_id === profile?.college_id) || []
+console.log({
+  profileMap,
+  viewerCollege: profile?.college_id,
+})
+     console.log({
+  rawPromotions: promoRes.data,
+  promoItems,
+})
+      
         setPromoted(promoItems)
 
         const catsData = (catsRes.data ?? []) as Category[]
@@ -224,29 +257,42 @@ saveLastVisit()
         setLoading(false)
         setProfile(profile)
         setProfileLoading(false)
-
-        setTimeout(() => {
+        try {
+  if (user?.id) {
+    saveLaunchCache(user.id, {
+      categories: categoriesWithCount,
+      promoted: promoItems,
+    })
+  }
+} catch (err) {
+  console.warn(
+    'Failed to save launch cache',
+    err
+  )
+}
   try {
-    const deletedIds = JSON.parse(
-      localStorage.getItem(
-        'deleted_questions'
-      ) || '[]'
-    )
+  const deletedIds = JSON.parse(
+    localStorage.getItem(
+      'deleted_questions'
+    ) || '[]'
+  )
 
-    const cleaned =
-      questionsData.filter(
-        (q: any) =>
-          !deletedIds.includes(q.id)
-      )
+  const cleaned = questionsData.filter(
+    (q: any) => !deletedIds.includes(q.id)
+  )
 
+  if (user?.id) {
     localStorage.setItem(
-      'feed_cache',
-      JSON.stringify(
-        cleaned.slice(0, 10)
-      )
+      `feed_cache_${user.id}`,
+      JSON.stringify(cleaned)
     )
-  } catch {}
-}, 1000)
+  }
+} catch (err) {
+  console.warn(
+    'Failed to save feed cache',
+    err
+  )
+}
 
 }, 0)
     }

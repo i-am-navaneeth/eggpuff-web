@@ -1,10 +1,10 @@
 self.addEventListener('install', (event) => {
-  console.log('SW installing...')
+
   self.skipWaiting()
 })
 
 self.addEventListener('activate', (event) => {
-  console.log('SW activating...')
+
   event.waitUntil(self.clients.claim()) // 🔥 THIS IS CRITICAL
 })
 

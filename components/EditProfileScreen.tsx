@@ -1,5 +1,5 @@
 'use client';
-console.log('EDIT PROFILE SCREEN MOUNTED');
+
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
@@ -208,7 +208,6 @@ const user = session?.user
   .eq("user_id", user?.id)
   .select();
 
-console.log(data, error);
 
     if (error) {
       console.error('Profile update failed:', error);
@@ -371,18 +370,6 @@ useEffect(() => {
   };
 
   if (loading) return <div style={{ padding: 20 }}>Loading your profile...</div>;
-
-  console.log({
-  isFormValid,
-  isChanged,
-  canSave,
-  originalProfile,
-  name,
-  username,
-  batchYear,
-  collegeId,
-  avatar,
-});
 
 return (
   <div
@@ -942,7 +929,6 @@ const user = session?.user
       <div
         key={c.id}
         onClick={() => {
-  console.log("College selected:", c)
 
   setCollegeId(c.id)
   setCollegeName(c.name)
@@ -980,7 +966,6 @@ onMouseLeave={(e) => {
 <select
   value={batchYear}
   onChange={(e) => {
-  console.log("Batch:", e.target.value)
   setBatchYear(e.target.value)
 }}
   style={{

@@ -342,7 +342,33 @@ useEffect(() => {
 
     setFriendsCount(mutual.length)
 
-    setEp(epValue || 0)
+    const cacheKey =
+  `ep_points_${profileData.user_id}`
+
+const cachedEp =
+  localStorage.getItem(cacheKey)
+
+if (cachedEp !== null) {
+  setEp(Number(cachedEp))
+}
+
+    const nextEp = epValue || 0
+
+setEp(nextEp)
+
+localStorage.setItem(
+  cacheKey,
+  String(nextEp)
+)
+
+window.dispatchEvent(
+  new CustomEvent('ep-updated', {
+    detail: {
+      userId: profileData.user_id,
+      ep: nextEp,
+    },
+  })
+)
 
     setIsFollowing(
       !!followState.data

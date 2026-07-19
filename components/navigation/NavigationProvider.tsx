@@ -207,7 +207,6 @@ const close = useCallback(() => {
  const openProfile =
   useCallback(
     (username: string) => {
-      console.log("OPEN PROFILE CALLED")
 
       open(`/u/${username}`)
     },

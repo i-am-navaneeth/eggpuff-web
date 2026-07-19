@@ -70,10 +70,6 @@ export default function OverlayContainer({
         handleKeyDown
       )
   }, [onClose])
-  console.log({
-  topInset,
-  bottomInset,
-})
 
   return (
     <div

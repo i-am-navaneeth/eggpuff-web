@@ -13,8 +13,6 @@ export async function POST(req: Request) {
   try {
     const sub = await req.json()
 
-    console.log('📥 Incoming subscription:', sub)
-
     // ✅ Basic validation (keeps your logic safe)
     if (!sub || !sub.endpoint) {
       console.error('❌ Invalid subscription object')
@@ -79,8 +77,6 @@ if (error) {
     }
   );
 }
-
-    console.log('✅ Stored successfully:', data)
 
     return NextResponse.json({
       success: true,
