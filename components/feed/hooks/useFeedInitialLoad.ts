@@ -120,15 +120,21 @@ const [
     }),
 
   supabase
-    .from('pyp_promotions')
-    .select('link, user_id')
-    .gt(
-      'expires_at',
-      new Date().toISOString()
-    )
-    .order('started_at', {
-      ascending: false,
-    }),
+  .from('pyp_promotions')
+  .select(`
+    id,
+    user_id,
+    category,
+    link,
+    caption,
+    discoveries_delivered,
+    click_count,
+    status
+  `)
+  .eq('status', 'active')
+  .order('started_at', {
+    ascending: false,
+  }),
 ])
 
 
@@ -152,7 +158,30 @@ const questionsData =
 
 mergeBatch(questionsData)
 
+const creatorIds = [
+  ...new Set(
+    (promoRes.data ?? []).map((p: any) => p.user_id)
+  ),
+]
 
+const { data: creatorProfiles } = await supabase
+  .from('profiles')
+  .select(`
+    user_id,
+    name,
+    username,
+    avatar_url,
+    is_verified,
+    streak_count,
+    college_id
+  `)
+  .in('user_id', creatorIds)
+
+const creatorMap: Record<string, any> = {}
+
+;(creatorProfiles ?? []).forEach((creator: any) => {
+  creatorMap[creator.user_id] = creator
+})
 
 // mergeBatch already advances the offset.
 // Don't manually set it again.
@@ -170,47 +199,30 @@ saveLastVisit()
 
         const nowTime = Date.now()
 
-        const profileMap: Record<string, any> = {}
-        questionsData.forEach(q => {
-          const row = q as any
-          profileMap[row.user_id] = {
-  user_id: row.user_id,
-  name: row.user_name,
-  username: row.username,
-  avatar_url: row.avatar_url,
-  is_verified: row.is_verified,
-  streak_count:
-    row.streak_count ?? 0,
+const promoItems: any[] = []
 
-  college_id:
-    row.college_id ?? null,
-}
-        })
+;(promoRes.data ?? []).forEach((p: any) => {
+  const creator = creatorMap[p.user_id]
 
-        const promoItems =
-          (promoRes.data ?? [])
-            .map((p: any) => {
-  console.log(
-    'Promotion creator:',
-    profileMap[p.user_id]
-  )
+  if (!creator) return
 
-  return {
+  if (creator.college_id !== profile?.college_id)
+    return
+
+  promoItems.push({
+    id: p.id,
+    category: p.category,
     link: p.link,
-    creator: profileMap[p.user_id],
-  }
-})           
-            .filter(p => p.creator?.college_id === profile?.college_id) || []
-console.log({
-  profileMap,
-  viewerCollege: profile?.college_id,
+    caption: p.caption,
+    discoveries:
+      p.discoveries_delivered ?? 0,
+    clicks:
+      p.click_count ?? 0,
+    creator,
+  })
 })
-     console.log({
-  rawPromotions: promoRes.data,
-  promoItems,
-})
-      
-        setPromoted(promoItems)
+
+setPromoted(promoItems)
 
         const catsData = (catsRes.data ?? []) as Category[]
         const countsMap: Record<string, number> = {}

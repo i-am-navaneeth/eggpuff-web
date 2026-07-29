@@ -1,17 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import { useNotify } from './NotificationProvider'
-import PYPSetup from './PYPSetup'
 
 type Step =
   | 'choose'
   | 'pay'
   | 'utr'
   | 'pending'
-  | 'pyp'
-  | 'pyp_setup'
 
 type Props = {
   open: boolean
@@ -29,6 +27,9 @@ export default function BuyPuffModal({
   const [utr, setUtr] = useState('')
   const [step, setStep] = useState<Step>('choose')
   const { notify } = useNotify()
+
+  const router = useRouter()
+
 
   /* ---------------- RESET EVERY TIME MODAL OPENS ---------------- */
   useEffect(() => {
@@ -163,9 +164,12 @@ border: 'none',
 
           <button
             style={secondaryBtn}
-            onClick={() => setStep('pyp')}
+            onClick={() => {
+  onClose()
+  router.push('/pyp')
+}}
           >
-            ✨ Promote (PYP)
+            ✨ Promote Your Profile
           </button>
         </>
       )}
@@ -225,25 +229,6 @@ border: 'none',
 >
   Submit
 </button>
-        </>
-      )}
-
-      {/* STEP: PYP SETUP */}
-      {step === 'pyp' && userId && (
-        <>
-          {balance < 14 && (
-            <p style={{ color: '#B45309', fontSize: 13 }}>
-              You need <b>14 🥐</b> to publish this promotion.
-            </p>
-          )}
-
-          <PYPSetup
-            userId={userId}
-            onDone={() => {
-              notify('✨ Promotion started!')
-              onClose()
-            }}
-          />
         </>
       )}
 

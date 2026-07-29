@@ -9,10 +9,12 @@ import {
   type SetStateAction,
 } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { openExternal } from '@/lib/openExternal'
 import { supabase } from '@/lib/supabase'
 import PromoteBanner from '@/components/PromoteBanner'
 import QuestionFilterSheet from '@/components/QuestionFilterSheet'
 import QuestionCard from '@/components/QuestionCard'
+import CampusSpotlight from '@/components/feed/CampusSpotlight'
 import QuestionCardSkeleton from '@/components/QuestionCardSkeleton'
 import Skeleton from '@/components/Skeleton'
 import { useNotify } from '@/components/NotificationProvider'
@@ -21,28 +23,13 @@ import { useMemo } from 'react'
 import { useNavigation } from '@/components/navigation/NavigationProvider'
 import IPLScoreCard from '@/components/IPLScoreCard'
 import type {
-  Category,
   CategoryWithCount,
   FilterType,
   QuestionRow,
-  Question,
-  Profile,
-  FeedCursor,
 } from './types'
 
 import {
-  PAGE_SIZE,
-  FEED_LAST_VISIT_KEY,
-} from './constants'
-
-import {
-  getLastVisit,
-  saveLastVisit,
-} from './utils'
-
-import {
   getUserId,
-  fetchPage,
 } from './api'
 
 import { useFeedClock } from './hooks/useFeedClock'
@@ -62,6 +49,10 @@ import { useFeedInitialLoad } from './hooks/useFeedInitialLoad'
 import { useVisibleQuestions } from './hooks/useVisibleQuestions'
 import { useFeedRefresh } from './hooks/useFeedRefresh'
 import { useInfiniteObserver } from './hooks/useInfiniteObserver'
+import { completePypDiscovery } from '@/lib/completePypDiscovery'
+import {
+  buildFeedItems,
+} from './utils/buildFeedItems'
 
 // ─────────────────────────────────────────────
 // Component
@@ -214,6 +205,16 @@ const visibleQuestions =
     categories,
   })
 
+const feedItems = useMemo(
+  () =>
+    buildFeedItems({
+      questions: visibleQuestions,
+      promotions: promoted,
+      interval: 6,
+    }),
+  [visibleQuestions, promoted]
+)
+
   // ─────────────────────────────────────────────
   // Handlers
   // ─────────────────────────────────────────────
@@ -248,6 +249,38 @@ useFeedRealtime({
   setShowNewBanner,
 })
 
+useEffect(() => {
+  const handleReturn = () => {
+    if (document.visibilityState === 'visible') {
+      completePypDiscovery()
+    }
+  }
+
+  document.addEventListener(
+    'visibilitychange',
+    handleReturn
+  )
+
+  window.addEventListener(
+    'focus',
+    handleReturn
+  )
+
+  // Covers refresh / direct reopen
+  completePypDiscovery()
+
+  return () => {
+    document.removeEventListener(
+      'visibilitychange',
+      handleReturn
+    )
+
+    window.removeEventListener(
+      'focus',
+      handleReturn
+    )
+  }
+}, [])
   /* -------------------- UI -------------------- */
 
   return (
@@ -397,10 +430,6 @@ pointerEvents: 'none',
             <QuestionCardSkeleton key={i} />
           ))}
 
-          {!loading && promoted.length > 0 && (
-            <PromoteBanner links={promoted} />
-          )}
-
           {/* Filter sheet temporarily hidden */}
 
           {!loading &&
@@ -481,14 +510,37 @@ pointerEvents: 'none',
 
           {!loading && (
   <div className="space-y-3">
-    {visibleQuestions.map((q: QuestionRow) => (
+    {feedItems.map((item, index) => {
+  if (item.type === 'promotion') {
+    return (
+      <CampusSpotlight
+        key={`promotion-${item.promotion.id}-${index}`}
+        name={item.promotion.creator.name}
+        avatar={item.promotion.creator.avatar_url}
+        category={item.promotion.category}
+        caption={item.promotion.caption}
+        discoveries={item.promotion.discoveries}
+        onClick={() => {
+          console.log('Promotion:', item.promotion)
+
+          openExternal(
+            item.promotion.id,
+            item.promotion.link
+          )
+        }}
+      />
+    )
+  }
+
+  const q = item.question
+
+  return (
+    <div key={`${q.id}-${q._missed ? 'missed' : 'normal'}`}>
       <div
-        key={`${q.id}-${q._missed ? 'missed' : 'normal'}`}
         data-question-id
         data-id={q.id}
         data-created-at={q.created_at}
       >
-      
         <QuestionCard
           q={q}
           currentUserId={userId}
@@ -518,15 +570,15 @@ pointerEvents: 'none',
               )
 
               try {
-  if (userId) {
-    localStorage.setItem(
-      `feed_cache_${userId}`,
-      JSON.stringify(
-        updated.slice(0, 10)
-      )
-    )
-  }
-} catch {}
+                if (userId) {
+                  localStorage.setItem(
+                    `feed_cache_${userId}`,
+                    JSON.stringify(
+                      updated.slice(0, 10)
+                    )
+                  )
+                }
+              } catch {}
 
               return updated
             })
@@ -539,26 +591,27 @@ pointerEvents: 'none',
             )
           }}
         />
-        
       </div>
-    ))}
-  </div>
-)}
+    </div>
+  )
+})}
+     </div>
+     )}
 
           {loadingMore &&
-  hasMore &&
-  visibleQuestions.length > 0 && (
-    <div
+      hasMore &&
+       visibleQuestions.length > 0 && (
+          <div
       style={{
         textAlign: 'center',
         padding: '16px 0',
         fontSize: 14,
         color: '#9CA3AF',
       }}
-    >
+      >
       Loading more...
-    </div>
-)}
+      </div>
+      )}
 
           {/* ✅ FIX 1 + FIX 2: Sentinel is inside <main>, after the list.
                No longer in a position:fixed container.
