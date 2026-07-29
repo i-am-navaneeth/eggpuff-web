@@ -288,6 +288,11 @@ if (pathname.startsWith('/communities/')) {
   return null
 }
 
+// 🔥 Hide on all /pyp pages
+if (pathname.startsWith('/pyp')) {
+  return null
+}
+
 // 🔥 Hide on other users profile pages
 if (
   pathname.startsWith('/u/') &&

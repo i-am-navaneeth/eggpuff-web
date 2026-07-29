@@ -1,44 +1,53 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 
 export default function useScrollVisibility() {
   const [showUI, setShowUI] = useState(true)
 
-  useEffect(() => {
-    let lastScrollY = window.scrollY
-    let ticking = false
+  const pathname = usePathname()
 
-    const update = () => {
-      const currentScrollY = window.scrollY
+const disableAutoHide =
+  pathname.startsWith('/pyp')
 
-      // 👉 Always show UI at top
-      if (currentScrollY < 20) {
-        setShowUI(true)
-      } 
-      // 👉 Scrolling DOWN → hide UI
-      else if (currentScrollY > lastScrollY) {
-       setTimeout(() => setShowUI(false), 50)
-      } 
-      // 👉 Scrolling UP → show UI
-      else {
-        setShowUI(true)
-      }
+useEffect(() => {
+  if (disableAutoHide) {
+    setShowUI(true)
+    return
+  }
 
-      lastScrollY = currentScrollY
-      ticking = false
+  let lastScrollY = window.scrollY
+  let ticking = false
+
+  const update = () => {
+    const currentScrollY = window.scrollY
+
+    if (currentScrollY < 20) {
+      setShowUI(true)
+    } else if (currentScrollY > lastScrollY) {
+      setTimeout(() => setShowUI(false), 50)
+    } else {
+      setShowUI(true)
     }
 
-    const onScroll = () => {
-      if (!ticking) {
-        requestAnimationFrame(update)
-        ticking = true
-      }
-    }
+    lastScrollY = currentScrollY
+    ticking = false
+  }
 
-    window.addEventListener('scroll', onScroll)
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+  const onScroll = () => {
+    if (!ticking) {
+      requestAnimationFrame(update)
+      ticking = true
+    }
+  }
+
+  window.addEventListener('scroll', onScroll)
+
+  return () => {
+    window.removeEventListener('scroll', onScroll)
+  }
+}, [disableAutoHide])
 
   return showUI
 }

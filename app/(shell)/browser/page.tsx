@@ -21,20 +21,36 @@ export default function BrowserPage() {
     useState(true)
 
   useEffect(() => {
+  if (!url) return
 
-    const timer = setTimeout(() => {
+  let timeout: ReturnType<typeof setTimeout>
 
-      // 🔥 most blocked sites never fully load
+  try {
+    const parsed = new URL(url)
+
+    if (
+      parsed.protocol !== 'https:' &&
+      parsed.protocol !== 'http:'
+    ) {
       setBlocked(true)
-
       setLoading(false)
+      return
+    }
+  } catch {
+    setBlocked(true)
+    setLoading(false)
+    return
+  }
 
-    }, 3500)
+  timeout = setTimeout(() => {
+    if (loading) {
+      setBlocked(true)
+      setLoading(false)
+    }
+  }, 5000)
 
-    return () =>
-      clearTimeout(timer)
-
-  }, [])
+  return () => clearTimeout(timeout)
+}, [url, loading])
 
   if (!url) return null
 
@@ -54,26 +70,32 @@ export default function BrowserPage() {
       {!blocked && (
 
         <iframe
-          src={url}
+  src={url}
+  onLoad={() => {
+    setLoading(false)
 
-          onLoad={() => {
-            setLoading(false)
-          }}
-
-          style={{
-            width: '100%',
-            height: '100%',
-            border: 'none',
-            background: '#fff',
-          }}
-
-          sandbox="
-            allow-same-origin
-            allow-scripts
-            allow-popups
-            allow-forms
-          "
-        />
+    // Instagram, LinkedIn, X, Facebook and many
+    // other sites block embedding but still fire onLoad.
+    // Show the fallback for known blocked domains.
+    if (
+      /instagram|facebook|linkedin|x\.com|twitter|threads/i.test(url)
+    ) {
+      setBlocked(true)
+    }
+  }}
+  style={{
+    width: '100%',
+    height: '100%',
+    border: 'none',
+    background: '#fff',
+  }}
+  sandbox="
+    allow-same-origin
+    allow-scripts
+    allow-popups
+    allow-forms
+  "
+/>
 
       )}
 
@@ -111,76 +133,86 @@ export default function BrowserPage() {
       )}
 
       {/* PREMIUM FALLBACK */}
-      {blocked && (
+{blocked && (
 
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'linear-gradient(to bottom, #FFFFFF, #FAFAFA)',
+  <div
+    style={{
+      position: 'absolute',
+      inset: 0,
+      background:
+        'linear-gradient(to bottom,#FFFFFF,#FAFAFA)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 28,
+      textAlign: 'center',
+    }}
+  >
 
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
+    <div
+      style={{
+        width: 72,
+        height: 72,
+        borderRadius: '50%',
+        background: '#FFF7E8',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 34,
+        marginBottom: 20,
+      }}
+    >
+      🌐
+    </div>
 
-            padding: 28,
-            textAlign: 'center',
-          }}
-        >
+    <div
+      style={{
+        fontSize: 20,
+        fontWeight: 700,
+        color: '#111827',
+        marginBottom: 8,
+      }}
+    >
+      Couldn't preview {domain ?? 'this website'}
+    </div>
 
-          {/* SUBTEXT */}
-          <div
-            style={{
-              fontSize: 15,
-              lineHeight: 1.7,
-              color: '#6B7280',
-              maxWidth: 320,
-              marginBottom: 34,
-            }}
-          >
-            Oops! Failed to load.
-          </div>
+    <div
+      style={{
+        fontSize: 14,
+        lineHeight: 1.7,
+        color: '#6B7280',
+        maxWidth: 320,
+        marginBottom: 28,
+      }}
+    >
+      You can continue in your browser instead.
+    </div>
 
-          {/* BUTTON */}
-          <button
-            onClick={() => {
-              window.open(
-                url,
-                '_blank'
-              )
-            }}
-            style={{
-              border: 'none',
+    <button
+      onClick={() => {
+        window.location.href = url
+      }}
+      style={{
+        border: 'none',
+        background: '#111827',
+        color: '#FFFFFF',
+        padding: '15px 26px',
+        borderRadius: 999,
+        fontSize: 15,
+        fontWeight: 700,
+        cursor: 'pointer',
+        minWidth: 220,
+        boxShadow:
+          '0 10px 24px rgba(17,24,39,.18)',
+      }}
+    >
+      Open in browser
+    </button>
 
-              background:
-                '#111827',
+  </div>
 
-              color: '#fff',
-
-              padding:
-                '15px 24px',
-
-              borderRadius: 999,
-
-              fontSize: 15,
-              fontWeight: 700,
-
-              cursor: 'pointer',
-
-              minWidth: 210,
-
-              boxShadow:
-                '0 10px 24px rgba(17,24,39,0.18)',
-            }}
-          >
-            Open in Browser
-          </button>
-
-        </div>
-
-      )}
+)}
 
       <style jsx>{`
         @keyframes spin {
