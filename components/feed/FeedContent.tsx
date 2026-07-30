@@ -210,7 +210,6 @@ const feedItems = useMemo(
     buildFeedItems({
       questions: visibleQuestions,
       promotions: promoted,
-      interval: 6,
     }),
   [visibleQuestions, promoted]
 )
