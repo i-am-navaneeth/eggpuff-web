@@ -293,6 +293,17 @@ if (pathname.startsWith('/pyp')) {
   return null
 }
 
+if (pathname.startsWith('/reader/')) {
+  return null
+}
+
+// 🔥 Hide inside Campus Match room
+if (
+  pathname.startsWith('/campus-match')
+) {
+  return null
+}
+
 // 🔥 Hide on other users profile pages
 if (
   pathname.startsWith('/u/') &&

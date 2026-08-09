@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { createPortal } from 'react-dom'
 
 type Props = {
   open: boolean
@@ -25,10 +26,10 @@ export default function ConfirmationSheet({
   onCancel,
   onConfirm,
 }: Props) {
-  if (!open) return null
+ if (!open) return null
 
-  return (
-    <>
+return createPortal(
+  <>
       {/* BACKDROP */}
       <div
         onClick={onCancel}
@@ -149,6 +150,7 @@ export default function ConfirmationSheet({
           }
         }
       `}</style>
-    </>
+        </>,
+    document.body
   )
 }

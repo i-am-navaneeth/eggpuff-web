@@ -8,8 +8,29 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { usePathname } from 'next/navigation'
 import OverlayRoot from './OverlayRoot'
-import { ShellLayoutProvider } from '@/components/ShellLayoutContext'
+import {
+  ShellLayoutProvider,
+  useShellLayout,
+} from '@/components/ShellLayoutContext'
 import FeedHost from '@/components/FeedHost'
+
+function TopBarContainer({
+  userId,
+  onRefreshFeed,
+}: {
+  userId: string | null
+  onRefreshFeed: () => void
+}) {
+  const { topBar } = useShellLayout()
+
+  return (
+    <TopBar
+      currentUserId={userId}
+      onRefreshFeed={onRefreshFeed}
+      {...topBar}
+    />
+  )
+}
 
 
 export default function Layout({
@@ -19,6 +40,8 @@ export default function Layout({
 }) {
 
   const [userId, setUserId] = useState<string | null>(null)
+  const [readerTransition, setReaderTransition] =
+  useState(false)
   const pathname = usePathname()
   console.log(pathname)
 
@@ -56,6 +79,38 @@ const user = session?.user
   loadUser()
 }, [])
 
+useEffect(() => {
+  const start = () => {
+    setReaderTransition(true)
+  }
+
+  const stop = () => {
+    setReaderTransition(false)
+  }
+
+  document.addEventListener(
+    'ep-open-reader',
+    start
+  )
+
+  window.addEventListener(
+    'ep-reader-ready',
+    stop
+  )
+
+  return () => {
+    document.removeEventListener(
+      'ep-open-reader',
+      start
+    )
+
+    window.removeEventListener(
+      'ep-reader-ready',
+      stop
+    )
+  }
+}, [])
+
 
 const TOP_BAR_HEIGHT = showTopBar ? 55 : 0
 const BOTTOM_BAR_HEIGHT = 64
@@ -75,13 +130,14 @@ const BOTTOM_BAR_HEIGHT = 64
       <div className="flex-1 flex flex-col">
 
         {/* ===================== TOP BAR ===================== */}
-      {showTopBar && (
+      {showTopBar &&
+ !readerTransition && (
   <div className="fixed top-0 left-0 right-0 z-[2000] bg-[#f5f5f5] shadow-sm lg:pl-[80px]">
     <div className="max-w-[1140px] mx-auto px-6">
-      <TopBar
-        currentUserId={userId}
-        onRefreshFeed={onRefreshFeed}
-      />
+      <TopBarContainer
+  userId={userId}
+  onRefreshFeed={onRefreshFeed}
+/>
     </div>
   </div>
 )}
@@ -108,7 +164,11 @@ className={`${
 <FloatingAskButton />
 
 {/* Always on top */}
-<MobileNavbar userId={userId || undefined} />
+{!readerTransition && (
+  <MobileNavbar
+    userId={userId || undefined}
+  />
+)}
             
           
         </div>
