@@ -33,8 +33,19 @@ export default function AskPage() {
   const searchParams = useSearchParams()
   const { notify } = useNotify()
 
-  const [text, setText] = useState('')
-  const [hours, setHours] = useState(1)
+const [text, setText] = useState('')
+const [hours, setHours] = useState(1)
+
+/* ================= INDEPENDENCE DAY EASTER EGG ================= */
+
+const independenceDayDetected =
+  /\bindependence\b/i.test(
+    text.replace(/<[^>]*>/g, ' ')
+  )
+
+const [showIndependenceFlags, setShowIndependenceFlags] =
+  useState(false)
+
   const [category, setCategory] = useState<string>('general')
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
@@ -351,8 +362,19 @@ link_type: linkPreview?.type || null,
         return
       }
 
-      notify('✅ Question posted!')
-      router.back()
+            notify('✅ Question posted!')
+
+      /* ================= INDEPENDENCE FLAG DROP ================= */
+
+     if (independenceDayDetected) {
+  setShowIndependenceFlags(true)
+
+  setTimeout(() => {
+    router.back()
+  }, 2500)
+} else {
+  router.back()
+}
       
     } catch (err) {
       console.error('SUBMIT ERROR:', err)
@@ -448,6 +470,152 @@ return (
   overflowX: 'hidden',
 }}
   >
+
+       {/* ================= INDEPENDENCE FLAG DROP ================= */}
+
+{showIndependenceFlags && (
+  <>
+    <div
+      aria-hidden="true"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 99999,
+        pointerEvents: 'none',
+        overflow: 'hidden',
+      }}
+    >
+      {[
+        { left: '5%',  delay: '0s',    size: 32, duration: '3.8s' },
+        { left: '17%', delay: '0.12s', size: 35, duration: '3.9s' },
+        { left: '29%', delay: '0.24s', size: 30, duration: '3.8s' },
+        { left: '41%', delay: '0.36s', size: 36, duration: '4s' },
+        { left: '53%', delay: '0.48s', size: 31, duration: '3.9s' },
+        { left: '65%', delay: '0.60s', size: 35, duration: '4s' },
+        { left: '77%', delay: '0.72s', size: 30, duration: '3.8s' },
+        { left: '89%', delay: '0.84s', size: 33, duration: '3.9s' },
+      ].map((flag, index) => (
+        <div
+          key={index}
+          style={{
+            position: 'absolute',
+
+            left: flag.left,
+            top: '-80px',
+
+            width: flag.size * 1.35,
+            height: flag.size * 0.9,
+
+            animation:
+              `independenceFlagFall ${flag.duration} linear ${flag.delay} forwards`,
+
+            willChange: 'transform, opacity',
+
+            filter:
+              'drop-shadow(0 4px 7px rgba(0,0,0,.12))',
+          }}
+        >
+          <svg
+            width="100%"
+            height="100%"
+            viewBox="0 0 90 60"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            {/* Saffron */}
+            <rect
+              x="0"
+              y="0"
+              width="90"
+              height="20"
+              fill="#FF9933"
+            />
+
+            {/* White */}
+            <rect
+              x="0"
+              y="20"
+              width="90"
+              height="20"
+              fill="#FFFFFF"
+            />
+
+            {/* Green */}
+            <rect
+              x="0"
+              y="40"
+              width="90"
+              height="20"
+              fill="#138808"
+            />
+
+            {/* Ashoka Chakra */}
+            <circle
+              cx="45"
+              cy="30"
+              r="8"
+              fill="none"
+              stroke="#000080"
+              strokeWidth="1.6"
+            />
+
+            <circle
+              cx="45"
+              cy="30"
+              r="1.5"
+              fill="#000080"
+            />
+
+            {Array.from({ length: 24 }).map((_, i) => {
+              const angle =
+                (i * 15 * Math.PI) / 180
+
+              const x2 =
+                45 +
+                Math.cos(angle) * 7
+
+              const y2 =
+                30 +
+                Math.sin(angle) * 7
+
+              return (
+                <line
+                  key={i}
+                  x1="45"
+                  y1="30"
+                  x2={x2}
+                  y2={y2}
+                  stroke="#000080"
+                  strokeWidth="0.7"
+                />
+              )
+            })}
+          </svg>
+        </div>
+      ))}
+    </div>
+
+    {/* IMPORTANT: global keyframes */}
+    <style jsx global>{`
+      @keyframes independenceFlagFall {
+        0% {
+          opacity: 1;
+          transform:
+            translate3d(0, -20px, 0)
+            rotate(0deg);
+        }
+
+        100% {
+          opacity: 0;
+          transform:
+            translate3d(0, calc(100vh + 180px), 0)
+            rotate(2deg);
+        }
+      }
+    `}</style>
+  </>
+)}
+
+
     {pageLoading ? (
       <div
         style={{
@@ -520,22 +688,77 @@ return (
             ✕
           </button>
 
-         {/* Center Title */}
+         {/* ================= CENTER TITLE ================= */}
 
 <div
   style={{
     position: 'absolute',
+
     left: '50%',
     transform: 'translateX(-50%)',
 
-    fontSize: 18,
-    fontWeight: 700,
-    color: '#111827',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    padding: '6px 10px',
 
     pointerEvents: 'none',
   }}
 >
-  New question
+  {independenceDayDetected && (
+    <div
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+
+        left: -7,
+        right: -7,
+        top: '50%',
+
+        height: 20,
+
+        transform:
+          'translateY(-50%) rotate(-1.5deg)',
+
+        borderRadius: '5px 8px 6px 7px',
+
+        background:
+          'linear-gradient(180deg, #FF9933 0%, #FF9933 33%, #FFFFFF 33%, #FFFFFF 66%, #138808 66%, #138808 100%)',
+
+        opacity: 0.9,
+
+        zIndex: 0,
+
+        pointerEvents: 'none',
+
+        boxShadow:
+          '0 2px 6px rgba(0,0,0,0.04)',
+
+        animation:
+          'independenceTitleReveal .25s ease-out both',
+      }}
+    />
+  )}
+
+  <span
+    style={{
+      position: 'relative',
+
+      zIndex: 1,
+
+      fontSize: 18,
+      fontWeight: 700,
+
+      color: '#111827',
+
+      lineHeight: 1,
+
+      whiteSpace: 'nowrap',
+    }}
+  >
+    New question
+  </span>
 </div>
 
 {/* Character Counter */}
@@ -1429,6 +1652,23 @@ overflow: 'hidden',
   {loading ? 'Posting...' : 'Ask'}
 </button>
   </div>
+  <style jsx>{`
+  @keyframes independenceTitleReveal {
+    from {
+      opacity: 0;
+      transform:
+        translateY(-50%)
+        scaleX(0.7);
+    }
+
+    to {
+      opacity: 0.9;
+      transform:
+        translateY(-50%)
+        scaleX(1);
+    }
+  }
+`}</style>
 </div>
    </>
 )}

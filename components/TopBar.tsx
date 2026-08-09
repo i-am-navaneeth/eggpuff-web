@@ -763,35 +763,187 @@ return (
 
   ) : (
 
-    <DefaultTitle
-      title={
-        title ??
-        (pathname === '/notifications'
-          ? 'Notifications'
-          : 'EggPuff')
+    <div
+  onClick={() => {
+    const now = Date.now()
+
+    if (
+      (window as any).__ep_last_tap &&
+      now - (window as any).__ep_last_tap < 320
+    ) {
+      if (pathname === '/feed') {
+        onRefreshFeed?.()
+      } else {
+        router.push('/feed')
       }
-      onClick={() => {
-        const now = Date.now()
+    } else {
+      router.push('/feed')
+    }
 
-        if (
-          (window as any).__ep_last_tap &&
-          now -
-            (window as any).__ep_last_tap <
-            320
-        ) {
-          if (pathname === '/feed') {
-            onRefreshFeed?.()
-          } else {
-            router.push('/feed')
-          }
-        } else {
-          router.push('/feed')
-        }
+    ;(window as any).__ep_last_tap = now
+  }}
+  style={{
+    position: 'relative',
 
-        ;(window as any).__ep_last_tap =
-          now
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    cursor: 'pointer',
+
+    fontSize: 20,
+    fontWeight: 800,
+    lineHeight: 1,
+
+    whiteSpace: 'nowrap',
+
+    padding: '5px 6px',
+
+    overflow: 'visible',
+  }}
+>
+  {/* ================= PAINTED FLAG ================= */}
+
+  <div
+    aria-hidden="true"
+    style={{
+      position: 'absolute',
+
+      left: '-8px',
+      right: '-8px',
+      top: '50%',
+
+      width: 'calc(100% + 16px)',
+      height: 35,
+
+      transform:
+        'translateY(-50%) rotate(-1deg)',
+
+      zIndex: 0,
+      pointerEvents: 'none',
+
+      overflow: 'hidden',
+
+      borderRadius:
+        '10px 13px 9px 12px',
+
+      background:
+        'linear-gradient(180deg, #FF9933 0%, #FF9933 31%, #FFFFFF 31%, #FFFFFF 69%, #138808 69%, #138808 100%)',
+
+      clipPath:
+        'polygon(1% 7%, 8% 4%, 17% 7%, 28% 3%, 39% 6%, 51% 3%, 63% 6%, 75% 3%, 88% 7%, 99% 4%, 97% 92%, 88% 96%, 77% 93%, 66% 97%, 54% 94%, 42% 98%, 30% 94%, 18% 97%, 7% 93%, 0% 96%)',
+
+      boxShadow:
+        '0 2px 4px rgba(0,0,0,0.10)',
+    }}
+  />
+
+  {/* ================= PAINTED WHITE MIDDLE ================= */}
+
+  <div
+    aria-hidden="true"
+    style={{
+      position: 'absolute',
+
+      left: '-6px',
+      right: '-6px',
+      top: '50%',
+
+      height: 13,
+
+      transform:
+        'translateY(-50%) rotate(-0.5deg)',
+
+      zIndex: 1,
+      pointerEvents: 'none',
+
+      background: '#FFFFFF',
+
+      clipPath:
+        'polygon(0% 15%, 10% 5%, 21% 13%, 34% 7%, 47% 14%, 60% 6%, 73% 13%, 86% 5%, 100% 14%, 100% 86%, 87% 94%, 74% 87%, 61% 95%, 48% 88%, 35% 94%, 22% 87%, 9% 95%, 0% 86%)',
+    }}
+  />
+
+  {/* ================= ASHOKA CHAKRA ================= */}
+
+  <div
+    aria-hidden="true"
+    style={{
+      position: 'absolute',
+
+      left: '50%',
+      top: '50%',
+
+      width: 15,
+      height: 15,
+
+      transform:
+        'translate(-50%, -50%)',
+
+      zIndex: 2,
+      pointerEvents: 'none',
+
+      border:
+        '1.6px solid #000080',
+
+      borderRadius: '50%',
+
+      background:
+        'radial-gradient(circle, #000080 0 1.8px, transparent 2px)',
+    }}
+  >
+    {/* Chakra spokes */}
+    <div
+      style={{
+        position: 'absolute',
+        inset: 2,
+
+        borderRadius: '50%',
+
+        background:
+          `
+          repeating-conic-gradient(
+            from 0deg,
+            #000080 0deg 3deg,
+            transparent 3deg 15deg
+          )
+          `,
+
+        WebkitMask:
+          'radial-gradient(circle, transparent 0 28%, #000 29% 48%, transparent 49%)',
+
+        mask:
+          'radial-gradient(circle, transparent 0 28%, #000 29% 48%, transparent 49%)',
       }}
     />
+  </div>
+
+  {/* ================= EGGPuff TEXT ================= */}
+
+  <span
+    style={{
+      position: 'relative',
+
+      zIndex: 3,
+
+      /*
+       * KEEP EGGPuff EXACTLY AS NORMAL.
+       */
+      color: 'inherit',
+
+      fontSize: 20,
+      fontWeight: 800,
+      lineHeight: 1,
+
+      whiteSpace: 'nowrap',
+    }}
+  >
+    {title ??
+      (pathname === '/notifications'
+        ? 'Notifications'
+        : 'EggPuff')}
+  </span>
+</div>
 
   )}
 </div>
