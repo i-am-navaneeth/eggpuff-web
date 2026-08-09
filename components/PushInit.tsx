@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useNotify } from '@/components/NotificationProvider'
 
 // 🔥 keep helper outside (avoids re-creation on every run)
 function urlBase64ToUint8Array(base64String: string) {
@@ -21,6 +22,9 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 export default function PushInit() {
+
+  const { notify } = useNotify()
+  
   useEffect(() => {
     const init = async () => {
       try {
@@ -142,10 +146,10 @@ const subscribeRealtime =
           (payload) => {
 
   if (navigator.vibrate) {
-    navigator.vibrate([120, 50, 120])
-  }
+  navigator.vibrate([120, 50, 120])
+}
 
-  alert("🔔 New notification received")
+notify('🔔 New notification received')
 }
         )
 

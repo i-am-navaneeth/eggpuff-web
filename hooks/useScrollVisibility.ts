@@ -9,7 +9,9 @@ export default function useScrollVisibility() {
   const pathname = usePathname()
 
 const disableAutoHide =
-  pathname.startsWith('/pyp')
+  pathname.startsWith('/pyp') ||
+  pathname.startsWith('/campus-match') ||
+  pathname.startsWith('/match-room/')
 
 useEffect(() => {
   if (disableAutoHide) {

@@ -124,55 +124,124 @@ const submitUTR = async () => {
 
 
       {/* STEP: CHOOSE */}
-      {step === 'choose' && (
-        <>
-          <button
-  onClick={handleBuyClick}
-  style={{
-    width: '100%',
 
-    padding: '14px 18px',
+{step === 'choose' && (
+  <>
+    {/* ================= RESOURCES — PRIMARY ================= */}
 
-    borderRadius: 16,
+    <button
+      type="button"
+      onClick={() => {
+        onClose()
+        router.push('/resources')
+      }}
+      style={{
+        width: '100%',
+        height: 50,
 
-    background: '#F4B860',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
 
-color: '#121212',
+        padding: '0 18px',
 
-border: 'none',
+        borderRadius: 14,
+        border: 'none',
 
-    fontSize: 18,
+        background: '#F4B860',
+        color: '#121212',
 
-    fontWeight: 700,
+        fontSize: 16,
+        fontWeight: 700,
 
-    letterSpacing: '-0.2px',
+        cursor: 'pointer',
 
-    cursor: 'pointer',
+        boxShadow:
+          '0 6px 16px rgba(244, 184, 96, 0.18)',
 
-    transition:
-      'all 0.15s ease',
+        WebkitTapHighlightColor:
+          'transparent',
+      }}
+    >
+      📚 Resources
+    </button>
 
-    boxShadow:
-      '0 4px 14px rgba(244,184,96,0.18)',
+    {/* ================= PROMOTE — SECONDARY ================= */}
 
-    WebkitTapHighlightColor:
-      'transparent',
-  }}
->
-  Buy 🥐
-</button>
+    <button
+      type="button"
+      onClick={() => {
+        onClose()
+        router.push('/pyp')
+      }}
+      style={{
+        width: '100%',
+        height: 50,
 
-          <button
-            style={secondaryBtn}
-            onClick={() => {
-  onClose()
-  router.push('/pyp')
-}}
-          >
-            ✨ Promote Your Profile
-          </button>
-        </>
-      )}
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+
+        padding: '0 18px',
+
+        marginTop: 10,
+
+        borderRadius: 14,
+        border: 'none',
+
+        background: '#F3F4F6',
+        color: '#111827',
+
+        fontSize: 16,
+        fontWeight: 700,
+
+        cursor: 'pointer',
+
+        WebkitTapHighlightColor:
+          'transparent',
+      }}
+    >
+      ✨ Promote Your Profile
+    </button>
+
+    {/* ================= BUY — TERTIARY ================= */}
+
+    <button
+      type="button"
+      onClick={handleBuyClick}
+      style={{
+        width: '100%',
+        height: 50,
+
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+
+        padding: '0 18px',
+
+        marginTop: 10,
+
+        borderRadius: 14,
+
+        border:
+          '1px solid #E5E7EB',
+
+        background: '#FFFFFF',
+        color: '#111827',
+
+        fontSize: 16,
+        fontWeight: 700,
+
+        cursor: 'pointer',
+
+        WebkitTapHighlightColor:
+          'transparent',
+      }}
+    >
+      Buy 🥐
+    </button>
+  </>
+)}
 
       {/* STEP: PAY */}
       {step === 'pay' && (

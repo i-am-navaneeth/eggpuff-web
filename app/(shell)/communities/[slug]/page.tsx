@@ -13,11 +13,14 @@ import {
 
 import { supabase }
   from '@/lib/supabase'
+import { useNotify } from '@/components/NotificationProvider'
 
 export default function CommunityPage() {
 
   const router =
     useRouter()
+
+  const { notify } = useNotify()
 
   const params =
     useParams()
@@ -692,10 +695,11 @@ const handleSendReply =
 
           .single()
 
-      if (error) {
+if (error) {
+  console.error(error)
 
-  alert(
-    JSON.stringify(error)
+  notify(
+    `❌ ${error.message ?? 'Something went wrong.'}`
   )
 
   return

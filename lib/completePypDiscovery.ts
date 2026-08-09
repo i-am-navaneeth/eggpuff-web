@@ -1,5 +1,3 @@
-console.log('completePypDiscovery called')
-
 import { supabase } from '@/lib/supabase'
 import { getUserId } from '@/components/feed/api'
 import {
@@ -12,8 +10,6 @@ const MIN_DISCOVERY_MS = 10_000
 export async function completePypDiscovery() {
   const pending = getPendingPypDiscovery()
 
-  console.log('pending', pending)
-
   if (!pending) return
 
   // IMPORTANT:
@@ -23,8 +19,6 @@ export async function completePypDiscovery() {
 
   const elapsed =
     Date.now() - pending.startedAt
-
-  console.log('elapsed', elapsed)
 
   if (elapsed < MIN_DISCOVERY_MS) {
     return
@@ -37,8 +31,6 @@ export async function completePypDiscovery() {
       clearPendingPypDiscovery()
       return
     }
-
-    console.log('Calling record_pyp_discovery')
 
     const { error } = await supabase.rpc(
       'record_pyp_discovery',

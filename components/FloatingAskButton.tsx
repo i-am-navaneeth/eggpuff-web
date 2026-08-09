@@ -17,6 +17,8 @@ export default function FloatingAskButton() {
   if (pathname.startsWith('/search')) return null
   if (pathname.startsWith('/profile')) return null
   if (pathname.startsWith('/pyp')) return null
+  if (pathname.startsWith('/campus-match')) return null
+  if (pathname.startsWith('/reader/')) return null
 
   return (
     <button

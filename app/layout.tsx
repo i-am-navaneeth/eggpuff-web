@@ -78,9 +78,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body suppressHydrationWarning>
-  <PushInit />
 
   <ClientWrapper>
+
+    <PushInit />
 
     <NavigationProvider>
 

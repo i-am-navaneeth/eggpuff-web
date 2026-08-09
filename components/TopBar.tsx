@@ -1,26 +1,56 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import Link from 'next/link'
 import { useNavigation } from '@/components/navigation/NavigationProvider'
 import { supabase } from '../lib/supabase'
 import { getEggPuffBalance } from '../lib/rewards'
 import BuyPuffModal from './BuyPuffModal'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import useScrollVisibility from '@/hooks/useScrollVisibility'
-import AnimatedCounter from '@/components/AnimatedCounter'
+import {
+  BackButton,
+  DefaultTitle,
+  DefaultBalance,
+  ThreeDotsButton,
+} from '@/components/topbar/TopBarSlots'
+
+import CampusMatchMenu from '@/components/topbar/CampusMatchMenu'
 
 
+type TopBarProps = {
+  currentUserId?: string | null
+  onRefreshFeed?: () => void
+
+  title?: React.ReactNode
+  leftSlot?: React.ReactNode
+  rightSlot?: React.ReactNode
+
+  hideBalance?: boolean
+  hideEggPuff?: boolean
+
+  showBack?: boolean
+  onBack?: () => void
+}
 
 export default function TopBar({
   currentUserId,
   onRefreshFeed,
-}: {
-  currentUserId?: string | null
-  onRefreshFeed?: () => void
-}) {
+
+  title,
+  leftSlot,
+  rightSlot,
+
+  hideBalance = false,
+  hideEggPuff = false,
+
+  showBack = false,
+  onBack,
+}: TopBarProps) {
+
   const [balance, setBalance] = useState<number>(0)
   const [buyOpen, setBuyOpen] = useState(false)
+  const [menuOpen, setMenuOpen] =
+  useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   
   const { openEditProfile } = useNavigation()
@@ -32,8 +62,16 @@ export default function TopBar({
   const searchParams = useSearchParams()
   const router = useRouter()
 
-  const isQuestionPage = pathname.startsWith('/question/')
-  const showUI = useScrollVisibility()
+  const isQuestionPage =
+  pathname.startsWith('/question/')
+
+const scrollVisible =
+  useScrollVisibility()
+
+const showUI =
+  pathname.startsWith('/reader/')
+    ? true
+    : scrollVisible
 
   const isAskPage = pathname === '/ask'
   const [isProfileComplete, setIsProfileComplete] = useState(true);
@@ -57,21 +95,6 @@ export default function TopBar({
   useState(false)
   const touchStartY =
   useRef(0)
-
-useEffect(() => {
-  const loadUser = async () => {
-    const {
-  data: { session },
-} = await supabase.auth.getSession()
-
-const user = session?.user
-
-    if (user) {
-    }
-  }
-
-  loadUser()
-}, [])
 
   /* ---------------- LOAD USER + BALANCE ---------------- */
 
@@ -541,340 +564,265 @@ return (
           borderBottom: '1px solid #eee',
         }}
       >
-        {(isQuestionPage || pathname.startsWith('/u') || pathname === '/notifications' ) ? (
-  <button
-    onClick={() => router.back()}
-    className="flex items-center justify-center w-8 h-8 rounded-full active:scale-95 transition"
-    style={{
-      border: 'none',
-      background: 'transparent',
-      marginRight: 10,
-    }}
-  >
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <path
-        d="M15 18L9 12L15 6"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  </button>
-) : (
-  <div style={{ width: 15 }} />
-)}
+       {/* LEFT */}
+<div
+  style={{
+    flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+  }}
+>
+  {showBack ? (
+  <BackButton
+    onClick={
+      onBack ??
+      (() => router.back())
+    }
+  />
+) : null}
+</div>
 
-        {/* 🔥 BROWSER TOPBAR */}
-{pathname === '/browser' ? (
+{/* CENTER */}
+<div
+  style={{
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 16,
+    marginRight: 8,
 
-  <div
-    className="
-      flex items-center
-      gap-3
-      w-full
-    "
-  >
+    display: 'flex',
+    alignItems: 'center',
+  }}
+>
+  {pathname === '/browser' ? (
 
-    {/* CLOSE */}
-    <button
-      onClick={() => router.back()}
-      className="
-        flex items-center justify-center
-        w-8 h-8
-        rounded-full
-        active:scale-95
-        transition
-      "
-      style={{
-        border: 'none',
-        background: 'transparent',
-        flexShrink: 0,
-      }}
-    >
-      <svg
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <path
-          d="M18 6L6 18"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-        />
-        <path
-          d="M6 6L18 18"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-        />
-      </svg>
-    </button>
-
-    {/* DOMAIN */}
     <div
       className="
-        flex flex-col
-        min-w-0
+        flex items-center
+        gap-3
+        w-full
       "
     >
-      <div
+      {/* CLOSE */}
+      <button
+        onClick={() => router.back()}
+        className="
+          flex items-center justify-center
+          w-8 h-8 rounded-full
+          active:scale-95 transition
+        "
         style={{
-          fontSize: 16,
-          fontWeight: 700,
-          color: '#111827',
-          lineHeight: 1.1,
-
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
+          border: 'none',
+          background: 'transparent',
+          flexShrink: 0,
         }}
       >
-        {searchParams.get('domain') || 'Website'}
-      </div>
-
-      <div
-        style={{
-          fontSize: 12,
-          color: '#6B7280',
-          marginTop: 2,
-          lineHeight: 1,
-        }}
-      >
-        Open inside EggPuff
-      </div>
-    </div>
-
-  </div>
-
-) : isProfilePage ? (
-
-  showMiniProfile &&
-  !miniProfileLoading &&
-  miniProfile ? (() => {
-
-    const isOwnProfile =
-      !!currentUserId &&
-      !!miniProfile?.user_id &&
-      String(currentUserId).trim() ===
-        String(miniProfile.user_id).trim()
-
-    return (
-      <div className="flex items-center justify-between w-full">
-
-        {/* LEFT */}
-        <div className="flex items-center gap-3 min-w-0">
-
-          {/* AVATAR */}
-          <img
-            src={
-              miniProfile.avatar_url ||
-              '/default-avatar.png'
-            }
-            className="
-              w-8 h-8 rounded-full
-              object-cover flex-shrink-0
-            "
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+        >
+          <path
+            d="M18 6L6 18"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
           />
+          <path
+            d="M6 6L18 18"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          />
+        </svg>
+      </button>
 
-          {/* USER INFO */}
-          <div className="leading-tight min-w-0">
-
-            <div
-              className="
-                text-sm font-semibold
-                truncate
-              "
-            >
-              {miniProfile.name ||
-                miniProfile.username}
-            </div>
-
-            <div
-              className="
-                text-xs text-gray-500
-              "
-            >
-              {miniQuestionsCount} question
-              {miniQuestionsCount !== 1
-                ? 's'
-                : ''}
-            </div>
-
-          </div>
-
+      <div
+        style={{
+          minWidth: 0,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 16,
+            fontWeight: 700,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {searchParams.get('domain') ||
+            'Website'}
         </div>
 
-        {/* RIGHT ACTION */}
-        {isOwnProfile ? (
-
-          <button
-            onClick={openEditProfile}
-            className="
-              px-4 py-1.5 rounded-full
-              bg-gray-100 text-black
-              text-sm font-medium
-              active:scale-95
-              transition
-            "
-          >
-            Edit
-          </button>
-
-        ) : (
-
-          <button
-            onClick={handleMiniFollow}
-            disabled={miniLoadingFollow}
-            className={`
-              px-4 py-1.5 rounded-full
-              text-sm font-medium
-              active:scale-95
-              transition
-              ${
-                miniFollowing
-                  ? 'bg-gray-200 text-black'
-                  : 'bg-black text-white'
-              }
-            `}
-          >
-            {miniLoadingFollow
-              ? '...'
-              : miniFollowing
-              ? 'Following'
-              : 'Follow'}
-          </button>
-
-        )}
-
+        <div
+          style={{
+            fontSize: 12,
+            color: '#6B7280',
+          }}
+        >
+          Open inside EggPuff
+        </div>
       </div>
-    )
-  })() : (
-
-    <div className="flex items-center gap-2">
-
-      <h2
-        className="
-          text-xl sm:text-2xl
-          font-semibold
-          select-none
-        "
-      >
-        EggPuff
-      </h2>
-
     </div>
 
-  )
+    ) : isProfilePage ? (
 
-) : (
+    showMiniProfile &&
+    !miniProfileLoading &&
+    miniProfile ? (
 
-  /* 🔥 NORMAL TOPBAR */
-  <h2
-    onClick={() => {
-      const now = Date.now()
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          minWidth: 0,
+        }}
+      >
+        {miniProfile.avatar_url ? (
+          <img
+            src={miniProfile.avatar_url}
+            alt=""
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: '50%',
+              objectFit: 'cover',
+              flexShrink: 0,
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: '50%',
+              background: '#F1F5F9',
+              flexShrink: 0,
+            }}
+          />
+        )}
 
-      if (
-        (window as any).__ep_last_tap &&
-        now -
-          (window as any).__ep_last_tap <
-          320
-      ) {
+        <h2
+          style={{
+            margin: 0,
+            fontSize: 18,
+            fontWeight: 700,
+            color: '#111827',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {miniProfile.name || 'EggPuff'}
+        </h2>
+      </div>
 
-        if (pathname === '/feed') {
-          onRefreshFeed?.()
+    ) : (
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          minWidth: 0,
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+            fontSize: 20,
+            fontWeight: 700,
+            color: '#111827',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          EggPuff
+        </h2>
+      </div>
+
+    )
+
+  ) : pathname.startsWith('/reader/') ? (
+
+    <DefaultTitle
+      title={
+        title ??
+        'Document'
+      }
+    />
+
+  ) : pathname.startsWith('/resources') ? (
+
+    <DefaultTitle
+      title="Resources"
+    />
+
+  ) : (
+
+    <DefaultTitle
+      title={
+        title ??
+        (pathname === '/notifications'
+          ? 'Notifications'
+          : 'EggPuff')
+      }
+      onClick={() => {
+        const now = Date.now()
+
+        if (
+          (window as any).__ep_last_tap &&
+          now -
+            (window as any).__ep_last_tap <
+            320
+        ) {
+          if (pathname === '/feed') {
+            onRefreshFeed?.()
+          } else {
+            router.push('/feed')
+          }
         } else {
           router.push('/feed')
         }
 
-      } else {
+        ;(window as any).__ep_last_tap =
+          now
+      }}
+    />
 
-        router.push('/feed')
+  )}
+</div>
 
-      }
-
-      ;(window as any).__ep_last_tap =
-        now
-    }}
-    className="
-      text-xl sm:text-2xl
-      font-semibold
-      cursor-pointer
-      select-none
-      flex items-center gap-1
-    "
-    style={{
-      WebkitTapHighlightColor:
-        'transparent',
-
-      userSelect: 'none',
-
-      transition:
-        'transform 0.12s ease',
-    }}
-    onTouchStart={(e) => {
-      e.currentTarget.style.transform =
-        'scale(0.96)'
-    }}
-    onTouchEnd={(e) => {
-      e.currentTarget.style.transform =
-        'scale(1)'
-    }}
-  >
-    {pathname === '/notifications'
-      ? 'Notifications'
-      : 'EggPuff'}
-  </h2>
-
-)}
-
-        {/* RIGHT SIDE */}
-<div className="flex items-center gap-2 sm:gap-3 ml-auto pr-1 sm:pr-2">
-
-  {/* BALANCE */}
- {pathname !== '/notifications' &&
-  !pathname.startsWith('/u/') &&
-  pathname !== '/browser' && (
-      <div>
-        <button
-  onClick={() => setBuyOpen(true)}
-  className="
-    px-3 sm:px-4 py-1.5
-    rounded-full
-    text-sm sm:text-base
-    font-medium
-    bg-gray-100
-    border border-gray-200
-    text-gray-800
-    shadow-sm
-  "
+{/* RIGHT */}
+<div
   style={{
+    flexShrink: 0,
     display: 'flex',
     alignItems: 'center',
-    gap: 6,
   }}
 >
-  <span
-    style={{
-      fontSize: 16,
-      lineHeight: 1,
-    }}
-  >
-    🥐
-  </span>
-
-  <AnimatedCounter value={balance} />
-</button>
-      </div>
-      )}
-        </div>
+  {rightSlot ? (
+    rightSlot
+  ) : hideBalance ? (
+    <ThreeDotsButton
+      onClick={() =>
+        setMenuOpen(true)
+      }
+    />
+  ) : pathname !== '/notifications' &&
+    !pathname.startsWith('/u/') &&
+    pathname !== '/browser' ? (
+    <DefaultBalance
+      balance={balance}
+      onClick={() =>
+        setBuyOpen(true)
+      }
+    />
+  ) : null}
+</div>
       </div>
     </div>
 
@@ -885,5 +833,26 @@ return (
       userId={userId}
       balance={balance}
     />
+{hideBalance && (
+  <CampusMatchMenu
+    currentUserId={userId}
+    match={{
+      creator_id: '',
+      joined: false,
+    }}
+    onInvite={() => {
+      // TODO
+    }}
+    onReport={() => {
+      // TODO
+    }}
+    onLeave={() => {
+      // TODO
+    }}
+    onDelete={() => {
+      // TODO
+    }}
+  />
+)}
   </>
 )}

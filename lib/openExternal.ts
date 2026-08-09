@@ -1,11 +1,13 @@
 import { startPypDiscovery } from '@/lib/pypDiscovery'
 import { isBlockedDomain } from './isBlockedDomain'
 import { supabase } from '@/lib/supabase'
+import { useNotify } from '@/components/NotificationProvider'
 
 export async function openExternal(
   promotionId: string,
   rawUrl: string
 ) {
+  const { notify } = useNotify()
   if (!rawUrl) return
 
   const normalizedUrl =
@@ -16,9 +18,9 @@ export async function openExternal(
       console.log('rawUrl:', rawUrl)
 console.log('normalizedUrl:', normalizedUrl)
 
-  // Safety filter
+// Safety filter
 if (isBlockedDomain(normalizedUrl)) {
-  alert('This website is not supported.')
+  notify('⚠️ This website is not supported.')
   return
 }
 
