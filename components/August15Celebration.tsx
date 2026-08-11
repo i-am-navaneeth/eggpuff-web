@@ -128,23 +128,68 @@ const LETTERS = [
   },
 ]
 
-const CHAKRA_BLUE = '#000080'
-
-const chakraStyle = {
-  width: 26,
-  height: 26,
-  borderRadius: '50%',
-  border: `2px solid ${CHAKRA_BLUE}`,
-  background:
-    `repeating-conic-gradient(
-      from 0deg,
-      ${CHAKRA_BLUE} 0deg 3deg,
-      transparent 3deg 15deg
-    )`,
-  boxSizing: 'border-box' as const,
-  position: 'relative' as const,
-  flexShrink: 0,
-}
+const BALLOONS = [
+  {
+    left: '4%',
+    top: '17%',
+    side: 'left',
+    delay: '1.65s',
+    duration: '1.15s',
+    size: 30,
+    color: '#FF9933',
+    rotate: '-8deg',
+  },
+  {
+    left: '84%',
+    top: '17%',
+    side: 'right',
+    delay: '1.8s',
+    duration: '1.2s',
+    size: 28,
+    color: '#138808',
+    rotate: '7deg',
+  },
+  {
+    left: '1%',
+    top: '33%',
+    side: 'left',
+    delay: '1.95s',
+    duration: '1.25s',
+    size: 24,
+    color: '#FFFFFF',
+    rotate: '6deg',
+  },
+  {
+    left: '89%',
+    top: '33%',
+    side: 'right',
+    delay: '2.05s',
+    duration: '1.3s',
+    size: 26,
+    color: '#FF9933',
+    rotate: '-6deg',
+  },
+  {
+    left: '10%',
+    top: '39%',
+    side: 'left',
+    delay: '2.15s',
+    duration: '1.35s',
+    size: 20,
+    color: '#138808',
+    rotate: '-4deg',
+  },
+  {
+    left: '82%',
+    top: '39%',
+    side: 'right',
+    delay: '2.25s',
+    duration: '1.4s',
+    size: 19,
+    color: '#FFFFFF',
+    rotate: '5deg',
+  },
+]
 
 export default function August15Celebration() {
   const [visible, setVisible] =
@@ -164,22 +209,48 @@ useEffect(() => {
 
   const today = new Date()
 
-  const isAugust15 =
-    today.getMonth() === 7 &&
-    today.getDate() === 15
+  /*
+   * ================= AUGUST 15 ACTIVE WINDOW =================
+   *
+   * Celebration is available:
+   *
+   * August 14 12:00 AM
+   * through
+   * August 16 11:59 PM
+   *
+   * It automatically stops at:
+   *
+   * August 17 12:00 AM
+   */
+
+  const year = today.getFullYear()
+
+  const celebrationStart =
+    new Date(year, 7, 14, 0, 0, 0, 0)
+
+  const celebrationEnd =
+    new Date(year, 7, 17, 0, 0, 0, 0)
+
+  const isAugust15CelebrationWindow =
+    today >= celebrationStart &&
+    today < celebrationEnd
 
   /*
    * Normal production behavior:
-   * only run on August 15.
+   * only show the celebration during
+   * August 14, August 15, and August 16.
    */
-  if (!TEST_MODE && !isAugust15) {
+  if (
+    !TEST_MODE &&
+    !isAugust15CelebrationWindow
+  ) {
     return
   }
 
-    /*
+  /*
    * Show the celebration every time
    * the app is opened or refreshed
-   * on August 15.
+   * during the celebration window.
    */
   setVisible(true)
 
@@ -189,7 +260,7 @@ useEffect(() => {
    */
   const timer = window.setTimeout(() => {
     setVisible(false)
-  }, 3000)
+  }, 4000)
 
   return () => {
     window.clearTimeout(timer)
@@ -233,174 +304,292 @@ useEffect(() => {
       }}
     >
 
-      {/* ================= FALLING INDE ================= */}
+      {/* ================= FALLING INDE + RISING BALLOONS ================= */}
 
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-
-          overflow: 'hidden',
-
-          zIndex: 1,
-        }}
-      >
-        {LETTERS.map(
-  (
-    {
-      letter,
-      left,
-      delay,
-      duration,
-      rotate,
-      color,
-    },
-    index
-  ) => (
-    <div
-      key={`${letter}-${index}`}
-      style={{
-        position: 'absolute',
-
-        top: 0,
-        left,
-
-        fontSize:
-          'clamp(54px, 14vw, 110px)',
-
-        fontWeight: 900,
-
-        lineHeight: 1,
-
-        color,
-
-        WebkitTextStroke:
-          '1.5px currentColor',
-
-        textShadow:
-          '0 8px 24px rgba(15,23,42,0.08)',
-
-        transform:
-          `rotate(${rotate})`,
-
-        animation:
-          `aug15LetterFall ${duration} cubic-bezier(.2,.8,.25,1) ${delay} both`,
-      }}
-    >
-      {letter}
-    </div>
-  )
-)}
-      </div>
-
-
-      {/* ================= 80th ================= */}
-
-      <div
-        style={{
-          position: 'absolute',
-
-          top: '7%',
-
-          left: 0,
-          right: 0,
-
-          zIndex: 4,
-
-          display: 'flex',
-          justifyContent: 'center',
-
-          pointerEvents: 'none',
-
-          animation:
-            'aug1580thIn 1.55s cubic-bezier(.22,1,.36,1) 0.25s both',
-        }}
-      >
-        <div
+<div
   style={{
-    position: 'relative',
+    position: 'absolute',
+    inset: 0,
 
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    overflow: 'hidden',
 
-    fontSize:
-      'clamp(64px, 19vw, 130px)',
+    zIndex: 3,
 
-    lineHeight: 0.9,
-
-    fontWeight: 900,
-
-    letterSpacing: '-4px',
-
-    textAlign: 'center',
-
-    background:
-      'linear-gradient(180deg, #FF9933 0%, #FF9933 38%, #FFFFFF 38%, #FFFFFF 62%, #138808 62%, #138808 100%)',
-
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-
-    filter:
-      'drop-shadow(0 8px 20px rgba(0,0,128,0.10))',
+    pointerEvents: 'none',
   }}
 >
-  80th
+  {/* ================= FALLING INDE LETTERS ================= */}
 
-  {/* ASHOKA CHAKRA */}
-  <span
-    aria-hidden="true"
+  {LETTERS.map(
+    (
+      {
+        letter,
+        left,
+        delay,
+        duration,
+        rotate,
+        color,
+      },
+      index
+    ) => (
+      <div
+        key={`letter-${letter}-${index}`}
+        style={{
+          position: 'absolute',
+
+          top: 0,
+          left,
+
+          fontSize:
+            'clamp(54px, 14vw, 110px)',
+
+          fontWeight: 900,
+
+          lineHeight: 1,
+
+          color,
+
+          WebkitTextStroke:
+            '1.5px currentColor',
+
+          textShadow:
+            '0 8px 24px rgba(15,23,42,0.08)',
+
+          transform:
+            `rotate(${rotate})`,
+
+          animation:
+  `aug15LetterFall ${duration} cubic-bezier(.2,.8,.25,1) ${delay} both`,
+        }}
+      >
+        {letter}
+      </div>
+    )
+  )}
+
+  {/* ================= TRICOLOR BALLOONS ================= */}
+
+  {BALLOONS.map((balloon, index) => (
+    <div
+  key={`balloon-${index}`}
+  style={{
+    position: 'absolute',
+
+    left: balloon.left,
+    top: balloon.top,
+
+    width: balloon.size,
+    height: balloon.size * 1.18,
+
+    opacity: 0,
+
+    transform:
+      `rotate(${balloon.rotate})`,
+
+    animation:
+      `${balloon.side === 'left'
+        ? 'aug15BalloonFromLeft'
+        : 'aug15BalloonFromRight'
+      } ${balloon.duration} cubic-bezier(.22,.8,.24,1) ${balloon.delay} forwards`,
+
+    filter:
+      'drop-shadow(0 5px 10px rgba(15,23,42,0.12))',
+  }}
+>
+      {/* BALLOON */}
+
+      <div
+        style={{
+          position: 'absolute',
+
+          top: 0,
+          left: 0,
+
+          width: '100%',
+          height: '84%',
+
+          borderRadius:
+            '50% 50% 46% 46%',
+
+          background:
+            `radial-gradient(
+              circle at 32% 25%,
+              rgba(255,255,255,0.8) 0 8%,
+              transparent 9%
+            ),
+            ${balloon.color}`,
+
+          boxShadow:
+            'inset -4px -6px 10px rgba(0,0,0,0.10)',
+
+          border:
+            '1px solid rgba(15,23,42,0.08)',
+        }}
+      />
+
+      {/* BALLOON KNOT */}
+
+      <div
+        style={{
+          position: 'absolute',
+
+          top: '80%',
+
+          left: '50%',
+
+          width: 6,
+          height: 6,
+
+          transform:
+            'translateX(-50%) rotate(45deg)',
+
+          background:
+            balloon.color,
+
+          borderRadius: 1,
+        }}
+      />
+
+      {/* BALLOON STRING */}
+
+      <div
+        style={{
+          position: 'absolute',
+
+          top: '84%',
+
+          left: '50%',
+
+          width: 1,
+
+          height: balloon.size * 1.7,
+
+          transform:
+            'translateX(-50%)',
+
+          background:
+            'rgba(15,23,42,0.28)',
+
+          transformOrigin:
+            'top center',
+        }}
+      />
+    </div>
+  ))}
+</div>
+
+
+     {/* ================= 80th + INDEPENDENCE DAY ================= */}
+
+<div
+  style={{
+    position: 'absolute',
+
+    top: '7%',
+
+    left: 0,
+    right: 0,
+
+    zIndex: 4,
+
+    display: 'flex',
+    justifyContent: 'center',
+
+    pointerEvents: 'none',
+  }}
+>
+  {/* ================= 80th ================= */}
+
+  <div
     style={{
-      position: 'absolute',
+      position: 'relative',
 
-      left: '50%',
-      top: '50%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
 
-      width: 'clamp(28px, 7vw, 44px)',
-      height: 'clamp(28px, 7vw, 44px)',
+      fontSize:
+        'clamp(64px, 19vw, 130px)',
 
-      transform:
-        'translate(-50%, -50%)',
+      lineHeight: 0.9,
 
-      borderRadius: '50%',
+      fontWeight: 900,
 
-      border:
-        '2px solid #000080',
+      letterSpacing: '-4px',
+
+      textAlign: 'center',
 
       background:
-        'repeating-conic-gradient(from 0deg, #000080 0deg 3deg, transparent 3deg 15deg)',
+        'linear-gradient(180deg, #FF9933 0%, #FF9933 38%, #FFFFFF 38%, #FFFFFF 62%, #138808 62%, #138808 100%)',
 
-      opacity: 0.95,
+      WebkitBackgroundClip:
+        'text',
 
-      pointerEvents: 'none',
+      WebkitTextFillColor:
+        'transparent',
+
+      filter:
+        'drop-shadow(0 8px 20px rgba(0,0,128,0.10))',
+
+      animation:
+        'aug1580thIn 1.55s cubic-bezier(.22,1,.36,1) 0.25s both',
     }}
-  />
+  >
+    80th
+  </div>
 
-  {/* CHAKRA CENTER */}
-  <span
-    aria-hidden="true"
+
+  {/* ================= INDEPENDENCE DAY ================= */}
+
+  <div
     style={{
       position: 'absolute',
 
       left: '50%',
       top: '50%',
 
-      width: 5,
-      height: 5,
-
       transform:
         'translate(-50%, -50%)',
 
-      borderRadius: '50%',
+      width: 'max-content',
 
-      background:
+      fontSize:
+        'clamp(10px, 3.2vw, 19px)',
+
+      lineHeight: 1,
+
+      fontWeight: 950,
+
+      letterSpacing:
+        '0.6px',
+
+      whiteSpace:
+        'nowrap',
+
+      color:
         '#000080',
 
-      pointerEvents: 'none',
+      WebkitTextFillColor:
+        '#000080',
+
+      WebkitTextStroke:
+        '0.25px #000080',
+
+      textShadow:
+        '0 1px 2px rgba(255,255,255,0.95)',
+
+      opacity: 0,
+
+      zIndex: 10,
+
+      animation:
+        'aug15MiddleTitleIn 1.1s cubic-bezier(.22,1,.36,1) 1.85s forwards',
     }}
-  />
+  >
+    INDEPENDENCE DAY
+  </div>
+
 </div>
-      </div>
 
 
       {/* ================= STUDENT ILLUSTRATION ================= */}
@@ -443,90 +632,6 @@ useEffect(() => {
         />
       </div>
 
-
-      {/* ================= INDEPENDENCE DAY ================= */}
-
-      <div
-        style={{
-          position: 'absolute',
-
-          left: 0,
-          right: 0,
-
-          bottom:
-            '23%',
-
-          zIndex: 5,
-
-          display: 'flex',
-          justifyContent: 'center',
-
-          padding:
-            '0 18px',
-
-          textAlign: 'center',
-
-          pointerEvents: 'none',
-
-          animation:
-            'aug15TitleIn 0.9s cubic-bezier(.22,1,.36,1) 1.45s both',
-        }}
-      >
-        <div
-          style={{
-            fontSize:
-              'clamp(20px, 6vw, 38px)',
-
-            lineHeight: 1.1,
-
-            fontWeight: 900,
-
-            letterSpacing:
-              '0.5px',
-
-            whiteSpace: 'nowrap',
-
-            background:
-  'linear-gradient(90deg, #FF9933 0%, #FF9933 33%, #FFFFFF 33%, #FFFFFF 66%, #138808 66%, #138808 100%)',
-
-            WebkitBackgroundClip:
-              'text',
-
-            WebkitTextFillColor:
-              'transparent',
-
-            filter:
-              'drop-shadow(0 5px 12px rgba(255,255,255,0.9))',
-          }}
-        >
-          INDEPENDENCE DAY
-        </div>
-      </div>
-
-
-      {/* ================= SUBTLE TRICOLOR LINE ================= */}
-
-      <div
-        style={{
-          position: 'absolute',
-
-          bottom: 0,
-          left: 0,
-          right: 0,
-
-          height: 4,
-
-          zIndex: 6,
-
-          background:
-  'linear-gradient(90deg, #FF9933 0%, #FF9933 33%, #FFFFFF 33%, #FFFFFF 66%, #138808 66%, #138808 100%)',
-
-          opacity: 0,
-
-          animation:
-            'aug15BottomLine 0.5s ease-out 1.55s forwards',
-        }}
-      />
     </div>
 
 
@@ -544,6 +649,46 @@ useEffect(() => {
         }
       }
 
+      /* ================= INDEPENDENCE DAY ================= */
+
+@keyframes aug15MiddleTitleIn {
+
+  /* Hidden while 80th is entering */
+  0% {
+    opacity: 0;
+
+    transform:
+      translate(-50%, -50%)
+      scale(0.82);
+  }
+
+  /* Pop into the middle */
+  45% {
+    opacity: 1;
+
+    transform:
+      translate(-50%, -50%)
+      scale(1.06);
+  }
+
+  /* Settle */
+  70% {
+    opacity: 1;
+
+    transform:
+      translate(-50%, -50%)
+      scale(1);
+  }
+
+  /* Stay visible — NO FADE OUT */
+  100% {
+    opacity: 1;
+
+    transform:
+      translate(-50%, -50%)
+      scale(1);
+  }
+}
 
       /* ================= STUDENTS RISE ================= */
 
@@ -675,6 +820,95 @@ useEffect(() => {
           opacity: 0.9;
         }
       }
+
+      /* ================= SIDE BALLOONS ================= */
+
+@keyframes aug15BalloonFromLeft {
+
+  0% {
+    opacity: 0;
+
+    transform:
+      translateX(-120px)
+      translateY(8px)
+      rotate(-14deg)
+      scale(0.72);
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  65% {
+    transform:
+      translateX(8px)
+      translateY(-3px)
+      rotate(5deg)
+      scale(1.02);
+  }
+
+  82% {
+    transform:
+      translateX(-3px)
+      translateY(2px)
+      rotate(-2deg)
+      scale(0.99);
+  }
+
+  100% {
+    opacity: 0.95;
+
+    transform:
+      translateX(0)
+      translateY(0)
+      rotate(0deg)
+      scale(1);
+  }
+}
+
+
+@keyframes aug15BalloonFromRight {
+
+  0% {
+    opacity: 0;
+
+    transform:
+      translateX(120px)
+      translateY(8px)
+      rotate(14deg)
+      scale(0.72);
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  65% {
+    transform:
+      translateX(-8px)
+      translateY(-3px)
+      rotate(-5deg)
+      scale(1.02);
+  }
+
+  82% {
+    transform:
+      translateX(3px)
+      translateY(2px)
+      rotate(2deg)
+      scale(0.99);
+  }
+
+  100% {
+    opacity: 0.95;
+
+    transform:
+      translateX(0)
+      translateY(0)
+      rotate(0deg)
+      scale(1);
+  }
+}
 
 
       /* ================= REDUCED MOTION ================= */
