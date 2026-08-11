@@ -864,60 +864,6 @@ return (
     }}
   />
 
-  {/* ================= ASHOKA CHAKRA ================= */}
-
-  <div
-    aria-hidden="true"
-    style={{
-      position: 'absolute',
-
-      left: '50%',
-      top: '50%',
-
-      width: 15,
-      height: 15,
-
-      transform:
-        'translate(-50%, -50%)',
-
-      zIndex: 2,
-      pointerEvents: 'none',
-
-      border:
-        '1.6px solid #000080',
-
-      borderRadius: '50%',
-
-      background:
-        'radial-gradient(circle, #000080 0 1.8px, transparent 2px)',
-    }}
-  >
-    {/* Chakra spokes */}
-    <div
-      style={{
-        position: 'absolute',
-        inset: 2,
-
-        borderRadius: '50%',
-
-        background:
-          `
-          repeating-conic-gradient(
-            from 0deg,
-            #000080 0deg 3deg,
-            transparent 3deg 15deg
-          )
-          `,
-
-        WebkitMask:
-          'radial-gradient(circle, transparent 0 28%, #000 29% 48%, transparent 49%)',
-
-        mask:
-          'radial-gradient(circle, transparent 0 28%, #000 29% 48%, transparent 49%)',
-      }}
-    />
-  </div>
-
   {/* ================= EGGPuff TEXT ================= */}
 
   <span
