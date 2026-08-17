@@ -15,7 +15,6 @@ import {
 import PWARegister from '@/components/PWARegister'
 import PWAInstall from '@/components/PWAInstall'
 import AuthProvider from '@/components/AuthProvider'
-import August15Celebration from '@/components/August15Celebration'
 
 export default function ClientWrapper({
   children,
@@ -82,7 +81,6 @@ const isPublicPage =
 
 return (
     <>
-    <August15Celebration />
   <NotificationProvider>
     <AuthProvider>
       <UserProvider>
