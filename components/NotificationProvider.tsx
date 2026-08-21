@@ -111,15 +111,19 @@ const user = session?.user
   }, [])
 
   useEffect(() => {
-  const loadNotifications = async () => {
+  let channel: any
+  let mounted = true
+
+  const initNotifications = async () => {
     const {
-  data: { session },
-} = await supabase.auth.getSession()
+      data: { session },
+    } = await supabase.auth.getSession()
 
-const user = session?.user
+    const user = session?.user
 
-if (!user) return
+    if (!user || !mounted) return
 
+    /* 🔔 LOAD EXISTING UNREAD NOTIFICATIONS */
     const { data } = await supabase
       .from('notifications')
       .select('*')
@@ -127,27 +131,91 @@ if (!user) return
       .eq('read', false)
       .order('created_at', { ascending: true })
 
-    if (!data) return
+    if (data && mounted) {
+      data.forEach((n) => {
+        notify(
+          n.type === 'answer'
+            ? `💬 ${n.message}`
+            : n.type === 'answer_like'
+            ? `❤️ ${n.message}`
+            : n.type === 'community_alert'
+            ? `📣 ${n.message}`
+            : n.type === 'community_reply'
+            ? `💬 ${n.message}`
+            : n.message
+        )
+      })
 
-    data.forEach((n) => {
-  notify(
-    n.type === 'answer'
-      ? `💬 ${n.message}`
-      : n.type === 'answer_like'
-      ? `❤️ ${n.message}`
-      : n.message
-  )
-})
+      /* Mark only the notifications we just loaded as read */
+      const ids = data.map((n) => n.id)
 
-    // ✅ mark as read
-    await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('user_id', user.id)
-      .eq('read', false)
+      if (ids.length > 0) {
+        await supabase
+          .from('notifications')
+          .update({ read: true })
+          .in('id', ids)
+      }
+    }
+
+    /* ⚡ REALTIME: NEW NOTIFICATIONS */
+    channel = supabase
+      .channel(`notifications-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (!mounted) return
+
+          const n = payload.new
+
+          notify(
+            n.type === 'answer'
+              ? `💬 ${n.message}`
+              : n.type === 'answer_like'
+              ? `❤️ ${n.message}`
+              : n.type === 'community_alert'
+              ? `📣 ${n.message}`
+              : n.type === 'community_reply'
+              ? `💬 ${n.message}`
+              : n.message
+          )
+
+          /* Mark realtime notification as read */
+          supabase
+            .from('notifications')
+            .update({ read: true })
+            .eq('id', n.id)
+            .then(({ error }) => {
+              if (error) {
+                console.error(
+                  'Failed to mark notification as read:',
+                  error
+                )
+              }
+            })
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('🔔 Notification realtime connected')
+        }
+      })
   }
 
-  loadNotifications()
+  initNotifications()
+
+  return () => {
+    mounted = false
+
+    if (channel) {
+      supabase.removeChannel(channel)
+    }
+  }
 }, [])
 
   return (
