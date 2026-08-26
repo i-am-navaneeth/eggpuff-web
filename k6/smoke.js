@@ -1,5 +1,11 @@
-import http from 'k6/http';
-import { check, sleep } from 'k6';
+import http from 'k6/http'
+import { check, sleep } from 'k6'
+
+const BASE_URL = __ENV.BASE_URL
+
+if (!BASE_URL) {
+  throw new Error('Missing BASE_URL environment variable.')
+}
 
 export const options = {
   vus: 5,
@@ -9,19 +15,15 @@ export const options = {
     http_req_failed: ['rate<0.01'],
     http_req_duration: ['p(95)<2000'],
   },
-};
+}
 
 export default function () {
-  const res = http.get(__ENV.BASE_URL, {
-    tags: {
-      test: 'dev-smoke',
-    },
-  });
+  const res = http.get(`${BASE_URL}/`)
 
   check(res, {
     'status is 200': (r) => r.status === 200,
-    'response has body': (r) => r.body && r.body.length > 0,
-  });
+    'response has body': (r) => !!r.body,
+  })
 
-  sleep(1);
+  sleep(1)
 }

@@ -13,28 +13,58 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !ACCESS_TOKEN || !USER_ID) {
   );
 }
 
+// ============================================================
+// CUSTOM METRICS
+// ============================================================
+
 const ttfb = new Trend('ttfb');
 const responseSize = new Trend('response_size_bytes');
+
 const connecting = new Trend('connecting');
 const tlsHandshake = new Trend('tls_handshaking');
 const waiting = new Trend('waiting');
 const receiving = new Trend('receiving');
 const blocked = new Trend('blocked');
 
+// ============================================================
+// DEV QUEUE 1
+// 5 → 10 → 25 → 50 VUs
+// ============================================================
+
 export const options = {
   stages: [
-    { duration: '20s', target: 50 },
-    { duration: '30s', target: 100 },
-    { duration: '2m', target: 100 },
+    { duration: '20s', target: 5 },
+    { duration: '30s', target: 10 },
+    { duration: '30s', target: 25 },
+    { duration: '30s', target: 50 },
+
+    // Hold at 50 VUs
+    { duration: '30s', target: 50 },
+
+    // Ramp down
     { duration: '20s', target: 0 },
   ],
 
   thresholds: {
-    http_req_duration: ['p(95)<500', 'p(99)<1000'],
-    http_req_failed: ['rate<0.01'],
-    ttfb: ['p(95)<400', 'p(99)<800'],
+    http_req_duration: [
+      'p(95)<500',
+      'p(99)<1000',
+    ],
+
+    http_req_failed: [
+      'rate<0.01',
+    ],
+
+    ttfb: [
+      'p(95)<400',
+      'p(99)<800',
+    ],
   },
 };
+
+// ============================================================
+// TEST
+// ============================================================
 
 export default function () {
   const url =
@@ -58,7 +88,15 @@ export default function () {
     },
   };
 
-  const res = http.post(url, payload, params);
+  const res = http.post(
+    url,
+    payload,
+    params
+  );
+
+  // ==========================================================
+  // METRICS
+  // ==========================================================
 
   ttfb.add(res.timings.waiting);
   responseSize.add(res.body.length);
@@ -69,22 +107,32 @@ export default function () {
   receiving.add(res.timings.receiving);
   blocked.add(res.timings.blocked);
 
+  // ==========================================================
+  // DEBUG — FIRST VU / FIRST 3 ITERATIONS ONLY
+  // ==========================================================
+
   if (__VU === 1 && __ITER < 3) {
+    console.log('\n===== SMART FEED =====');
+
     console.log(`STATUS: ${res.status}`);
     console.log(`BODY: ${res.body}`);
     console.log(`SIZE: ${res.body.length} bytes`);
 
     console.log(
       `TIMINGS:
-      blocked=${res.timings.blocked}ms
-      connecting=${res.timings.connecting}ms
-      tls=${res.timings.tls_handshaking}ms
-      sending=${res.timings.sending}ms
-      waiting=${res.timings.waiting}ms
-      receiving=${res.timings.receiving}ms
-      total=${res.timings.duration}ms`
+blocked=${res.timings.blocked}ms
+connecting=${res.timings.connecting}ms
+tls=${res.timings.tls_handshaking}ms
+sending=${res.timings.sending}ms
+waiting=${res.timings.waiting}ms
+receiving=${res.timings.receiving}ms
+total=${res.timings.duration}ms`
     );
   }
+
+  // ==========================================================
+  // CHECKS
+  // ==========================================================
 
   check(res, {
     'feed status 200': (r) => r.status === 200,
