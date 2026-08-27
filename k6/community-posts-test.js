@@ -39,15 +39,19 @@ if (
 
 export const options = {
   stages: [
-    { duration: '20s', target: 5 },
-    { duration: '30s', target: 10 },
-    { duration: '30s', target: 25 },
-    { duration: '30s', target: 50 },
+  // Ramp up
+  { duration: '20s', target: 10 },
+  { duration: '30s', target: 25 },
+  { duration: '30s', target: 50 },
+  { duration: '30s', target: 75 },
+  { duration: '30s', target: 100 },
 
-    { duration: '30s', target: 50 },
+  // Hold at 100 VUs
+  { duration: '30s', target: 100 },
 
-    { duration: '20s', target: 0 },
-  ],
+  // Ramp down
+  { duration: '20s', target: 0 },
+],
 
   thresholds: {
     http_req_duration: [
@@ -261,7 +265,7 @@ export default function () {
   // LOG FIRST ITERATION ONLY
   // ==========================================================
 
-  if (__ITER === 0) {
+  if (__VU === 1 && __ITER === 0) {
 
     console.log(
       '\n===== COMMUNITY ====='

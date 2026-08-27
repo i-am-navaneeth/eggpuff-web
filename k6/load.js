@@ -10,13 +10,14 @@ if (!BASE_URL) {
 export const options = {
   stages: [
     // Ramp up
-    { duration: '20s', target: 5 },
-    { duration: '30s', target: 10 },
+    { duration: '20s', target: 10 },
     { duration: '30s', target: 25 },
     { duration: '30s', target: 50 },
+    { duration: '30s', target: 75 },
+    { duration: '30s', target: 100 },
 
-    // Hold
-    { duration: '30s', target: 50 },
+    // Hold at 100 VUs
+    { duration: '30s', target: 100 },
 
     // Ramp down
     { duration: '20s', target: 0 },
@@ -54,9 +55,8 @@ export default function () {
   })
 
   // Diagnostic output only once.
-  // Prevents 50 VUs from flooding the terminal.
   if (__VU === 1 && __ITER === 0) {
-    console.log('\n===== LOAD TEST DIAGNOSTIC =====')
+    console.log('\n===== 100 VU LOAD TEST DIAGNOSTIC =====')
     console.log(`URL: ${url}`)
     console.log(`STATUS: ${res.status}`)
     console.log(`CONTENT-TYPE: ${contentType}`)
@@ -66,7 +66,7 @@ export default function () {
     console.log(
       `BODY: ${res.body ? res.body.substring(0, 500) : '(empty)'}`
     )
-    console.log('================================\n')
+    console.log('=======================================\n')
   }
 
   sleep(1)

@@ -33,17 +33,19 @@ const blocked = new Trend('blocked');
 
 export const options = {
   stages: [
-    { duration: '20s', target: 5 },
-    { duration: '30s', target: 10 },
-    { duration: '30s', target: 25 },
-    { duration: '30s', target: 50 },
+  // Ramp up
+  { duration: '20s', target: 10 },
+  { duration: '30s', target: 25 },
+  { duration: '30s', target: 50 },
+  { duration: '30s', target: 75 },
+  { duration: '30s', target: 100 },
 
-    // Hold at 50 VUs
-    { duration: '30s', target: 50 },
+  // Hold at 100 VUs
+  { duration: '30s', target: 100 },
 
-    // Ramp down
-    { duration: '20s', target: 0 },
-  ],
+  // Ramp down
+  { duration: '20s', target: 0 },
+],
 
   thresholds: {
     http_req_duration: [
