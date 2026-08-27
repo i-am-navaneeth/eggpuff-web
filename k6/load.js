@@ -9,19 +9,18 @@ if (!BASE_URL) {
 
 export const options = {
   stages: [
+    // Ramp up
     { duration: '20s', target: 5 },
     { duration: '30s', target: 10 },
     { duration: '30s', target: 25 },
     { duration: '30s', target: 50 },
 
+    // Hold
     { duration: '30s', target: 50 },
 
+    // Ramp down
     { duration: '20s', target: 0 },
   ],
-
-  // Do NOT silently follow redirects.
-  // This lets us see whether /api/debug is redirecting.
-  redirects: 0,
 
   thresholds: {
     http_req_failed: ['rate<0.01'],
@@ -30,7 +29,9 @@ export const options = {
 }
 
 export default function () {
-  const res = http.get(`${BASE_URL}/api/debug`, {
+  const url = `${BASE_URL}/api/debug`
+
+  const res = http.get(url, {
     tags: {
       test: 'load',
       endpoint: 'debug',
@@ -44,17 +45,19 @@ export default function () {
     'debug status is 200': (r) => r.status === 200,
 
     'debug returns JSON': (r) =>
-      (r.headers['Content-Type'] || '').toLowerCase().includes('application/json'),
+      (r.headers['Content-Type'] || '')
+        .toLowerCase()
+        .includes('application/json'),
 
     'debug response has body': (r) =>
-      r.body && r.body.length > 0,
+      !!r.body && r.body.length > 0,
   })
 
-  // Print diagnostics only from the first VU/iteration,
-  // so 50 VUs don't flood the terminal.
+  // Diagnostic output only once.
+  // Prevents 50 VUs from flooding the terminal.
   if (__VU === 1 && __ITER === 0) {
     console.log('\n===== LOAD TEST DIAGNOSTIC =====')
-    console.log(`URL: ${BASE_URL}/api/debug`)
+    console.log(`URL: ${url}`)
     console.log(`STATUS: ${res.status}`)
     console.log(`CONTENT-TYPE: ${contentType}`)
     console.log(`LOCATION: ${location || 'none'}`)
