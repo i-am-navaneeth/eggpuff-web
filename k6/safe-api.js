@@ -1,6 +1,10 @@
 import http from 'k6/http'
-import { check } from 'k6'
+import { check, sleep } from 'k6'
 import { Trend } from 'k6/metrics'
+
+// ============================================================
+// ENVIRONMENT
+// ============================================================
 
 const SUPABASE_URL = __ENV.SUPABASE_URL
 const SUPABASE_ANON_KEY = __ENV.SUPABASE_ANON_KEY
@@ -19,7 +23,7 @@ if (
 }
 
 // ============================================================
-// METRICS
+// CUSTOM METRICS
 // ============================================================
 
 const ttfb = new Trend('ttfb')
@@ -32,25 +36,26 @@ const receiving = new Trend('receiving')
 const blocked = new Trend('blocked')
 
 // ============================================================
-// DEV TEST — QUEUE 1
-// 5 → 10 → 25 → 50 VUs
+// LOAD PROFILE
+// 10 → 25 → 50 → 75 → 100 VUs
+// Hold at 100 VUs
 // ============================================================
 
 export const options = {
   stages: [
-  // Ramp up
-  { duration: '20s', target: 10 },
-  { duration: '30s', target: 25 },
-  { duration: '30s', target: 50 },
-  { duration: '30s', target: 75 },
-  { duration: '30s', target: 100 },
+    // Ramp up
+    { duration: '20s', target: 10 },
+    { duration: '30s', target: 25 },
+    { duration: '30s', target: 50 },
+    { duration: '30s', target: 75 },
+    { duration: '30s', target: 100 },
 
-  // Hold at 100 VUs
-  { duration: '30s', target: 100 },
+    // Hold at 100 VUs
+    { duration: '30s', target: 100 },
 
-  // Ramp down
-  { duration: '20s', target: 0 },
-],
+    // Ramp down
+    { duration: '20s', target: 0 },
+  ],
 
   thresholds: {
     http_req_duration: [
@@ -91,6 +96,7 @@ export default function () {
     },
 
     tags: {
+      test: 'safe-api',
       endpoint: 'get_smart_feed',
     },
   }
@@ -102,11 +108,14 @@ export default function () {
   )
 
   // ==========================================================
-  // METRICS
+  // TIMING METRICS
   // ==========================================================
 
   ttfb.add(res.timings.waiting)
-  responseSize.add(res.body.length)
+
+  responseSize.add(
+    res.body ? res.body.length : 0
+  )
 
   connecting.add(res.timings.connecting)
   tlsHandshake.add(res.timings.tls_handshaking)
@@ -115,13 +124,49 @@ export default function () {
   blocked.add(res.timings.blocked)
 
   // ==========================================================
-  // DEBUG — ONLY FIRST VU / FIRST ITERATION
+  // CHECKS
+  // ==========================================================
+
+  check(res, {
+    'feed status 200':
+      (r) => r.status === 200,
+
+    'feed returns JSON':
+      (r) =>
+        (r.headers['Content-Type'] || '')
+          .toLowerCase()
+          .includes('application/json'),
+
+    'feed returned array':
+      (r) => {
+        try {
+          return Array.isArray(r.json())
+        } catch {
+          return false
+        }
+      },
+  })
+
+  // ==========================================================
+  // DIAGNOSTIC — FIRST VU / FIRST ITERATION ONLY
   // ==========================================================
 
   if (__VU === 1 && __ITER === 0) {
-    console.log('\n===== SMART FEED =====')
+    console.log('\n===== SMART FEED 100 VU TEST =====')
+
     console.log(`STATUS: ${res.status}`)
-    console.log(`SIZE: ${res.body.length} bytes`)
+
+    console.log(
+      `CONTENT-TYPE: ${
+        res.headers['Content-Type'] || 'unknown'
+      }`
+    )
+
+    console.log(
+      `SIZE: ${
+        res.body ? res.body.length : 0
+      } bytes`
+    )
 
     console.log(
       `TIMINGS:
@@ -133,21 +178,13 @@ waiting=${res.timings.waiting}ms
 receiving=${res.timings.receiving}ms
 total=${res.timings.duration}ms`
     )
+
+    console.log('================================\n')
   }
 
   // ==========================================================
-  // CHECKS
+  // REALISTIC USER PAUSE
   // ==========================================================
 
-  check(res, {
-    'feed status 200': (r) => r.status === 200,
-
-    'feed returned array': (r) => {
-      try {
-        return Array.isArray(r.json())
-      } catch {
-        return false
-      }
-    },
-  })
+  sleep(0.5)
 }

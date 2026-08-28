@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
@@ -42,11 +42,25 @@ type Props = {
 
   setProfile: React.Dispatch<any>
 
-  setProfileLoading:
+    setProfileLoading:
     React.Dispatch<
       React.SetStateAction<boolean>
     >
 
+  feedSnapshotRef:
+    React.MutableRefObject<
+      string | null
+    >
+
+  cursorScoreRef:
+    React.MutableRefObject<
+      number | null
+    >
+
+  cursorIdRef:
+    React.MutableRefObject<
+      string | null
+    >
 }
 
 export function useFeedInitialLoad({
@@ -63,9 +77,13 @@ export function useFeedInitialLoad({
 
   setPromoted,
   setCategories,
-  setQuestions,
+    setQuestions,
   setProfile,
   setProfileLoading,
+
+  feedSnapshotRef,
+  cursorScoreRef,
+  cursorIdRef,
 }: Props) {
 
   const router = useRouter()
@@ -74,31 +92,26 @@ useEffect(() => {
 
 let mounted = true
 
-    const load = async () => {
+  const load = async () => {
       
-      if (!questions.length && !loaded) setLoading(true)
+  if (!questions.length && !loaded) setLoading(true)
 
-      createProfileIfNotExists()
+  createProfileIfNotExists()
 
-      
+  const sessionRes = await supabase.auth.getSession()
 
-const sessionRes = await supabase.auth.getSession()
+  const user = sessionRes.data?.session?.user
 
+  setUserId(user?.id ?? null)
 
-const user = sessionRes.data?.session?.user
+  // 🚀 Fetch everything in parallel
 
-setUserId(user?.id ??null)
-
-
-// 🚀 Fetch everything in parallel
-
-
-const [
-  profileRes,
-  feedRes,
-  catsRes,
-  promoRes,
-] = await Promise.all([
+  const [
+    profileRes,
+    feedRes,
+    catsRes,
+    promoRes,
+  ] = await Promise.all([
 
   supabase
     .from('profiles')
@@ -107,10 +120,12 @@ const [
     .single(),
 
   supabase.rpc('get_smart_feed', {
-    p_user_id: user?.id,
-    p_limit: PAGE_SIZE,
-    p_offset: 0,
-  }),
+  p_user_id: user?.id,
+  p_limit: PAGE_SIZE,
+  p_snapshot_at: null,
+  p_cursor_score: null,
+  p_cursor_id: null,
+}),
 
   supabase
     .from('categories')
@@ -154,7 +169,20 @@ if (!onboardingComplete) {
 const questionsData =
   (feedRes.data ?? []) as QuestionRow[]
 
+if (questionsData.length > 0) {
 
+  feedSnapshotRef.current =
+    questionsData[0].feed_snapshot_at ?? null
+
+  const last =
+    questionsData[questionsData.length - 1]
+
+  cursorScoreRef.current =
+    last.total_score ?? null
+
+  cursorIdRef.current =
+    last.id ?? null
+}
 
 mergeBatch(questionsData)
 

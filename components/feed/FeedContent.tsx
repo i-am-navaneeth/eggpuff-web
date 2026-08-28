@@ -104,6 +104,15 @@ export default function FeedContent() {
   const observerRef = useRef<IntersectionObserver | null>(null)
   const offsetRef = useRef(0)
 
+  const feedSnapshotRef =
+  useRef<string | null>(null)
+
+const cursorScoreRef =
+  useRef<number | null>(null)
+
+const cursorIdRef =
+  useRef<string | null>(null)
+
   const {
   hardLockRef,
   loadMoreRef,
@@ -116,9 +125,11 @@ export default function FeedContent() {
   loadingMore,
   setLoadingMore,
   setQuestions,
-  offsetRef,
   observerRef,
-  setOffset,
+
+  feedSnapshotRef,
+  cursorScoreRef,
+  cursorIdRef,
 })
 
 useInfiniteObserver({
@@ -189,6 +200,10 @@ useFeedCache({
   setQuestions,
   setProfile,
   setProfileLoading,
+
+  feedSnapshotRef,
+  cursorScoreRef,
+  cursorIdRef,
 })
   
 useEffect(() => {

@@ -16,7 +16,9 @@ export async function getUserId(): Promise<string | null> {
 
 export async function fetchPage(
   userId: string,
-  pageOffset: number
+  snapshotAt?: string | null,
+  cursorScore?: number | null,
+  cursorId?: string | null
 ): Promise<QuestionRow[]> {
 
   const {
@@ -27,7 +29,15 @@ export async function fetchPage(
     {
       p_user_id: userId,
       p_limit: PAGE_SIZE,
-      p_offset: pageOffset,
+
+      p_snapshot_at:
+        snapshotAt ?? null,
+
+      p_cursor_score:
+        cursorScore ?? null,
+
+      p_cursor_id:
+        cursorId ?? null,
     }
   )
 

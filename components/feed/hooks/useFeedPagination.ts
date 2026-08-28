@@ -40,12 +40,20 @@ type Props = {
     React.SetStateAction<QuestionRow[]>
   >
 
-  offsetRef: React.MutableRefObject<number>
+  observerRef: React.MutableRefObject<
+    IntersectionObserver | null
+  >
 
-  observerRef: React.MutableRefObject<IntersectionObserver | null>
+  feedSnapshotRef: React.MutableRefObject<
+    string | null
+  >
 
-  setOffset: React.Dispatch<
-    React.SetStateAction<number>
+  cursorScoreRef: React.MutableRefObject<
+    number | null
+  >
+
+  cursorIdRef: React.MutableRefObject<
+    string | null
   >
 }
 
@@ -57,9 +65,10 @@ export function useFeedPagination({
   loadingMore,
   setLoadingMore,
   setQuestions,
-  offsetRef,
   observerRef,
-  setOffset,
+  feedSnapshotRef,
+  cursorScoreRef,
+  cursorIdRef,
 }: Props) {
 
   const hardLockRef =
@@ -68,7 +77,9 @@ export function useFeedPagination({
   const mergeBatch =
     useCallback(
       (batch: QuestionRow[]) => {
+
         setQuestions(prev => {
+
           const map =
             new Map<
               string,
@@ -79,12 +90,9 @@ export function useFeedPagination({
             map.set(q.id, q)
           }
 
-          let added = 0
-
           for (const q of batch) {
             if (!map.has(q.id)) {
               map.set(q.id, q)
-              added++
             }
           }
 
@@ -93,11 +101,7 @@ export function useFeedPagination({
           )
         })
       },
-      [
-        setQuestions,
-        setOffset,
-        offsetRef,
-      ]
+      [setQuestions]
     )
 
   const loadMore =
@@ -106,7 +110,8 @@ export function useFeedPagination({
       if (
         hardLockRef.current ||
         !loaded ||
-        !hasMore
+        !hasMore ||
+        loadingMore
       ) {
         return
       }
@@ -116,18 +121,24 @@ export function useFeedPagination({
       setLoadingMore(true)
 
       try {
+
         const userId =
           await getUserId()
 
-        if (!userId) return
+        if (!userId) {
+          return
+        }
 
         const batch =
           await fetchPage(
             userId,
-            offsetRef.current
+            feedSnapshotRef.current,
+            cursorScoreRef.current,
+            cursorIdRef.current
           )
 
         if (batch.length === 0) {
+
           setHasMore(false)
 
           observerRef.current?.disconnect()
@@ -137,13 +148,41 @@ export function useFeedPagination({
 
         mergeBatch(batch)
 
-offsetRef.current += PAGE_SIZE
+        /*
+         * The database returns feed_snapshot_at
+         * on every row. Keep the first valid snapshot.
+         */
+        if (
+          !feedSnapshotRef.current &&
+          batch[0]?.feed_snapshot_at
+        ) {
+          feedSnapshotRef.current =
+            batch[0].feed_snapshot_at
+        }
 
-setOffset(offsetRef.current)
+        /*
+         * Keyset cursor:
+         * the last row becomes the cursor
+         * for the next page.
+         */
+        const last =
+          batch[batch.length - 1]
 
-if (batch.length < PAGE_SIZE) {
-  setHasMore(false)
-}
+        cursorScoreRef.current =
+          last.total_score
+
+        cursorIdRef.current =
+          last.id
+
+        /*
+         * If fewer than PAGE_SIZE rows came back,
+         * there is nothing more to load.
+         */
+        if (batch.length < PAGE_SIZE) {
+          setHasMore(false)
+
+          observerRef.current?.disconnect()
+        }
 
       } finally {
 
@@ -156,8 +195,11 @@ if (batch.length < PAGE_SIZE) {
     }, [
       loaded,
       hasMore,
+      loadingMore,
       observerRef,
-      offsetRef,
+      feedSnapshotRef,
+      cursorScoreRef,
+      cursorIdRef,
       mergeBatch,
       setHasMore,
       setLoadingMore,
@@ -169,7 +211,7 @@ if (batch.length < PAGE_SIZE) {
   useEffect(() => {
     loadMoreRef.current =
       loadMore
-  })
+  }, [loadMore])
 
   return {
     hardLockRef,
