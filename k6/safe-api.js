@@ -27,18 +27,28 @@ if (
 // ============================================================
 
 const ttfb = new Trend('ttfb')
-const responseSize = new Trend('response_size_bytes')
+const responseSize =
+  new Trend('response_size_bytes')
 
-const connecting = new Trend('connecting')
-const tlsHandshake = new Trend('tls_handshaking')
-const waiting = new Trend('waiting')
-const receiving = new Trend('receiving')
-const blocked = new Trend('blocked')
+const connecting =
+  new Trend('connecting')
+
+const tlsHandshake =
+  new Trend('tls_handshaking')
+
+const waiting =
+  new Trend('waiting')
+
+const receiving =
+  new Trend('receiving')
+
+const blocked =
+  new Trend('blocked')
 
 // ============================================================
 // LOAD PROFILE
-// 10 → 25 → 50 → 75 → 100 VUs
-// Hold at 100 VUs
+// 10 → 25 → 50 → 75 → 100 → 125 → 150 VUs
+// Hold at 150 VUs
 // ============================================================
 
 export const options = {
@@ -49,9 +59,11 @@ export const options = {
     { duration: '30s', target: 50 },
     { duration: '30s', target: 75 },
     { duration: '30s', target: 100 },
+    { duration: '30s', target: 125 },
+    { duration: '30s', target: 150 },
 
-    // Hold at 100 VUs
-    { duration: '30s', target: 100 },
+    // Hold at 150 VUs
+    { duration: '30s', target: 150 },
 
     // Ramp down
     { duration: '20s', target: 0 },
@@ -90,9 +102,14 @@ export default function () {
 
   const params = {
     headers: {
-      'Content-Type': 'application/json',
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${ACCESS_TOKEN}`,
+      'Content-Type':
+        'application/json',
+
+      apikey:
+        SUPABASE_ANON_KEY,
+
+      Authorization:
+        `Bearer ${ACCESS_TOKEN}`,
     },
 
     tags: {
@@ -111,17 +128,35 @@ export default function () {
   // TIMING METRICS
   // ==========================================================
 
-  ttfb.add(res.timings.waiting)
-
-  responseSize.add(
-    res.body ? res.body.length : 0
+  ttfb.add(
+    res.timings.waiting
   )
 
-  connecting.add(res.timings.connecting)
-  tlsHandshake.add(res.timings.tls_handshaking)
-  waiting.add(res.timings.waiting)
-  receiving.add(res.timings.receiving)
-  blocked.add(res.timings.blocked)
+  responseSize.add(
+    res.body
+      ? res.body.length
+      : 0
+  )
+
+  connecting.add(
+    res.timings.connecting
+  )
+
+  tlsHandshake.add(
+    res.timings.tls_handshaking
+  )
+
+  waiting.add(
+    res.timings.waiting
+  )
+
+  receiving.add(
+    res.timings.receiving
+  )
+
+  blocked.add(
+    res.timings.blocked
+  )
 
   // ==========================================================
   // CHECKS
@@ -133,14 +168,21 @@ export default function () {
 
     'feed returns JSON':
       (r) =>
-        (r.headers['Content-Type'] || '')
+        (
+          r.headers['Content-Type'] ||
+          ''
+        )
           .toLowerCase()
-          .includes('application/json'),
+          .includes(
+            'application/json'
+          ),
 
     'feed returned array':
       (r) => {
         try {
-          return Array.isArray(r.json())
+          return Array.isArray(
+            r.json()
+          )
         } catch {
           return false
         }
@@ -148,23 +190,30 @@ export default function () {
   })
 
   // ==========================================================
-  // DIAGNOSTIC — FIRST VU / FIRST ITERATION ONLY
+  // DIAGNOSTIC — FIRST VU / FIRST ITERATION
   // ==========================================================
 
   if (__VU === 1 && __ITER === 0) {
-    console.log('\n===== SMART FEED 100 VU TEST =====')
+    console.log(
+      '\n===== SMART FEED 150 VU TEST ====='
+    )
 
-    console.log(`STATUS: ${res.status}`)
+    console.log(
+      `STATUS: ${res.status}`
+    )
 
     console.log(
       `CONTENT-TYPE: ${
-        res.headers['Content-Type'] || 'unknown'
+        res.headers['Content-Type'] ||
+        'unknown'
       }`
     )
 
     console.log(
       `SIZE: ${
-        res.body ? res.body.length : 0
+        res.body
+          ? res.body.length
+          : 0
       } bytes`
     )
 
@@ -179,7 +228,9 @@ receiving=${res.timings.receiving}ms
 total=${res.timings.duration}ms`
     )
 
-    console.log('================================\n')
+    console.log(
+      '================================\n'
+    )
   }
 
   // ==========================================================

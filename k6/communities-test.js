@@ -2,6 +2,10 @@ import http from 'k6/http'
 import { check } from 'k6'
 import { Trend } from 'k6/metrics'
 
+// ============================================================
+// ENVIRONMENT
+// ============================================================
+
 const SUPABASE_URL = __ENV.SUPABASE_URL
 const SUPABASE_ANON_KEY = __ENV.SUPABASE_ANON_KEY
 const ACCESS_TOKEN = __ENV.ACCESS_TOKEN
@@ -22,40 +26,49 @@ if (
 // METRICS
 // ============================================================
 
-const ttfb = new Trend('ttfb')
+const ttfb =
+  new Trend('ttfb')
 
 const eligibilityTime =
-  new Trend('communities_eligibility')
+  new Trend(
+    'communities_eligibility'
+  )
 
 const joinedTime =
-  new Trend('communities_joined')
+  new Trend(
+    'communities_joined'
+  )
 
 const exploreTime =
-  new Trend('communities_explore')
+  new Trend(
+    'communities_explore'
+  )
 
 const responseSize =
-  new Trend('response_size_bytes')
+  new Trend(
+    'response_size_bytes'
+  )
 
 // ============================================================
-// DEV TEST — QUEUE 1
-// 5 → 10 → 25 → 50 VUs
+// LOAD PROFILE
+// 10 → 25 → 50 → 75 → 100 → 125 → 150 VUs
+// Hold at 150 VUs
 // ============================================================
 
 export const options = {
   stages: [
-  // Ramp up
-  { duration: '20s', target: 10 },
-  { duration: '30s', target: 25 },
-  { duration: '30s', target: 50 },
-  { duration: '30s', target: 75 },
-  { duration: '30s', target: 100 },
+    { duration: '20s', target: 10 },
+    { duration: '30s', target: 25 },
+    { duration: '30s', target: 50 },
+    { duration: '30s', target: 75 },
+    { duration: '30s', target: 100 },
+    { duration: '30s', target: 125 },
+    { duration: '30s', target: 150 },
 
-  // Hold at 100 VUs
-  { duration: '30s', target: 100 },
+    { duration: '30s', target: 150 },
 
-  // Ramp down
-  { duration: '20s', target: 0 },
-],
+    { duration: '20s', target: 0 },
+  ],
 
   thresholds: {
     http_req_duration: [
@@ -80,32 +93,42 @@ export const options = {
 
 export default function () {
   const headers = {
-    'Content-Type': 'application/json',
-    apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${ACCESS_TOKEN}`,
+    'Content-Type':
+      'application/json',
+
+    apikey:
+      SUPABASE_ANON_KEY,
+
+    Authorization:
+      `Bearer ${ACCESS_TOKEN}`,
   }
 
   // ==========================================================
   // 1. ELIGIBILITY
   // ==========================================================
 
-  const eligibilityStart = Date.now()
+  const eligibilityStart =
+    Date.now()
 
-  const eligibility = http.post(
-    `${SUPABASE_URL}/rest/v1/rpc/can_create_community`,
-    JSON.stringify({
-      p_user_id: USER_ID,
-    }),
-    {
-      headers,
-      tags: {
-        endpoint: 'communities_eligibility',
-      },
-    }
-  )
+  const eligibility =
+    http.post(
+      `${SUPABASE_URL}/rest/v1/rpc/can_create_community`,
+      JSON.stringify({
+        p_user_id: USER_ID,
+      }),
+      {
+        headers,
+
+        tags: {
+          endpoint:
+            'communities_eligibility',
+        },
+      }
+    )
 
   const eligibilityDuration =
-    Date.now() - eligibilityStart
+    Date.now() -
+    eligibilityStart
 
   eligibilityTime.add(
     eligibilityDuration
@@ -116,29 +139,36 @@ export default function () {
   )
 
   responseSize.add(
-    eligibility.body.length
+    eligibility.body
+      ? eligibility.body.length
+      : 0
   )
 
   // ==========================================================
   // 2. JOINED COMMUNITIES
   // ==========================================================
 
-  const joinedStart = Date.now()
+  const joinedStart =
+    Date.now()
 
-  const joined = http.get(
-    `${SUPABASE_URL}/rest/v1/community_members` +
-    `?select=communities(id,name,slug,description,members_count,avatar_url,banner_url)` +
-    `&user_id=eq.${USER_ID}`,
-    {
-      headers,
-      tags: {
-        endpoint: 'communities_joined',
-      },
-    }
-  )
+  const joined =
+    http.get(
+      `${SUPABASE_URL}/rest/v1/community_members` +
+        `?select=communities(id,name,slug,description,members_count,avatar_url,banner_url)` +
+        `&user_id=eq.${USER_ID}`,
+      {
+        headers,
+
+        tags: {
+          endpoint:
+            'communities_joined',
+        },
+      }
+    )
 
   const joinedDuration =
-    Date.now() - joinedStart
+    Date.now() -
+    joinedStart
 
   joinedTime.add(
     joinedDuration
@@ -149,29 +179,35 @@ export default function () {
   )
 
   responseSize.add(
-    joined.body.length
+    joined.body
+      ? joined.body.length
+      : 0
   )
 
   // ==========================================================
   // 3. EXPLORE COMMUNITIES
   // ==========================================================
 
-  const exploreStart = Date.now()
-
   let joinedIds = []
 
   try {
-    const joinedData = joined.json()
+    const joinedData =
+      joined.json()
 
-    if (Array.isArray(joinedData)) {
-      joinedIds = joinedData
-        .map(
-          (item) => item?.communities?.id
-        )
-        .filter(Boolean)
+    if (
+      Array.isArray(joinedData)
+    ) {
+      joinedIds =
+        joinedData
+          .map(
+            (item) =>
+              item?.communities?.id
+          )
+          .filter(Boolean)
     }
   } catch {
-    // Validation below handles bad responses.
+    // Validation below handles
+    // invalid responses.
   }
 
   let exploreUrl =
@@ -180,23 +216,29 @@ export default function () {
     `&order=members_count.desc` +
     `&limit=8`
 
-  if (joinedIds.length > 0) {
+  if (
+    joinedIds.length > 0
+  ) {
     exploreUrl +=
       `&id=not.in.(${joinedIds.join(',')})`
   }
 
-  const explore = http.get(
-    exploreUrl,
-    {
-      headers,
-      tags: {
-        endpoint: 'communities_explore',
-      },
-    }
-  )
+  const explore =
+    http.get(
+      exploreUrl,
+      {
+        headers,
+
+        tags: {
+          endpoint:
+            'communities_explore',
+        },
+      }
+    )
 
   const exploreDuration =
-    Date.now() - exploreStart
+    Date.now() -
+    exploreStart
 
   exploreTime.add(
     exploreDuration
@@ -207,7 +249,9 @@ export default function () {
   )
 
   responseSize.add(
-    explore.body.length
+    explore.body
+      ? explore.body.length
+      : 0
   )
 
   // ==========================================================
@@ -221,7 +265,9 @@ export default function () {
     'eligibility returned data':
       (r) => {
         try {
-          return Array.isArray(r.json())
+          return Array.isArray(
+            r.json()
+          )
         } catch {
           return false
         }
@@ -235,7 +281,9 @@ export default function () {
     'joined communities returned array':
       (r) => {
         try {
-          return Array.isArray(r.json())
+          return Array.isArray(
+            r.json()
+          )
         } catch {
           return false
         }
@@ -249,7 +297,9 @@ export default function () {
     'explore communities returned array':
       (r) => {
         try {
-          return Array.isArray(r.json())
+          return Array.isArray(
+            r.json()
+          )
         } catch {
           return false
         }
@@ -262,7 +312,7 @@ export default function () {
 
   if (__VU === 1 && __ITER === 0) {
     console.log(
-      '\n===== COMMUNITIES DEV TEST ====='
+      '\n===== COMMUNITIES 150 VU TEST ====='
     )
 
     console.log(
@@ -282,7 +332,15 @@ export default function () {
     )
 
     console.log(
-      `Explore response size: ${explore.body.length} bytes`
+      `Explore response size: ${
+        explore.body
+          ? explore.body.length
+          : 0
+      } bytes`
+    )
+
+    console.log(
+      '===================================\n'
     )
   }
 }

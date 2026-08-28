@@ -3,7 +3,7 @@ import { check, sleep } from 'k6'
 import { Trend } from 'k6/metrics'
 
 // ============================================================
-// CONFIG — READ FROM POWERSHELL ENVIRONMENT
+// CONFIG
 // ============================================================
 
 const SUPABASE_URL =
@@ -34,24 +34,27 @@ if (
 }
 
 // ============================================================
-// TEST CONFIG
+// LOAD PROFILE
+// 10 → 25 → 50 → 75 → 100 → 125 → 150 VUs
+// Hold at 150 VUs
 // ============================================================
 
 export const options = {
   stages: [
-  // Ramp up
-  { duration: '20s', target: 10 },
-  { duration: '30s', target: 25 },
-  { duration: '30s', target: 50 },
-  { duration: '30s', target: 75 },
-  { duration: '30s', target: 100 },
+    { duration: '20s', target: 10 },
+    { duration: '30s', target: 25 },
+    { duration: '30s', target: 50 },
+    { duration: '30s', target: 75 },
+    { duration: '30s', target: 100 },
+    { duration: '30s', target: 125 },
+    { duration: '30s', target: 150 },
 
-  // Hold at 100 VUs
-  { duration: '30s', target: 100 },
+    // Hold
+    { duration: '30s', target: 150 },
 
-  // Ramp down
-  { duration: '20s', target: 0 },
-],
+    // Ramp down
+    { duration: '20s', target: 0 },
+  ],
 
   thresholds: {
     http_req_duration: [
@@ -75,16 +78,24 @@ export const options = {
 // ============================================================
 
 const communityLoad =
-  new Trend('community_load')
+  new Trend(
+    'community_load'
+  )
 
 const membershipCheck =
-  new Trend('membership_check')
+  new Trend(
+    'membership_check'
+  )
 
 const communityPostsLoad =
-  new Trend('community_posts_load')
+  new Trend(
+    'community_posts_load'
+  )
 
 const responseSize =
-  new Trend('response_size_bytes')
+  new Trend(
+    'response_size_bytes'
+  )
 
 const ttfb =
   new Trend('ttfb')
@@ -94,16 +105,14 @@ const ttfb =
 // ============================================================
 
 const headers = {
-
-  'apikey':
+  apikey:
     SUPABASE_ANON_KEY,
 
-  'Authorization':
+  Authorization:
     `Bearer ${ACCESS_TOKEN}`,
 
   'Content-Type':
     'application/json',
-
 }
 
 // ============================================================
@@ -115,7 +124,6 @@ function request(
   metric,
   name
 ) {
-
   const res =
     http.get(
       url,
@@ -150,7 +158,6 @@ function request(
 // ============================================================
 
 export default function () {
-
   // ==========================================================
   // 1. COMMUNITY
   // ==========================================================
@@ -167,24 +174,21 @@ export default function () {
       'community'
     )
 
-  check(
-    community,
-    {
-      'community status 200':
-        (r) => r.status === 200,
+  check(community, {
+    'community status 200':
+      (r) => r.status === 200,
 
-      'community returned array':
-        (r) => {
-          try {
-            return Array.isArray(
-              JSON.parse(r.body)
-            )
-          } catch {
-            return false
-          }
-        },
-    }
-  )
+    'community returned array':
+      (r) => {
+        try {
+          return Array.isArray(
+            JSON.parse(r.body)
+          )
+        } catch {
+          return false
+        }
+      },
+  })
 
   // ==========================================================
   // 2. MEMBERSHIP
@@ -203,29 +207,27 @@ export default function () {
       'membership'
     )
 
-  check(
-    membership,
-    {
-      'membership status 200':
-        (r) => r.status === 200,
+  check(membership, {
+    'membership status 200':
+      (r) => r.status === 200,
 
-      'membership returned array':
-        (r) => {
-          try {
-            return Array.isArray(
-              JSON.parse(r.body)
-            )
-          } catch {
-            return false
-          }
-        },
-    }
-  )
+    'membership returned array':
+      (r) => {
+        try {
+          return Array.isArray(
+            JSON.parse(r.body)
+          )
+        } catch {
+          return false
+        }
+      },
+  })
 
   // ==========================================================
   // 3. COMMUNITY POSTS
   //
-  // Community posts are questions with community_id.
+  // Community posts are questions
+  // with community_id.
   // ==========================================================
 
   const postsUrl =
@@ -242,30 +244,30 @@ export default function () {
       'community_posts'
     )
 
-  check(
-    posts,
-    {
-      'posts status 200':
-        (r) => r.status === 200,
+  check(posts, {
+    'posts status 200':
+      (r) => r.status === 200,
 
-      'posts returned array':
-        (r) => {
-          try {
-            return Array.isArray(
-              JSON.parse(r.body)
-            )
-          } catch {
-            return false
-          }
-        },
-    }
-  )
+    'posts returned array':
+      (r) => {
+        try {
+          return Array.isArray(
+            JSON.parse(r.body)
+          )
+        } catch {
+          return false
+        }
+      },
+  })
 
   // ==========================================================
-  // LOG FIRST ITERATION ONLY
+  // DIAGNOSTIC
   // ==========================================================
 
   if (__VU === 1 && __ITER === 0) {
+    console.log(
+      '\n===== COMMUNITY 150 VU TEST ====='
+    )
 
     console.log(
       '\n===== COMMUNITY ====='
@@ -316,16 +318,17 @@ export default function () {
     )
 
     try {
-
       const data =
         JSON.parse(posts.body)
 
       console.log(
         `POST COUNT: ${data.length}`
       )
-
     } catch {}
 
+    console.log(
+      '=================================\n'
+    )
   }
 
   sleep(0.2)
