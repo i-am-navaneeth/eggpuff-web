@@ -188,6 +188,8 @@ export default function () {
   // 3. EXPLORE COMMUNITIES
   // ==========================================================
 
+  const exploreStart = Date.now()
+
   let joinedIds = []
 
   try {

@@ -1,6 +1,6 @@
 import http from 'k6/http'
 import { check, sleep } from 'k6'
-import { Trend } from 'k6/metrics'
+import { Counter, Trend } from 'k6/metrics'
 
 // ============================================================
 // ENVIRONMENT
@@ -26,7 +26,9 @@ if (
 // CUSTOM METRICS
 // ============================================================
 
-const ttfb = new Trend('ttfb')
+const ttfb =
+  new Trend('ttfb')
+
 const responseSize =
   new Trend('response_size_bytes')
 
@@ -44,6 +46,12 @@ const receiving =
 
 const blocked =
   new Trend('blocked')
+
+// Counts non-200 feed responses.
+// The status code is attached as a tag so we can see
+// which type of failure is occurring under high load.
+const failedRequests =
+  new Counter('feed_failed_requests')
 
 // ============================================================
 // LOAD PROFILE
@@ -125,6 +133,24 @@ export default function () {
   )
 
   // ==========================================================
+  // FAILURE DIAGNOSTICS
+  // ==========================================================
+
+  if (res.status !== 200) {
+    failedRequests.add(1, {
+      status: String(res.status),
+    })
+
+    // Log a small number of failures so the terminal
+    // doesn't get flooded during a high-VU test.
+    if (__VU <= 3 && __ITER < 3) {
+      console.log(
+        `FEED FAILURE | VU=${__VU} ITER=${__ITER} STATUS=${res.status} ERROR=${res.error || 'none'} BODY=${res.body ? res.body.substring(0, 300) : '(empty)'}`
+      )
+    }
+  }
+
+  // ==========================================================
   // TIMING METRICS
   // ==========================================================
 
@@ -195,7 +221,7 @@ export default function () {
 
   if (__VU === 1 && __ITER === 0) {
     console.log(
-      '\n===== SMART FEED 150 VU TEST ====='
+      '\n===== SMART FEED LOAD TEST ====='
     )
 
     console.log(
