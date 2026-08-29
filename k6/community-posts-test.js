@@ -15,7 +15,6 @@ const SUPABASE_ANON_KEY =
 const ACCESS_TOKEN =
   __ENV.ACCESS_TOKEN
 
-// FF Community
 const COMMUNITY_ID =
   '3c8c9290-a62c-4d69-ac8c-2b08316a0d0a'
 
@@ -34,23 +33,37 @@ if (
 }
 
 // ============================================================
+// LOAD TARGET
+// ============================================================
+
+const TARGET_VUS =
+  Number(__ENV.TARGET_VUS || 150)
+
+if (
+  !Number.isInteger(TARGET_VUS) ||
+  TARGET_VUS < 1
+) {
+  throw new Error(
+    'TARGET_VUS must be a positive integer.'
+  )
+}
+
+// ============================================================
 // LOAD PROFILE
-// 10 → 25 → 50 → 75 → 100 → 125 → 150 VUs
-// Hold at 150 VUs
 // ============================================================
 
 export const options = {
   stages: [
-    { duration: '20s', target: 10 },
-    { duration: '30s', target: 25 },
-    { duration: '30s', target: 50 },
-    { duration: '30s', target: 75 },
-    { duration: '30s', target: 100 },
-    { duration: '30s', target: 125 },
-    { duration: '30s', target: 150 },
+    { duration: '20s', target: Math.round(TARGET_VUS * 0.07) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.17) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.33) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.50) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.67) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.83) },
+    { duration: '30s', target: TARGET_VUS },
 
     // Hold
-    { duration: '30s', target: 150 },
+    { duration: '30s', target: TARGET_VUS },
 
     // Ramp down
     { duration: '20s', target: 0 },
@@ -131,7 +144,8 @@ function request(
         headers,
 
         tags: {
-          name,
+          test: 'community-posts',
+          endpoint: name,
         },
       }
     )
@@ -178,11 +192,22 @@ export default function () {
     'community status 200':
       (r) => r.status === 200,
 
+    'community returns JSON':
+      (r) =>
+        (
+          r.headers['Content-Type'] ||
+          ''
+        )
+          .toLowerCase()
+          .includes(
+            'application/json'
+          ),
+
     'community returned array':
       (r) => {
         try {
           return Array.isArray(
-            JSON.parse(r.body)
+            r.json()
           )
         } catch {
           return false
@@ -211,11 +236,22 @@ export default function () {
     'membership status 200':
       (r) => r.status === 200,
 
+    'membership returns JSON':
+      (r) =>
+        (
+          r.headers['Content-Type'] ||
+          ''
+        )
+          .toLowerCase()
+          .includes(
+            'application/json'
+          ),
+
     'membership returned array':
       (r) => {
         try {
           return Array.isArray(
-            JSON.parse(r.body)
+            r.json()
           )
         } catch {
           return false
@@ -225,9 +261,6 @@ export default function () {
 
   // ==========================================================
   // 3. COMMUNITY POSTS
-  //
-  // Community posts are questions
-  // with community_id.
   // ==========================================================
 
   const postsUrl =
@@ -248,11 +281,22 @@ export default function () {
     'posts status 200':
       (r) => r.status === 200,
 
+    'posts returns JSON':
+      (r) =>
+        (
+          r.headers['Content-Type'] ||
+          ''
+        )
+          .toLowerCase()
+          .includes(
+            'application/json'
+          ),
+
     'posts returned array':
       (r) => {
         try {
           return Array.isArray(
-            JSON.parse(r.body)
+            r.json()
           )
         } catch {
           return false
@@ -266,7 +310,11 @@ export default function () {
 
   if (__VU === 1 && __ITER === 0) {
     console.log(
-      '\n===== COMMUNITY 150 VU TEST ====='
+      `\n===== COMMUNITY ${TARGET_VUS} VU TEST =====`
+    )
+
+    console.log(
+      `TARGET VUs: ${TARGET_VUS}`
     )
 
     console.log(
@@ -319,12 +367,20 @@ export default function () {
 
     try {
       const data =
-        JSON.parse(posts.body)
+        posts.json()
 
       console.log(
-        `POST COUNT: ${data.length}`
+        `POST COUNT: ${
+          Array.isArray(data)
+            ? data.length
+            : 0
+        }`
       )
-    } catch {}
+    } catch {
+      console.log(
+        'POST COUNT: unable to parse response'
+      )
+    }
 
     console.log(
       '=================================\n'

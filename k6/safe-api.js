@@ -6,10 +6,17 @@ import { Counter, Trend } from 'k6/metrics'
 // ENVIRONMENT
 // ============================================================
 
-const SUPABASE_URL = __ENV.SUPABASE_URL
-const SUPABASE_ANON_KEY = __ENV.SUPABASE_ANON_KEY
-const ACCESS_TOKEN = __ENV.ACCESS_TOKEN
-const USER_ID = __ENV.USER_ID
+const SUPABASE_URL =
+  __ENV.SUPABASE_URL
+
+const SUPABASE_ANON_KEY =
+  __ENV.SUPABASE_ANON_KEY
+
+const ACCESS_TOKEN =
+  __ENV.ACCESS_TOKEN
+
+const USER_ID =
+  __ENV.USER_ID
 
 if (
   !SUPABASE_URL ||
@@ -19,6 +26,22 @@ if (
 ) {
   throw new Error(
     'Missing required environment variables: SUPABASE_URL, SUPABASE_ANON_KEY, ACCESS_TOKEN, USER_ID'
+  )
+}
+
+// ============================================================
+// LOAD TARGET
+// ============================================================
+
+const TARGET_VUS =
+  Number(__ENV.TARGET_VUS || 150)
+
+if (
+  !Number.isInteger(TARGET_VUS) ||
+  TARGET_VUS < 1
+) {
+  throw new Error(
+    'TARGET_VUS must be a positive integer.'
   )
 }
 
@@ -47,31 +70,25 @@ const receiving =
 const blocked =
   new Trend('blocked')
 
-// Counts non-200 feed responses.
-// The status code is attached as a tag so we can see
-// which type of failure is occurring under high load.
 const failedRequests =
   new Counter('feed_failed_requests')
 
 // ============================================================
 // LOAD PROFILE
-// 10 → 25 → 50 → 75 → 100 → 125 → 150 VUs
-// Hold at 150 VUs
 // ============================================================
 
 export const options = {
   stages: [
-    // Ramp up
-    { duration: '20s', target: 10 },
-    { duration: '30s', target: 25 },
-    { duration: '30s', target: 50 },
-    { duration: '30s', target: 75 },
-    { duration: '30s', target: 100 },
-    { duration: '30s', target: 125 },
-    { duration: '30s', target: 150 },
+    { duration: '20s', target: Math.round(TARGET_VUS * 0.07) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.17) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.33) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.50) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.67) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.83) },
+    { duration: '30s', target: TARGET_VUS },
 
-    // Hold at 150 VUs
-    { duration: '30s', target: 150 },
+    // Hold at target
+    { duration: '30s', target: TARGET_VUS },
 
     // Ramp down
     { duration: '20s', target: 0 },
@@ -102,11 +119,12 @@ export default function () {
   const url =
     `${SUPABASE_URL}/rest/v1/rpc/get_smart_feed`
 
-  const payload = JSON.stringify({
-    p_user_id: USER_ID,
-    p_limit: 6,
-    p_offset: 0,
-  })
+  const payload =
+    JSON.stringify({
+      p_user_id: USER_ID,
+      p_limit: 6,
+      p_offset: 0,
+    })
 
   const params = {
     headers: {
@@ -126,11 +144,12 @@ export default function () {
     },
   }
 
-  const res = http.post(
-    url,
-    payload,
-    params
-  )
+  const res =
+    http.post(
+      url,
+      payload,
+      params
+    )
 
   // ==========================================================
   // FAILURE DIAGNOSTICS
@@ -141,9 +160,10 @@ export default function () {
       status: String(res.status),
     })
 
-    // Log a small number of failures so the terminal
-    // doesn't get flooded during a high-VU test.
-    if (__VU <= 3 && __ITER < 3) {
+    if (
+      __VU <= 3 &&
+      __ITER < 3
+    ) {
       console.log(
         `FEED FAILURE | VU=${__VU} ITER=${__ITER} STATUS=${res.status} ERROR=${res.error || 'none'} BODY=${res.body ? res.body.substring(0, 300) : '(empty)'}`
       )
@@ -216,12 +236,16 @@ export default function () {
   })
 
   // ==========================================================
-  // DIAGNOSTIC — FIRST VU / FIRST ITERATION
+  // DIAGNOSTIC
   // ==========================================================
 
   if (__VU === 1 && __ITER === 0) {
     console.log(
-      '\n===== SMART FEED LOAD TEST ====='
+      `\n===== SMART FEED ${TARGET_VUS} VU LOAD TEST =====`
+    )
+
+    console.log(
+      `TARGET VUs: ${TARGET_VUS}`
     )
 
     console.log(

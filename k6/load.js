@@ -1,25 +1,59 @@
 import http from 'k6/http'
 import { check, sleep } from 'k6'
 
-const BASE_URL = (__ENV.BASE_URL || '').replace(/\/+$/, '')
+// ============================================================
+// ENVIRONMENT
+// ============================================================
+
+const BASE_URL =
+  (__ENV.BASE_URL || '').replace(/\/+$/, '')
 
 if (!BASE_URL) {
-  throw new Error('Missing BASE_URL environment variable.')
+  throw new Error(
+    'Missing BASE_URL environment variable.'
+  )
 }
+
+// ============================================================
+// LOAD TARGET
+//
+// Examples:
+//   k6 run -e BASE_URL=https://... -e TARGET_VUS=200 k6/load.js
+//   k6 run -e BASE_URL=https://... -e TARGET_VUS=500 k6/load.js
+// ============================================================
+
+const TARGET_VUS =
+  Number(__ENV.TARGET_VUS || 150)
+
+if (
+  !Number.isInteger(TARGET_VUS) ||
+  TARGET_VUS < 1
+) {
+  throw new Error(
+    'TARGET_VUS must be a positive integer.'
+  )
+}
+
+// ============================================================
+// LOAD PROFILE
+//
+// Gradually ramp to the requested target.
+// The same file can therefore test:
+// 150 → 200 → 300 → 500 → 750 → 1000...
+// ============================================================
 
 export const options = {
   stages: [
-    // Ramp up
-    { duration: '20s', target: 10 },
-    { duration: '30s', target: 25 },
-    { duration: '30s', target: 50 },
-    { duration: '30s', target: 75 },
-    { duration: '30s', target: 100 },
-    { duration: '30s', target: 125 },
-    { duration: '30s', target: 150 },
+    { duration: '20s', target: Math.round(TARGET_VUS * 0.07) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.17) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.33) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.50) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.67) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.83) },
+    { duration: '30s', target: TARGET_VUS },
 
-    // Hold at 150 VUs
-    { duration: '30s', target: 150 },
+    // Hold at target
+    { duration: '30s', target: TARGET_VUS },
 
     // Ramp down
     { duration: '20s', target: 0 },
@@ -37,15 +71,21 @@ export const options = {
   },
 }
 
-export default function () {
-  const url = `${BASE_URL}/api/debug`
+// ============================================================
+// TEST
+// ============================================================
 
-  const res = http.get(url, {
-    tags: {
-      test: 'load',
-      endpoint: 'debug',
-    },
-  })
+export default function () {
+  const url =
+    `${BASE_URL}/api/debug`
+
+  const res =
+    http.get(url, {
+      tags: {
+        test: 'load',
+        endpoint: 'debug',
+      },
+    })
 
   const contentType =
     res.headers['Content-Type'] || 'unknown'
@@ -59,7 +99,9 @@ export default function () {
 
     'debug returns JSON':
       (r) =>
-        (r.headers['Content-Type'] || '')
+        (
+          r.headers['Content-Type'] || ''
+        )
           .toLowerCase()
           .includes('application/json'),
 
@@ -69,26 +111,35 @@ export default function () {
         r.body.length > 0,
   })
 
-  // Diagnostic output only once.
+  // ==========================================================
+  // DIAGNOSTIC — ONCE
+  // ==========================================================
+
   if (__VU === 1 && __ITER === 0) {
     console.log(
-      '\n===== 150 VU LOAD TEST DIAGNOSTIC ====='
+      `\n===== ${TARGET_VUS} VU LOAD TEST DIAGNOSTIC =====`
     )
 
     console.log(`URL: ${url}`)
+    console.log(`TARGET VUs: ${TARGET_VUS}`)
     console.log(`STATUS: ${res.status}`)
     console.log(`CONTENT-TYPE: ${contentType}`)
     console.log(
       `LOCATION: ${location || 'none'}`
     )
+
     console.log(
       `TIME: ${res.timings.duration.toFixed(2)}ms`
     )
+
     console.log(
       `RESPONSE SIZE: ${
-        res.body ? res.body.length : 0
+        res.body
+          ? res.body.length
+          : 0
       } bytes`
     )
+
     console.log(
       `BODY: ${
         res.body

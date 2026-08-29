@@ -6,10 +6,17 @@ import { Trend } from 'k6/metrics'
 // ENVIRONMENT
 // ============================================================
 
-const SUPABASE_URL = __ENV.SUPABASE_URL
-const SUPABASE_ANON_KEY = __ENV.SUPABASE_ANON_KEY
-const ACCESS_TOKEN = __ENV.ACCESS_TOKEN
-const USER_ID = __ENV.USER_ID
+const SUPABASE_URL =
+  __ENV.SUPABASE_URL
+
+const SUPABASE_ANON_KEY =
+  __ENV.SUPABASE_ANON_KEY
+
+const ACCESS_TOKEN =
+  __ENV.ACCESS_TOKEN
+
+const USER_ID =
+  __ENV.USER_ID
 
 if (
   !SUPABASE_URL ||
@@ -19,6 +26,22 @@ if (
 ) {
   throw new Error(
     'Missing required environment variables: SUPABASE_URL, SUPABASE_ANON_KEY, ACCESS_TOKEN, USER_ID'
+  )
+}
+
+// ============================================================
+// LOAD TARGET
+// ============================================================
+
+const TARGET_VUS =
+  Number(__ENV.TARGET_VUS || 150)
+
+if (
+  !Number.isInteger(TARGET_VUS) ||
+  TARGET_VUS < 1
+) {
+  throw new Error(
+    'TARGET_VUS must be a positive integer.'
   )
 }
 
@@ -51,21 +74,19 @@ const responseSize =
 
 // ============================================================
 // LOAD PROFILE
-// 10 → 25 → 50 → 75 → 100 → 125 → 150 VUs
-// Hold at 150 VUs
 // ============================================================
 
 export const options = {
   stages: [
-    { duration: '20s', target: 10 },
-    { duration: '30s', target: 25 },
-    { duration: '30s', target: 50 },
-    { duration: '30s', target: 75 },
-    { duration: '30s', target: 100 },
-    { duration: '30s', target: 125 },
-    { duration: '30s', target: 150 },
+    { duration: '20s', target: Math.round(TARGET_VUS * 0.07) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.17) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.33) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.50) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.67) },
+    { duration: '30s', target: Math.round(TARGET_VUS * 0.83) },
+    { duration: '30s', target: TARGET_VUS },
 
-    { duration: '30s', target: 150 },
+    { duration: '30s', target: TARGET_VUS },
 
     { duration: '20s', target: 0 },
   ],
@@ -120,6 +141,7 @@ export default function () {
         headers,
 
         tags: {
+          test: 'communities',
           endpoint:
             'communities_eligibility',
         },
@@ -160,6 +182,7 @@ export default function () {
         headers,
 
         tags: {
+          test: 'communities',
           endpoint:
             'communities_joined',
         },
@@ -188,7 +211,8 @@ export default function () {
   // 3. EXPLORE COMMUNITIES
   // ==========================================================
 
-  const exploreStart = Date.now()
+  const exploreStart =
+    Date.now()
 
   let joinedIds = []
 
@@ -208,8 +232,8 @@ export default function () {
           .filter(Boolean)
     }
   } catch {
-    // Validation below handles
-    // invalid responses.
+    // Invalid response will
+    // be caught by checks.
   }
 
   let exploreUrl =
@@ -232,6 +256,7 @@ export default function () {
         headers,
 
         tags: {
+          test: 'communities',
           endpoint:
             'communities_explore',
         },
@@ -309,12 +334,16 @@ export default function () {
   })
 
   // ==========================================================
-  // DEBUG
+  // DIAGNOSTIC
   // ==========================================================
 
   if (__VU === 1 && __ITER === 0) {
     console.log(
-      '\n===== COMMUNITIES 150 VU TEST ====='
+      `\n===== COMMUNITIES ${TARGET_VUS} VU TEST =====`
+    )
+
+    console.log(
+      `TARGET VUs: ${TARGET_VUS}`
     )
 
     console.log(
