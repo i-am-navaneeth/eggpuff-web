@@ -1,7 +1,12 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState, useRef } from 'react'
+import {
+  useEffect,
+  useState,
+  useRef,
+  useLayoutEffect,
+} from 'react'
 import { markHelpful, markNotUseful } from '@/lib/feedPrefs'
 import LinkPreviewCard from './LinkPreviewCard'
 import QuestionActionsMenu from './QuestionActionsMenu'
@@ -41,6 +46,86 @@ is_helpful?: boolean
   currentUserId?: string | null
 
   onDelete?: (id: string) => void
+}
+
+const HELPFUL_QUEUE_KEY = 'ep_pending_helpful_actions'
+
+type PendingHelpfulAction = {
+  questionId: string
+  userId: string
+  desired: boolean
+}
+
+function getHelpfulQueue(): PendingHelpfulAction[] {
+  try {
+    const raw = localStorage.getItem(HELPFUL_QUEUE_KEY)
+
+    if (!raw) return []
+
+    const parsed = JSON.parse(raw)
+
+    return Array.isArray(parsed)
+      ? parsed
+      : []
+  } catch {
+    return []
+  }
+}
+
+function saveHelpfulQueue(
+  queue: PendingHelpfulAction[]
+) {
+  try {
+    if (queue.length === 0) {
+      localStorage.removeItem(
+        HELPFUL_QUEUE_KEY
+      )
+      return
+    }
+
+    localStorage.setItem(
+      HELPFUL_QUEUE_KEY,
+      JSON.stringify(queue)
+    )
+  } catch {}
+}
+
+function queueHelpfulAction(
+  action: PendingHelpfulAction
+) {
+  const queue = getHelpfulQueue()
+
+  const existingIndex =
+    queue.findIndex(
+      item =>
+        item.questionId === action.questionId &&
+        item.userId === action.userId
+    )
+
+  if (existingIndex >= 0) {
+    queue[existingIndex] = action
+  } else {
+    queue.push(action)
+  }
+
+  saveHelpfulQueue(queue)
+}
+
+function removeHelpfulAction(
+  questionId: string,
+  userId: string
+) {
+  const queue = getHelpfulQueue()
+
+  saveHelpfulQueue(
+    queue.filter(
+      item =>
+        !(
+          item.questionId === questionId &&
+          item.userId === userId
+        )
+    )
+  )
 }
 
 function formatTime(dateString: string) {
@@ -94,11 +179,82 @@ const {
 const [isHelpful, setIsHelpful] =
   useState(q.is_helpful ?? false)
 
+const [helpfulAnimating, setHelpfulAnimating] =
+  useState(false)
+
+const helpfulSyncingRef =
+  useRef(false)
+
+const helpfulDesiredRef =
+  useRef(q.is_helpful ?? false)
+
 const [saved, setSaved] =
   useState(false)
 
 const [showShareMenu, setShowShareMenu] =
   useState(false)
+
+  const [shareMenuPlacement, setShareMenuPlacement] =
+  useState<'up' | 'down'>('up')
+
+const shareButtonRef =
+  useRef<HTMLDivElement>(null)
+
+const shareMenuRef =
+  useRef<HTMLDivElement>(null)
+
+useLayoutEffect(() => {
+  if (!showShareMenu) return
+
+  const calculateShareMenuPosition = () => {
+    const button =
+      shareButtonRef.current
+
+    const menu =
+      shareMenuRef.current
+
+    if (!button || !menu) return
+
+    const buttonRect =
+      button.getBoundingClientRect()
+
+    const menuRect =
+      menu.getBoundingClientRect()
+
+    const gap = 8
+
+    const spaceAbove =
+      buttonRect.top - 42
+
+    const spaceBelow =
+      window.innerHeight -
+      buttonRect.bottom -
+      42
+
+    /*
+     * Prefer UP whenever there is enough room.
+     *
+     * If there isn't enough room above,
+     * automatically open DOWN.
+     */
+    if (
+      spaceAbove >=
+      menuRect.height + gap
+    ) {
+      setShareMenuPlacement('up')
+    } else {
+      setShareMenuPlacement('down')
+    }
+  }
+
+  /*
+   * Wait until the menu has actually rendered
+   * so we can measure its real height.
+   */
+  requestAnimationFrame(
+    calculateShareMenuPosition
+  )
+}, [showShareMenu])
 
  const goToQuestion = () => {
   // 🔥 BLOCK navigation while menu is open
@@ -174,6 +330,171 @@ const actionStyle = {
 } as const
 
 
+const syncHelpful = async () => {
+  if (!currentUserId) return
+
+  /*
+   * Prevent two sync loops from running at once.
+   */
+  if (helpfulSyncingRef.current) {
+    return
+  }
+
+  helpfulSyncingRef.current = true
+
+  try {
+    /*
+     * Always use the latest desired state.
+     */
+    const desired =
+      helpfulDesiredRef.current
+
+    if (desired) {
+      const { error } =
+        await supabase
+          .from('question_likes')
+          .upsert(
+            {
+              question_id: q.id,
+              user_id: currentUserId,
+            },
+            {
+              onConflict:
+                'question_id,user_id',
+            }
+          )
+
+      if (error) {
+        throw error
+      }
+
+      /*
+       * 🔔 Notify question owner
+       */
+      if (
+        q.user_id &&
+        q.user_id !== currentUserId
+      ) {
+        const { data: me } =
+          await supabase
+            .from('profiles')
+            .select('name, username')
+            .eq(
+              'user_id',
+              currentUserId
+            )
+            .single()
+
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: q.user_id,
+            actor_id: currentUserId,
+            type: 'question_like',
+            message:
+              q.text.length > 80
+                ? `${q.text.slice(0, 80)}...`
+                : q.text,
+            link:
+              `/question/${q.id}`,
+            is_read: false,
+          })
+
+        try {
+          await fetch(
+            '/api/push/send',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type':
+                  'application/json',
+              },
+              body: JSON.stringify({
+                userId:
+                  q.user_id,
+                title:
+                  `❤️ ${me?.name || me?.username || 'Someone'} liked your question`,
+                message:
+                  q.text.length > 80
+                    ? `${q.text.slice(0, 80)}...`
+                    : q.text,
+                url:
+                  `/question/${q.id}`,
+              }),
+            }
+          )
+        } catch {}
+      }
+
+    } else {
+
+      const { error } =
+        await supabase
+          .from('question_likes')
+          .delete()
+          .eq(
+            'question_id',
+            q.id
+          )
+          .eq(
+            'user_id',
+            currentUserId
+          )
+
+      if (error) {
+        throw error
+      }
+    }
+
+    /*
+     * Only remove the local request AFTER
+     * Supabase successfully accepted it.
+     */
+    const latestDesired =
+      helpfulDesiredRef.current
+
+    if (
+      latestDesired === desired
+    ) {
+      removeHelpfulAction(
+        q.id,
+        currentUserId
+      )
+    }
+
+    /*
+     * If the user changed their mind while the
+     * previous request was running, sync again.
+     */
+    if (
+      latestDesired !== desired
+    ) {
+      helpfulSyncingRef.current =
+        false
+
+      await syncHelpful()
+
+      return
+    }
+
+  } catch {
+    /*
+     * Keep the action queued.
+     */
+    queueHelpfulAction({
+      questionId: q.id,
+      userId: currentUserId,
+      desired:
+        helpfulDesiredRef.current,
+    })
+
+  } finally {
+    helpfulSyncingRef.current =
+      false
+  }
+}
+
+
 const toggleHelpful = async (
   e: React.MouseEvent
 ) => {
@@ -182,9 +503,18 @@ const toggleHelpful = async (
 
   if (!currentUserId) return
 
-  const nextState = !isHelpful
+  const nextState =
+    !isHelpful
 
-  // optimistic UI
+  /*
+   * Keep the latest user intention.
+   */
+  helpfulDesiredRef.current =
+    nextState
+
+  /*
+   * Optimistic UI.
+   */
   setIsHelpful(nextState)
 
   setHelpfulCount(prev =>
@@ -193,90 +523,127 @@ const toggleHelpful = async (
       : Math.max(0, prev - 1)
   )
 
-  try {
-    if (nextState) {
-      const { error } = await supabase
-        .from('question_likes')
-        .insert({
-          question_id: q.id,
-          user_id: currentUserId,
-        })
+  /*
+   * Tap animation.
+   */
+  if (nextState) {
+  setHelpfulAnimating(true)
 
-      if (error) throw error
+  window.setTimeout(() => {
+    setHelpfulAnimating(false)
+  }, 420)
+}
 
-      // 🔔 Notify question owner
-      if (q.user_id && q.user_id !== currentUserId) {
-        const { data: me } = await supabase
-          .from('profiles')
-          .select('name, username')
-          .eq('user_id', currentUserId)
-          .single()
+  window.setTimeout(() => {
+    setHelpfulAnimating(false)
+  }, 420)
 
-        await supabase
-          .from('notifications')
-          .insert({
-            user_id: q.user_id,
-            actor_id: currentUserId,
+  /*
+   * Save intended request locally BEFORE
+   * contacting Supabase.
+   */
+  queueHelpfulAction({
+    questionId: q.id,
+    userId: currentUserId,
+    desired: nextState,
+  })
 
-            type: 'question_like',
+  /*
+   * Immediately try to sync.
+   */
+  await syncHelpful()
+}
 
-            message:
-              q.text.length > 80
-                ? `${q.text.slice(0, 80)}...`
-                : q.text,
 
-            link: `/question/${q.id}`,
+/*
+ * Retry queued Helpful actions.
+ *
+ * IMPORTANT:
+ * This hook MUST be at the component's top level.
+ */
+useEffect(() => {
+  if (!currentUserId) return
 
-            is_read: false,
-          })
+  const retryPendingHelpful =
+    async () => {
+      const queue =
+        getHelpfulQueue()
 
-        try {
-          await fetch('/api/push/send', {
-            method: 'POST',
+      const pending =
+        queue.find(
+          item =>
+            item.questionId === q.id &&
+            item.userId ===
+              currentUserId
+        )
 
-            headers: {
-              'Content-Type': 'application/json',
-            },
+      if (!pending) return
 
-            body: JSON.stringify({
-              userId: q.user_id,
+      /*
+       * Restore optimistic state.
+       */
+      helpfulDesiredRef.current =
+        pending.desired
 
-              title: `❤️ ${me?.name || me?.username || 'Someone'} liked your question`,
+      setIsHelpful(
+        pending.desired
+      )
 
-              message:
-                q.text.length > 80
-                  ? `${q.text.slice(0, 80)}...`
-                  : q.text,
-
-              url: `/question/${q.id}`,
-            }),
-          })
-        } catch {}
-      }
-
-    } else {
-
-      const { error } = await supabase
-        .from('question_likes')
-        .delete()
-        .eq('question_id', q.id)
-        .eq('user_id', currentUserId)
-
-      if (error) throw error
+      /*
+       * Sync with Supabase.
+       */
+      await syncHelpful()
     }
 
-  } catch {
+  /*
+   * Retry when browser comes online.
+   */
+  window.addEventListener(
+    'online',
+    retryPendingHelpful
+  )
 
-    // rollback
-    setIsHelpful(!nextState)
+  /*
+   * Retry when returning to tab.
+   */
+  document.addEventListener(
+    'visibilitychange',
+    retryPendingHelpful
+  )
 
-    setHelpfulCount(prev =>
-      nextState
-        ? Math.max(0, prev - 1)
-        : prev + 1
+  /*
+   * Background retry.
+   */
+  const interval =
+    window.setInterval(
+      retryPendingHelpful,
+      15000
+    )
+
+  /*
+   * Try once immediately.
+   */
+  retryPendingHelpful()
+
+  return () => {
+    window.removeEventListener(
+      'online',
+      retryPendingHelpful
+    )
+
+    document.removeEventListener(
+      'visibilitychange',
+      retryPendingHelpful
+    )
+
+    window.clearInterval(
+      interval
     )
   }
-}
+}, [
+  q.id,
+  currentUserId,
+])
 
 useEffect(() => {
   if (!showShareMenu) return
@@ -331,6 +698,14 @@ useEffect(() => {
     if (id !== q.id) {
       setShowShareMenu(false)
     }
+
+    /*
+     * If another card opens Share,
+     * also close this card's More menu.
+     */
+    if (id !== q.id) {
+      setShowMenu(false)
+    }
   }
 
   window.addEventListener(
@@ -347,10 +722,72 @@ useEffect(() => {
 }, [q.id])
 
 useEffect(() => {
-  if (showMenu) {
-    
+  /*
+   * Close this menu when:
+   * 1. Another question's More menu opens
+   * 2. User scrolls
+   * 3. User navigates away
+   */
+
+  const handleOtherMenuOpen = (
+    e: Event
+  ) => {
+    const customEvent =
+      e as CustomEvent
+
+    const openedQuestionId =
+      customEvent.detail
+
+    if (
+      openedQuestionId !== q.id
+    ) {
+      setShowMenu(false)
+    }
   }
-}, [showMenu])
+
+  const closeOnScroll = () => {
+    setShowMenu(false)
+  }
+
+  const closeOnNavigation = () => {
+    setShowMenu(false)
+  }
+
+  window.addEventListener(
+    'ep-question-menu-open',
+    handleOtherMenuOpen
+  )
+
+  window.addEventListener(
+    'scroll',
+    closeOnScroll,
+    {
+      passive: true,
+    }
+  )
+
+  window.addEventListener(
+    'popstate',
+    closeOnNavigation
+  )
+
+  return () => {
+    window.removeEventListener(
+      'ep-question-menu-open',
+      handleOtherMenuOpen
+    )
+
+    window.removeEventListener(
+      'scroll',
+      closeOnScroll
+    )
+
+    window.removeEventListener(
+      'popstate',
+      closeOnNavigation
+    )
+  }
+}, [q.id])
 
 useEffect(() => {
   if (!currentUserId) return
@@ -368,6 +805,79 @@ useEffect(() => {
 
   loadSaved()
 }, [q.id, currentUserId])
+
+useEffect(() => {
+  if (!currentUserId) return
+
+  let cancelled = false
+
+  const loadHelpfulState = async () => {
+    /*
+     * First respect a locally queued action.
+     *
+     * This prevents a failed Supabase request from
+     * immediately making the UI look unhelpful again.
+     */
+    const queue = getHelpfulQueue()
+
+    const pending = queue.find(
+      item =>
+        item.questionId === q.id &&
+        item.userId === currentUserId
+    )
+
+    if (pending) {
+      helpfulDesiredRef.current =
+        pending.desired
+
+      setIsHelpful(
+        pending.desired
+      )
+
+      return
+    }
+
+    /*
+     * Ask Supabase for the real current state.
+     *
+     * This fixes stale q.is_helpful values coming
+     * from an older feed/cache response.
+     */
+    const { data, error } =
+      await supabase
+        .from('question_likes')
+        .select('id')
+        .eq('question_id', q.id)
+        .eq('user_id', currentUserId)
+        .maybeSingle()
+
+    if (
+      cancelled ||
+      error
+    ) {
+      return
+    }
+
+    const serverState =
+      !!data
+
+    helpfulDesiredRef.current =
+      serverState
+
+    setIsHelpful(
+      serverState
+    )
+  }
+
+  loadHelpfulState()
+
+  return () => {
+    cancelled = true
+  }
+}, [
+  q.id,
+  currentUserId,
+])
 
 const toggleSave = async (
   e: React.MouseEvent
@@ -532,9 +1042,17 @@ transition:
 
     position: 'relative',
 
-    zIndex: 'auto',
+/*
+ * When Share is open, lift the ENTIRE card above
+ * neighboring QuestionCards.
+ *
+ * QuestionCard uses transform, which creates its
+ * own stacking context, so raising only the menu
+ * itself is not enough.
+ */
+zIndex: showShareMenu ? 1000 : 'auto',
 
-    animation: undefined,
+animation: undefined,
 
     WebkitTapHighlightColor:
       'transparent',
@@ -658,87 +1176,144 @@ height: 38,
   )}
 
   {/* Streak */}
-  {!q.hideStreak &&
-    (q.is_friend || q.user_id === currentUserId) && (
-      <span
-  style={{
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 4,
-    width: 28,
-    height: 28,
-    flexShrink: 0,
-    transform: "translateY(-4px)",
-  }}
->
-  <svg
-    width="28"
-    height="28"
-    viewBox="0 0 64 64"
-    fill="none"
-  >
-    {/* Sparkles */}
-    <circle cx="9" cy="14" r="2.5" fill="#FFD54A" />
-    <circle cx="55" cy="15" r="2.5" fill="#FFD54A" />
-    <circle cx="12" cy="50" r="2.2" fill="#FFD54A" />
-    <circle cx="52" cy="48" r="2.2" fill="#FFD54A" />
+{!q.hideStreak &&
+  (q.is_friend || q.user_id === currentUserId) && (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
 
-    {/* Flame */}
-    <path
-      d="M32 4
-         C42 12 49 22 49 33
-         C49 47 41 58 32 58
-         C21 58 13 48 13 35
-         C13 25 19 18 25 12
-         C25 22 32 24 32 4Z"
-      fill="#FF7A1A"
-    />
+        gap: 6,
 
-    {/* Inner Flame */}
-    <path
-      d="M32 16
-         C38 22 42 28 42 35
-         C42 43 37 50 32 50
-         C26 50 22 44 22 37
-         C22 31 25 27 29 23
-         C29 29 32 31 32 16Z"
-      fill="#FFC547"
-    />
+        marginLeft: 7,
+        marginRight: 4,
 
-    {/* White Badge */}
-    <circle
-      cx="32"
-      cy="39"
-      r="10.5"
-      fill="#FFF"
-    />
+        padding: '2px 9px 2px 7px',
 
-    {/* Orange Border */}
-    <circle
-      cx="32"
-      cy="39"
-      r="9.5"
-      fill="none"
-      stroke="#FF8A24"
-      strokeWidth="2"
-    />
+        minWidth: 42,
+        height: 26,
 
-    {/* Number */}
-    <text
-      x="32"
-      y="43.5"
-      textAnchor="middle"
-      fontSize="16"
-      fontWeight="900"
-      fill="#F97316"
-      fontFamily="Inter, sans-serif"
+        borderRadius: 999,
+
+        background: '#FFF8F1',
+        border: '1px solid #FFD2A8',
+
+        flexShrink: 0,
+
+        /*
+         * Keeps the pill aligned with the username
+         * without pushing into the username/date row.
+         */
+        transform: 'translateY(-3px)',
+
+        boxSizing: 'border-box',
+
+        whiteSpace: 'nowrap',
+
+        lineHeight: 1,
+      }}
     >
-      {q.streak_count ?? 0}
-    </text>
-  </svg>
-</span>
-    )}
+      {/* Old EggPuff Fire */}
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 64 64"
+        fill="none"
+        aria-hidden="true"
+        style={{
+          flexShrink: 0,
+          display: 'block',
+        }}
+      >
+        {/* Sparkles */}
+        <circle
+          cx="9"
+          cy="14"
+          r="2.5"
+          fill="#FFD54A"
+        />
+
+        <circle
+          cx="55"
+          cy="15"
+          r="2.5"
+          fill="#FFD54A"
+        />
+
+        <circle
+          cx="12"
+          cy="50"
+          r="2.2"
+          fill="#FFD54A"
+        />
+
+        <circle
+          cx="52"
+          cy="48"
+          r="2.2"
+          fill="#FFD54A"
+        />
+
+        {/* Flame */}
+        <path
+          d="
+            M32 4
+            C42 12 49 22 49 33
+            C49 47 41 58 32 58
+            C21 58 13 48 13 35
+            C13 25 19 18 25 12
+            C25 22 32 24 32 4Z
+          "
+          fill="#FF7A1A"
+        />
+
+        {/* Inner Flame */}
+        <path
+          d="
+            M32 16
+            C38 22 42 28 42 35
+            C42 43 37 50 32 50
+            C26 50 22 44 22 37
+            C22 31 25 27 29 23
+            C29 29 32 31 32 16Z
+          "
+          fill="#FFC547"
+        />
+      </svg>
+
+      {/* Adaptive Streak Number */}
+      <span
+        style={{
+          color: '#F97316',
+
+          fontWeight: 800,
+
+          lineHeight: 1,
+
+          fontSize:
+            (q.streak_count ?? 0) >= 100
+              ? 11
+              : (q.streak_count ?? 0) >= 10
+              ? 12
+              : 14,
+
+          letterSpacing:
+            (q.streak_count ?? 0) >= 100
+              ? '-0.4px'
+              : '-0.2px',
+
+          whiteSpace: 'nowrap',
+
+          fontVariantNumeric: 'tabular-nums',
+
+          display: 'inline-block',
+        }}
+      >
+        {q.streak_count ?? 0}
+      </span>
+    </span>
+  )}
 </div>
 {q.is_trending && (
   <span
@@ -797,7 +1372,24 @@ onClick={(e) => {
   e.preventDefault()
   e.stopPropagation()
 
-  setShowMenu(prev => !prev)
+  const next = !showMenu
+
+  /*
+   * Tell every other QuestionCard
+   * to close its More menu.
+   */
+  if (next) {
+    window.dispatchEvent(
+      new CustomEvent(
+        'ep-question-menu-open',
+        {
+          detail: q.id,
+        }
+      )
+    )
+  }
+
+  setShowMenu(next)
 }}
   style={{
     border: 'none',
@@ -902,132 +1494,185 @@ onClick={(e) => {
     maxWidth: '94%',
   }}
 >
-<p
-  style={{
-    marginTop: 12,
+  <p
+    style={{
+      marginTop: 12,
 
-    marginBottom:
-      q.link_url ? 8 : 10,
+      marginBottom:
+        q.link_url ? 8 : 10,
 
-    fontSize: '17px',
+      /*
+       * Feed typography:
+       * Smaller and tighter like modern social feeds.
+       */
+      fontSize: '16px',
 
-    fontFamily:
-      'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI Emoji", "Apple Color Emoji", sans-serif',
+      fontFamily:
+        'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI Emoji", "Apple Color Emoji", sans-serif',
 
-    letterSpacing: '-0.15px',
+      letterSpacing: '-0.12px',
 
-    lineHeight: 1.82,
+      lineHeight: 1.55,
 
-    fontWeight: 400,
+      fontWeight: 400,
 
-    color: '#0F1419',
+      color: '#0F1419',
 
-    whiteSpace: 'pre-wrap',
+      /*
+       * Preserve intentional line breaks,
+       * while allowing long URLs/text to wrap.
+       */
+      whiteSpace: 'pre-wrap',
 
-    wordBreak: 'break-word',
+      wordBreak: 'break-word',
 
-    overflowWrap: 'break-word',
-  }}
->
-{(
-  q.text || ''
-)
-  .replace(
-    /\bhttps?:\/\/https?:\/\//gi,
-    'https://'
-  )
-  .split(
-    /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s]*)/
-  )
-    .map((part, index) => {
+      overflowWrap: 'anywhere',
+    }}
+  >
+    {/*
+     * CLEAN POST TEXT
+     *
+     * 1. Normalize Windows/Mac line endings.
+     * 2. Remove spaces/tabs sitting at the end of lines.
+     * 3. Remove empty lines ONLY from the END.
+     *
+     * Important:
+     * Internal blank lines are preserved.
+     *
+     * Example:
+     *
+     * "Hello\n\nHow are you?\n\n\n"
+     *
+     * becomes:
+     *
+     * "Hello\n\nHow are you?"
+     */}
+    {(() => {
+  const cleanText =
+    (q.text || '')
+      // Normalize Windows/Mac line endings
+      .replace(/\r\n?/g, '\n')
 
-      const isLink =
-        /^(https?:\/\/|www\.|[a-zA-Z0-9-]+\.[a-zA-Z]{2,})/.test(
-          part
+      // Convert literal "\n" text into real line breaks
+      .replace(/\\n/g, '\n')
+
+      // Remove spaces/tabs sitting before a newline
+      .replace(/[ \t]+\n/g, '\n')
+
+      // Collapse excessive consecutive line breaks.
+      // One empty line = maximum two \n characters.
+      .replace(/\n{3,}/g, '\n\n')
+
+      // Remove empty lines from the very end
+      .replace(/\n+$/g, '')
+
+  return cleanText
+    .replace(
+      /\bhttps?:\/\/https?:\/\//gi,
+      'https://'
+    )
+        .split(
+          /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s]*)/
         )
+        .map((part, index) => {
+          const isLink =
+            /^(https?:\/\/|www\.|[a-zA-Z0-9-]+\.[a-zA-Z]{2,})/.test(
+              part
+            )
 
-      if (isLink) {
+          if (isLink) {
+            const href =
+              part.startsWith('http')
+                ? part
+                : `https://${part}`
 
-        const href =
-          part.startsWith('http')
-            ? part
-            : `https://${part}`
+            const domain =
+              (() => {
+                try {
+                  return new URL(href)
+                    .hostname
+                    .replace(/^www\./, '')
+                } catch {
+                  return 'Website'
+                }
+              })()
 
-        const domain =
-          (() => {
-            try {
-              return new URL(href)
-                .hostname
-                .replace(/^www\./, '')
-            } catch {
-              return 'Website'
-            }
-          })()
+            /*
+             * Clean URL display.
+             *
+             * We don't show:
+             * https://
+             * www.
+             *
+             * We also keep the URL contained inside
+             * the post instead of allowing it to
+             * create horizontal overflow.
+             */
+            const displayText =
+              part
+                .replace(/^https?:\/\//i, '')
+                .replace(/^www\./i, '')
+                .replace(/\/$/, '')
 
-        // 🔥 PREMIUM CLEAN URL
-        const displayText =
-  part
-    .replace(/^https?:\/\//i, '')
-    .replace(/^www\./i, '')
-    .replace(/\/$/, '')
+            return (
+              <span
+                key={index}
+                onClick={(e) => {
+                  e.stopPropagation()
 
-        return (
-          <span
-            key={index}
+                  sessionStorage.setItem(
+                    'ep_inapp_browser',
+                    href
+                  )
 
-            onClick={(e) => {
+                  router.push(
+                    `/browser?url=${encodeURIComponent(
+                      href
+                    )}&domain=${encodeURIComponent(
+                      domain
+                    )}`
+                  )
+                }}
+                style={{
+                  color: '#1D9BF0',
 
-              e.stopPropagation()
+                  cursor: 'pointer',
 
-              sessionStorage.setItem(
-                'ep_inapp_browser',
-                href
-              )
+                  /*
+                   * Long URLs wrap naturally.
+                   * This prevents ugly overflow.
+                   */
+                  wordBreak: 'break-word',
 
-              router.push(
-                `/browser?url=${encodeURIComponent(
-                  href
-                )}&domain=${encodeURIComponent(
-                  domain
-                )}`
-              )
-            }}
+                  overflowWrap: 'anywhere',
 
-            style={{
-              color: '#1D9BF0',
+                  textDecoration: 'none',
 
-              cursor: 'pointer',
+                  transition:
+                    'opacity 0.12s ease',
+                }}
+                onTouchStart={(e) => {
+                  e.currentTarget.style.opacity =
+                    '0.7'
+                }}
+                onTouchEnd={(e) => {
+                  e.currentTarget.style.opacity =
+                    '1'
+                }}
+              >
+                {displayText}
+              </span>
+            )
+          }
 
-              wordBreak: 'break-all',
-
-              textDecoration: 'none',
-
-              transition:
-                'opacity 0.12s ease',
-            }}
-
-            onTouchStart={(e) => {
-              e.currentTarget.style.opacity =
-                '0.7'
-            }}
-
-            onTouchEnd={(e) => {
-              e.currentTarget.style.opacity =
-                '1'
-            }}
-          >
-            {displayText}
-          </span>
-        )
-      }
-
-      return (
-        <span key={index}>
-          {part}
-        </span>
-      )
-    })}
-</p>
+          return (
+            <span key={index}>
+              {part}
+            </span>
+          )
+        })
+    })()}
+  </p>
 </div>
 
 {/* 🔥 RICH PREVIEW */}
@@ -1071,6 +1716,9 @@ onClick={(e) => {
   e.preventDefault()
   e.stopPropagation()
 
+  setShowMenu(false)
+  setShowShareMenu(false)
+
   goToQuestion()
 }}
     style={actionStyle}
@@ -1097,31 +1745,60 @@ onClick={(e) => {
 
   {/* HELPFUL */}
 <div
-  onClick={toggleHelpful}
+  onClick={(e) => {
+    setShowMenu(false)
+    setShowShareMenu(false)
+
+    toggleHelpful(e)
+  }}
   style={{
     ...actionStyle,
   }}
 >
-<svg
-  width="18"
-  height="18"
-  viewBox="0 0 24 24"
-  fill={
-    isHelpful
-      ? '#FF2D7A'
-      : 'none'
-  }
-  stroke={
-    isHelpful
-      ? '#FF2D7A'
-      : 'currentColor'
-  }
-  strokeWidth="2"
-  strokeLinecap="round"
-  strokeLinejoin="round"
+<span
+  style={{
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    width: 18,
+    height: 18,
+
+    transform:
+      helpfulAnimating
+        ? 'scale(1.22)'
+        : 'scale(1)',
+
+    transition:
+      'transform 180ms cubic-bezier(.34,1.56,.64,1)',
+
+    filter:
+      helpfulAnimating && isHelpful
+        ? 'drop-shadow(0 2px 5px rgba(255,45,122,0.25))'
+        : 'none',
+  }}
 >
-  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-</svg>
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill={
+      isHelpful
+        ? '#FF2D7A'
+        : 'none'
+    }
+    stroke={
+      isHelpful
+        ? '#FF2D7A'
+        : 'currentColor'
+    }
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+  </svg>
+</span>
 
   <span
     style={{
@@ -1136,7 +1813,12 @@ onClick={(e) => {
 
   {/* SAVE */}
 <div
-  onClick={toggleSave}
+  onClick={(e) => {
+    setShowMenu(false)
+    setShowShareMenu(false)
+
+    toggleSave(e)
+  }}
   style={{
     ...actionStyle,
   }}
@@ -1163,29 +1845,42 @@ onClick={(e) => {
 
   {/* SHARE */}
 <div
- onPointerDown={(e) => {
-  e.stopPropagation()
-}}
-
-onClick={(e) => {
-  e.stopPropagation()
-
-  const next = !showShareMenu
-
-  if (next) {
-    window.dispatchEvent(
-      new CustomEvent('ep-share-open', {
-        detail: q.id,
-      })
-    )
-  }
-
-  setShowShareMenu(next)
-}}
-  style={{
-    ...actionStyle,
-    position: 'relative',
+  ref={shareButtonRef}
+  onPointerDown={(e) => {
+    e.stopPropagation()
   }}
+  onClick={(e) => {
+    e.stopPropagation()
+
+    /*
+     * More menu and Share menu should
+     * never be visible together.
+     */
+    setShowMenu(false)
+
+    const next = !showShareMenu
+
+    if (next) {
+      window.dispatchEvent(
+        new CustomEvent('ep-share-open', {
+          detail: q.id,
+        })
+      )
+    }
+
+    setShowShareMenu(next)
+  }}
+  style={{
+  ...actionStyle,
+
+  position: 'relative',
+
+  /*
+   * Keeps the Share menu above the other action
+   * buttons inside this card.
+   */
+  zIndex: showShareMenu ? 1001 : 1,
+}}
 >
   <svg
     width="18"
@@ -1204,38 +1899,68 @@ onClick={(e) => {
 
   <span>Share</span>
 
-  {showShareMenu && (
-    <div
-  onPointerDown={(e) => {
-    e.stopPropagation()
-  }}
-  onClick={(e) => {
-    e.stopPropagation()
-  }}
-     style={{
+{showShareMenu && (
+  <div
+    ref={shareMenuRef}
+    onPointerDown={(e) => {
+      e.stopPropagation()
+    }}
+    onClick={(e) => {
+      e.stopPropagation()
+    }}
+    style={{
   position: 'absolute',
 
-  bottom: 42,
+  /*
+   * The menu opens upward or downward depending
+   * on the available viewport space.
+   */
+  ...(shareMenuPlacement === 'up'
+    ? {
+        bottom: 'calc(100% + 8px)',
+        top: 'auto',
+      }
+    : {
+        top: 'calc(100% + 8px)',
+        bottom: 'auto',
+      }),
 
-  right: -10,
+  right: 0,
 
-  minWidth: 220,
+  width: 275,
 
-  background: '#fff',
+  maxWidth:
+    'calc(100vw - 32px)',
 
-  borderRadius: 16,
+  padding: '8px',
 
-  whiteSpace: 'nowrap',
+  background: '#FFFFFF',
 
-  boxShadow:
-    '0 8px 24px rgba(0,0,0,0.10)',
+  borderRadius: 20,
 
   border:
-    '1px solid rgba(0,0,0,0.06)',
+    '1px solid rgba(15, 20, 25, 0.06)',
 
-  zIndex: 999999,
+  boxShadow:
+    '0 12px 32px rgba(15, 20, 25, 0.14)',
+
+  /*
+   * The card itself is lifted when the menu is open.
+   * This z-index keeps the menu above everything
+   * inside that card.
+   */
+  zIndex: 1001,
+
+  boxSizing: 'border-box',
+
+  overflow: 'hidden',
+
+  color: '#4B5563',
+
+  WebkitTapHighlightColor:
+    'transparent',
 }}
-    >
+  >
       {/* SHARE IMAGE */}
       <div
         onClick={async (e) => {

@@ -11,12 +11,22 @@ export default function MobileNavbar({ userId }: { userId?: string }) {
   const router = useRouter()
 
   const { openProfile } = useNavigation()
-  const hideNavbarRoutes = ['/ask', '/notifications', '/profile' ]
-  const shouldHideNavbar = hideNavbarRoutes.some(route =>
+
+const hideNavbarRoutes = ['/ask', '/notifications']
+const shouldHideNavbar = hideNavbarRoutes.some(route =>
   pathname.startsWith(route)
- ) 
-  const showUI = useScrollVisibility()
-  const [avatar, setAvatar] = useState<string | null>(null)
+)
+
+const showUI = useScrollVisibility()
+
+const isProfilePage =
+  pathname.startsWith('/u/') ||
+  pathname.startsWith('/profile')
+
+const shouldShowNavbar =
+  isProfilePage || showUI
+
+const [avatar, setAvatar] = useState<string | null>(null)
 
   
   const [unreadCount, setUnreadCount] = useState(0)
@@ -318,11 +328,11 @@ if (
 if (shouldHideNavbar) return null
 
   return (
-    <div
-  className={`fixed bottom-0 left-0 right-0 z-[2000] md:hidden h-16 transition-transform duration-300 ${
-  showUI ? 'translate-y-0' : 'translate-y-full'
+  <div
+    className={`fixed bottom-0 left-0 right-0 z-[100] md:hidden h-16 transition-transform duration-300 ${
+  shouldShowNavbar ? 'translate-y-0' : 'translate-y-full'
 }`}
->
+  >
 
       {/* NAVBAR BACKGROUND */}
       <div

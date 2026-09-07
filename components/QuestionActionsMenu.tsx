@@ -197,46 +197,71 @@ const user = session?.user
   }
 }
 
-  // ===============================
+    // ===============================
   // REPORT QUESTION
   // ===============================
-  const handleReportQuestion =
-    async () => {
-      const {
-  data: { session },
-} = await supabase.auth.getSession()
+  const handleReportQuestion = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
 
-const user = session?.user
+    const user = session?.user
 
-      if (!user || !questionId) {
-        notify('⚠ Please login first.')
-        return
-      }
+    if (!user || !questionId) {
+      notify('⚠ Please login first.')
+      return
+    }
 
-      const { error } = await supabase
+    // ==========================================
+    // UI FIRST
+    // ==========================================
+    // Close the menu immediately so the user
+    // never waits for the database operation.
+    onReport?.()
+    onClose()
+
+    // ==========================================
+    // DATABASE
+    // ==========================================
+    // The database remains responsible for
+    // preventing duplicate reports.
+    const { error: insertError } =
+      await supabase
         .from('reports')
         .insert({
           reporter_id: user.id,
           question_id: questionId,
         })
 
-      if (error) {
-        console.error(error)
+    // ==========================================
+    // DUPLICATE REPORT
+    // ==========================================
+    // User has already reported this question.
+    // This is expected and should NOT be treated
+    // as a failure.
+    if (insertError?.code === '23505') {
+      notify('🚩 Question already reported.')
+      return
+    }
 
-        notify(
-          '❌ Failed to report question.'
-        )
-
-        return
-      }
-
-      notify(
-        '🚩 Question reported.'
+    // ==========================================
+    // REAL DATABASE ERROR
+    // ==========================================
+    if (insertError) {
+      console.error(
+        'Report insert error:',
+        insertError
       )
 
-      onReport?.()
-      onClose()
+      notify('❌ Failed to report question.')
+      return
     }
+
+    // ==========================================
+    // SUCCESS
+    // ==========================================
+    notify('🚩 Question reported.')
+  }
 
   // ===============================
   // COPY LINK
