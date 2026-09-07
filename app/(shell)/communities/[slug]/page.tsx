@@ -69,10 +69,36 @@ const [sending,
       useState(false)
 
   const [isOwner,
-    setIsOwner] =
-     useState(false)
+  setIsOwner] =
+   useState(false)
 
-    const feedRef =
+const [alertsEnabled,
+  setAlertsEnabled] =
+    useState(false)
+
+const [updatingAlerts,
+  setUpdatingAlerts] =
+    useState(false)
+
+// COMMUNITY ALERTS
+
+const [activeAlert,
+  setActiveAlert] =
+    useState<any>(null)
+
+const [alertText,
+  setAlertText] =
+    useState('')
+
+const [sendingAlert,
+  setSendingAlert] =
+    useState(false)
+
+const [showAlertComposer,
+  setShowAlertComposer] =
+    useState(false)
+
+const feedRef =
   useRef<HTMLDivElement>(null)
 
   // ─────────────────────────────
@@ -163,14 +189,74 @@ const [sending,
 
         setCommunity({
 
-          ...communityData,
+  ...communityData,
 
-          avatar_url:
-            avatarUrl,
+  avatar_url:
+    avatarUrl,
 
-          banner_url:
-            bannerUrl,
-        })
+  banner_url:
+    bannerUrl,
+})
+
+// COMMUNITY ALERTS STATE
+
+setAlertsEnabled(
+  !!communityData.alerts_enabled
+)
+
+// LOAD ACTIVE COMMUNITY ALERT
+
+const {
+  data: currentAlert,
+  error: alertError,
+} =
+  await supabase
+
+    .from('community_alerts')
+
+    .select(`
+      id,
+      community_id,
+      user_id,
+      title,
+      description,
+      created_at,
+      expires_at
+    `)
+
+    .eq(
+      'community_id',
+      communityData.id
+    )
+
+    .gt(
+      'expires_at',
+      new Date().toISOString()
+    )
+
+    .order(
+      'created_at',
+      {
+        ascending: false,
+      }
+    )
+
+    .limit(1)
+    .maybeSingle()
+
+if (alertError) {
+
+  console.warn(
+    'Failed to load community alert:',
+    alertError
+  )
+
+} else {
+
+  setActiveAlert(
+    currentAlert || null
+  )
+}
 
         // JOIN CHECK
 
@@ -431,6 +517,434 @@ useEffect(() => {
     }
   }
 
+  // ─────────────────────────────
+// TOGGLE COMMUNITY ALERTS
+// ─────────────────────────────
+
+const handleToggleAlerts =
+  async () => {
+
+    if (
+      !community ||
+      !isOwner ||
+      updatingAlerts
+    ) return
+
+    const nextValue =
+      !alertsEnabled
+
+    try {
+
+      setUpdatingAlerts(true)
+
+      // INSTANT UI UPDATE
+
+      setAlertsEnabled(
+        nextValue
+      )
+
+      const {
+        error
+      } =
+        await supabase
+
+          .from(
+            'communities'
+          )
+
+          .update({
+
+            alerts_enabled:
+              nextValue,
+
+          })
+
+          .eq(
+            'id',
+            community.id
+          )
+
+      if (error) {
+
+        console.error(
+          'Failed to update community alerts:',
+          error
+        )
+
+        // ROLLBACK
+
+        setAlertsEnabled(
+          !nextValue
+        )
+
+        notify(
+          '❌ Failed to update alerts'
+        )
+
+        return
+      }
+
+      notify(
+  nextValue
+    ? '📣 Community alerts are on — members can now send temporary alerts.'
+    : 'Community alerts are off — members can no longer send alerts.'
+)
+
+    } catch (error) {
+
+      console.error(
+        error
+      )
+
+      setAlertsEnabled(
+        !nextValue
+      )
+
+      notify(
+        '❌ Something went wrong'
+      )
+
+    } finally {
+
+      setUpdatingAlerts(
+        false
+      )
+    }
+  }
+
+  // ─────────────────────────────
+// CREATE COMMUNITY ALERT
+// ─────────────────────────────
+
+const handleCreateAlert =
+  async () => {
+
+    if (
+      !community ||
+      !joined ||
+      !alertsEnabled ||
+      !alertText.trim() ||
+      sendingAlert
+    ) return
+
+    try {
+
+      setSendingAlert(true)
+
+      const {
+        data: { session }
+      } =
+        await supabase
+          .auth
+          .getSession()
+
+      const userId =
+        session?.user?.id
+
+      if (!userId) {
+
+        notify(
+          'Please log in to send an alert.'
+        )
+
+        return
+      }
+
+      // CREATE THROUGH RPC
+      // SERVER-SIDE AUTHORIZATION SHOULD
+      // VERIFY MEMBERSHIP + ALERT ENABLED
+
+            const {
+        data,
+        error
+      } =
+        await supabase
+
+          .rpc(
+            'create_community_alert',
+            {
+              p_community_id:
+                community.id,
+
+              p_title:
+                'Community Alert',
+
+              p_description:
+                alertText.trim(),
+            }
+          )
+
+if (error) {
+
+  // ─────────────────────────────
+  // EXPECTED COOLDOWN
+  // ─────────────────────────────
+
+  if (error.code === 'P0001') {
+
+    // Close the composer first so
+    // the notification cannot appear
+    // behind the alert sheet.
+
+    setAlertText('')
+
+    setShowAlertComposer(false)
+
+    notify(
+      '⏳ Please wait before sending another alert.'
+    )
+
+    return
+  }
+
+  // ─────────────────────────────
+  // REAL / UNEXPECTED ERROR
+  // ─────────────────────────────
+
+  console.error(
+    '❌ FAILED TO CREATE COMMUNITY ALERT'
+  )
+
+  console.error(
+    'RPC error:',
+    JSON.stringify(
+      error,
+      Object.getOwnPropertyNames(error),
+      2
+    )
+  )
+
+  console.error(
+    'RPC error message:',
+    error?.message
+  )
+
+  console.error(
+    'RPC error code:',
+    error?.code
+  )
+
+  console.error(
+    'RPC error details:',
+    error?.details
+  )
+
+  console.error(
+    'RPC error hint:',
+    error?.hint
+  )
+
+  // Close the sheet before showing
+  // the error notification.
+
+  setAlertText('')
+
+  setShowAlertComposer(false)
+
+  notify(
+    `❌ ${
+      error?.message ||
+      error?.details ||
+      'Unable to send alert.'
+    }`
+  )
+
+  return
+}
+
+           // RPC MAY RETURN THE CREATED ALERT
+
+      const createdAlert =
+        Array.isArray(data)
+          ? data[0]
+          : data
+
+      if (createdAlert) {
+
+        setActiveAlert(
+          createdAlert
+        )
+      }
+
+      // ─────────────────────────────
+// SEND IN-APP + BROWSER PUSH
+// ─────────────────────────────
+
+const {
+  data: members,
+  error: membersError,
+} =
+  await supabase
+    .from('community_members')
+    .select(`
+      user_id
+    `)
+    .eq(
+      'community_id',
+      community.id
+    )
+
+if (membersError) {
+
+  console.warn(
+    'Failed to load community members for notifications:',
+    membersError
+  )
+
+} else if (members?.length) {
+
+  // Never notify the person
+  // who created the alert.
+  const recipients =
+    members.filter(
+      (member) =>
+        member.user_id !== userId
+    )
+
+  // ─────────────────────────────
+  // 1. IN-APP NOTIFICATIONS
+  // ─────────────────────────────
+
+  const notificationRows =
+    recipients.map(
+      (member) => ({
+
+        user_id:
+          member.user_id,
+
+        actor_id:
+          userId,
+
+        type:
+          'community_alert',
+
+        community_id:
+          community.id,
+
+        message:
+          `${community.name}: ${alertText.trim()}`,
+
+        link:
+          `/communities/${community.slug}`,
+
+        is_read:
+          false,
+
+      })
+    )
+
+  if (
+    notificationRows.length
+  ) {
+
+    const {
+      error:
+        notificationError,
+    } =
+      await supabase
+        .from('notifications')
+        .insert(
+          notificationRows
+        )
+
+    if (notificationError) {
+
+      console.warn(
+        'Failed to create in-app community alert notifications:',
+        notificationError
+      )
+
+    }
+  }
+
+  // ─────────────────────────────
+  // 2. BROWSER PUSH NOTIFICATIONS
+  // ─────────────────────────────
+
+  await Promise.allSettled(
+
+    recipients.map(
+      async (member) => {
+
+        try {
+
+          const response =
+            await fetch(
+              '/api/push/send',
+              {
+                method: 'POST',
+
+                headers: {
+                  'Content-Type':
+                    'application/json',
+                },
+
+                body:
+                  JSON.stringify({
+
+                    userId:
+                      member.user_id,
+
+                    title:
+                      `📣 ${community.name}`,
+
+                    message:
+                      alertText.trim(),
+
+                    url:
+                      `/communities/${community.slug}`,
+
+                  }),
+              }
+            )
+
+          if (!response.ok) {
+
+            console.warn(
+              'Community alert push failed for:',
+              member.user_id
+            )
+
+          }
+
+        } catch (pushError) {
+
+          console.warn(
+            'Community alert push error:',
+            pushError
+          )
+
+        }
+
+      }
+    )
+
+  )
+}
+
+      setAlertText('')
+
+      setShowAlertComposer(false)
+
+      notify(
+        '📣 Community alert sent!'
+      )
+
+    } catch (error) {
+
+      console.error(
+        error
+      )
+
+      notify(
+        '❌ Something went wrong.'
+      )
+
+    } finally {
+
+      setSendingAlert(false)
+    }
+  }
 
    // ─────────────────────────────
 // CREATE POST
@@ -705,7 +1219,7 @@ if (error) {
   return
 }
 
-      // UI UPDATE
+            // UI UPDATE
 
       const newReply = {
 
@@ -721,6 +1235,107 @@ if (error) {
 
         newReply,
       ])
+
+      // ─────────────────────────────
+      // NOTIFY COMMUNITY POST OWNER
+      // ─────────────────────────────
+
+      const {
+        data: postOwner,
+        error: postOwnerError,
+      } = await supabase
+        .from('questions')
+        .select('user_id')
+        .eq('id', selectedPost.id)
+        .single()
+
+      if (
+        !postOwnerError &&
+        postOwner &&
+        postOwner.user_id !== userId
+      ) {
+
+        const replyMessage =
+          replyText.trim()
+
+        const {
+          error: notificationError,
+        } = await supabase
+          .from('notifications')
+          .insert({
+            user_id:
+              postOwner.user_id,
+
+            actor_id:
+              userId,
+
+            type:
+              'community_reply',
+
+            community_id:
+              community.id,
+
+            message:
+              `${community.name}: Someone replied to your post${
+                replyMessage
+                  ? ` — ${replyMessage}`
+                  : ''
+              }`,
+
+            link:
+              `/communities/${community.slug}`,
+          })
+
+        if (notificationError) {
+          console.warn(
+            'Failed to notify community post owner:',
+            notificationError
+          )
+        }
+
+        // ─────────────────────────────
+        // BROWSER PUSH
+        // ─────────────────────────────
+
+        try {
+
+          await fetch(
+            '/api/push/send',
+            {
+              method: 'POST',
+
+              headers: {
+                'Content-Type':
+                  'application/json',
+              },
+
+              body:
+                JSON.stringify({
+                  userId:
+                    postOwner.user_id,
+
+                  title:
+                    '💬 New reply to your post',
+
+                  message:
+                    replyMessage
+                      ? replyMessage
+                      : 'Someone replied to your community post.',
+
+                  url:
+                    `/communities/${community.slug}`,
+                }),
+            }
+          )
+
+        } catch (pushError) {
+
+          console.warn(
+            'Community reply push error:',
+            pushError
+          )
+        }
+      }
 
       setReplyText('')
 
@@ -833,6 +1448,175 @@ if (error) {
 
 }, [selectedPost?.id])
 
+// ─────────────────────────────
+// REALTIME COMMUNITY ALERTS
+// ─────────────────────────────
+
+useEffect(() => {
+
+  if (!community?.id)
+    return
+
+  const channel =
+    supabase
+      .channel(
+        `community-alerts-${community.id}`
+      )
+
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'community_alerts',
+          filter:
+            `community_id=eq.${community.id}`,
+        },
+        (payload) => {
+
+          const newAlert =
+            payload.new
+
+          // IGNORE EXPIRED ALERTS
+
+          if (
+            newAlert.expires_at &&
+            new Date(
+              newAlert.expires_at
+            ).getTime() <= Date.now()
+          ) {
+            return
+          }
+
+          // DISPLAY IMMEDIATELY
+
+          setActiveAlert(
+            newAlert
+          )
+
+          // NOTIFICATION
+
+          notify(
+            `📣 ${newAlert.description}`
+          )
+        }
+      )
+
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'community_alerts',
+          filter:
+            `community_id=eq.${community.id}`,
+        },
+        (payload) => {
+
+          const updatedAlert =
+            payload.new
+
+          if (
+            updatedAlert.expires_at &&
+            new Date(
+              updatedAlert.expires_at
+            ).getTime() <= Date.now()
+          ) {
+
+            setActiveAlert(
+              null
+            )
+
+            return
+          }
+
+          setActiveAlert(
+            updatedAlert
+          )
+        }
+      )
+
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'community_alerts',
+          filter:
+            `community_id=eq.${community.id}`,
+        },
+        (payload) => {
+
+          if (
+            activeAlert?.id ===
+            payload.old?.id
+          ) {
+
+            setActiveAlert(
+              null
+            )
+          }
+        }
+      )
+
+      .subscribe()
+
+  return () => {
+
+    supabase.removeChannel(
+      channel
+    )
+  }
+
+}, [
+  community?.id,
+  notify,
+  activeAlert?.id,
+])
+
+// ─────────────────────────────
+// ALERT EXPIRY CLEANUP
+// ─────────────────────────────
+
+useEffect(() => {
+
+  if (
+    !activeAlert?.expires_at
+  ) return
+
+  const expiresAt =
+    new Date(
+      activeAlert.expires_at
+    ).getTime()
+
+  const remaining =
+    expiresAt - Date.now()
+
+  if (remaining <= 0) {
+
+    setActiveAlert(null)
+
+    return
+  }
+
+  const timer =
+    window.setTimeout(() => {
+
+      setActiveAlert(null)
+
+    }, remaining)
+
+  return () => {
+
+    window.clearTimeout(
+      timer
+    )
+  }
+
+}, [
+  activeAlert?.id,
+  activeAlert?.expires_at,
+])
 
   // ─────────────────────────────
 // LOADING
@@ -1062,7 +1846,7 @@ if (loading) {
 
                 borderRadius: 34,
 
-                padding: 22,
+                padding: '22px 22px 46px',
 
                 background:
                   'rgba(255,255,255,0.26)',
@@ -1214,25 +1998,25 @@ if (loading) {
   return (
 
   <div
-    style={{
-      height: '100vh',
+  style={{
+    height: '100vh',
 
-      background:
-        '#EFE7DD',
+    background:
+      '#EFE7DD',
 
-      position: 'relative',
+    position: 'relative',
 
-      overflow: 'hidden',
+    overflow: 'hidden',
 
-      marginTop: -70,
+    marginTop: 0,
 
-      paddingTop: 0,
+    paddingTop: 0,
 
-      display: 'flex',
+    display: 'flex',
 
-      flexDirection: 'column',
-    }}
-  >
+    flexDirection: 'column',
+  }}
+>
 
       {/* BLUR BACKGROUND */}
 
@@ -1403,26 +2187,331 @@ if (loading) {
 
         </div>
 
-        {/* RIGHT 
+  {isOwner && (
+  <button
+    onClick={handleToggleAlerts}
+    disabled={updatingAlerts}
+    aria-label={
+      alertsEnabled
+        ? 'Disable community alerts'
+        : 'Enable community alerts'
+    }
+    title={
+      alertsEnabled
+        ? 'Community alerts enabled'
+        : 'Enable community alerts'
+    }
+    style={{
+      width: 54,
+      height: 54,
 
-        <button
-          style={{
-            border: 'none',
+      borderRadius: 999,
 
-            background:
-              'transparent',
+      border: alertsEnabled
+        ? '1px solid rgba(244,197,66,0.45)'
+        : '1px solid rgba(15,23,42,0.08)',
 
-            fontSize: 34,
+      background: alertsEnabled
+        ? 'rgba(244,197,66,0.18)'
+        : 'rgba(255,255,255,0.52)',
 
-            cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
 
-            color: '#111827',
-          }}
-        >
-          🔕
-        </button> */}
+      cursor: updatingAlerts
+        ? 'default'
+        : 'pointer',
+
+      opacity: updatingAlerts
+        ? 0.65
+        : 1,
+
+      transition:
+        'all 0.2s ease',
+
+      flexShrink: 0,
+
+      boxShadow: alertsEnabled
+        ? '0 4px 14px rgba(244,197,66,0.14)'
+        : 'none',
+    }}
+  >
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Megaphone body */}
+      <path
+        d="M4.5 10.2V13.8C4.5 14.35 4.95 14.8 5.5 14.8H7.2L9.1 19H11.1L9.45 14.8H11.8L18.8 18V6L11.8 9.8H5.5C4.95 9.8 4.5 10.25 4.5 10.8V10.2Z"
+        stroke={
+          alertsEnabled
+            ? '#9A6700'
+            : '#94A3B8'
+        }
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {/* Sound wave */}
+      {alertsEnabled && (
+        <>
+          <path
+            d="M20 9C20.7 9.75 21.1 10.7 21.1 12C21.1 13.3 20.7 14.25 20 15"
+            stroke="#9A6700"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+          />
+
+          <path
+            d="M18.1 10.3C18.45 10.75 18.65 11.3 18.65 12C18.65 12.7 18.45 13.25 18.1 13.7"
+            stroke="#9A6700"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+          />
+        </>
+      )}
+    </svg>
+  </button>
+)}
+
+{!isOwner &&
+  joined &&
+  alertsEnabled && (
+
+    <button
+      onClick={() =>
+        setShowAlertComposer(
+          true
+        )
+      }
+
+      aria-label="Send community alert"
+      title="Send community alert"
+
+      style={{
+        width: 54,
+        height: 54,
+
+        borderRadius: 999,
+
+        border:
+          '1px solid rgba(244,197,66,0.45)',
+
+        background:
+          'rgba(244,197,66,0.18)',
+
+        display: 'flex',
+
+        alignItems: 'center',
+
+        justifyContent: 'center',
+
+        cursor: 'pointer',
+
+        flexShrink: 0,
+
+        boxShadow:
+          '0 4px 14px rgba(244,197,66,0.14)',
+      }}
+    >
+
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+
+        <path
+          d="M4.5 10.2V13.8C4.5 14.35 4.95 14.8 5.5 14.8H7.2L9.1 19H11.1L9.45 14.8H11.8L18.8 18V6L11.8 9.8H5.5C4.95 9.8 4.5 10.25 4.5 10.8V10.2Z"
+          stroke="#9A6700"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        <path
+          d="M20 9C20.7 9.75 21.1 10.7 21.1 12C21.1 13.3 20.7 14.25 20 15"
+          stroke="#9A6700"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+        />
+
+        <path
+          d="M18.1 10.3C18.45 10.75 18.65 11.3 18.65 12C18.65 12.7 18.45 13.25 18.1 13.7"
+          stroke="#9A6700"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+        />
+
+      </svg>
+
+    </button>
+)}
 
       </div>
+      {/* 📌 PINNED COMMUNITY ALERT */}
+
+{activeAlert &&
+  (
+    activeAlert.description ||
+    activeAlert.body ||
+    activeAlert.message ||
+    activeAlert.title
+  ) && (
+
+  <div
+    style={{
+      position: 'fixed',
+
+      top: 78,
+      left: 0,
+      right: 0,
+
+      zIndex: 998,
+
+      padding: '8px 12px',
+
+      background:
+        'rgba(239,231,221,0.82)',
+
+      backdropFilter:
+        'blur(18px)',
+
+      WebkitBackdropFilter:
+        'blur(18px)',
+
+      borderBottom:
+        '1px solid rgba(15,23,42,0.06)',
+    }}
+  >
+
+    <div
+      style={{
+        width: '100%',
+
+        boxSizing: 'border-box',
+
+        padding: '10px 14px',
+
+        borderRadius: 18,
+
+        background:
+          'rgba(244,197,66,0.18)',
+
+        border:
+          '1px solid rgba(244,197,66,0.38)',
+
+        boxShadow:
+          '0 4px 14px rgba(0,0,0,0.05)',
+
+        display: 'flex',
+
+        alignItems: 'center',
+
+        gap: 10,
+      }}
+    >
+
+      {/* 📣 ICON */}
+
+      <div
+        style={{
+          width: 30,
+          height: 30,
+
+          minWidth: 30,
+
+          borderRadius: 999,
+
+          display: 'flex',
+
+          alignItems: 'center',
+
+          justifyContent: 'center',
+
+          background:
+            'rgba(244,197,66,0.28)',
+
+          fontSize: 15,
+        }}
+      >
+        📣
+      </div>
+
+      {/* TEXT */}
+
+      <div
+        style={{
+          minWidth: 0,
+
+          flex: 1,
+        }}
+      >
+
+        <div
+          style={{
+            fontSize: 11,
+
+            lineHeight: '14px',
+
+            fontWeight: 800,
+
+            color: '#9A6700',
+
+            letterSpacing: '0.3px',
+
+            textTransform: 'uppercase',
+          }}
+        >
+          Community Alert
+        </div>
+
+        <div
+  style={{
+    marginTop: 2,
+
+    fontSize: 14,
+
+    lineHeight: '20px',
+
+    fontWeight: 700,
+
+    color: '#111827',
+
+    display: '-webkit-box',
+
+    WebkitBoxOrient: 'vertical',
+
+    WebkitLineClamp: 2,
+
+    overflow: 'hidden',
+
+    wordBreak: 'break-word',
+
+    overflowWrap: 'anywhere',
+  }}
+>
+  {activeAlert.description ||
+    activeAlert.body ||
+    activeAlert.message ||
+    activeAlert.title}
+</div>
+
+      </div>
+
+    </div>
+
+  </div>
+)}
       {/* DIVIDER */}
 
 <div
@@ -1441,11 +2530,8 @@ if (loading) {
      {/* FEED */}
 
 <div
-
   ref={feedRef}
-
   className="hide-scrollbar"
-
   style={{
     flex: 1,
 
@@ -1453,7 +2539,7 @@ if (loading) {
 
     paddingBottom: 160,
 
-    paddingTop: 96,
+    paddingTop: 110,
 
     background: '#EFE7DD',
 
@@ -1569,55 +2655,87 @@ if (loading) {
 
 </div>
 
-           {/* CARD */}
-
+          {/* CARD */}
 <div
-
   onClick={() => {
-
-  setSelectedPost(post)
-}}
-
+    setSelectedPost(post)
+  }}
   style={{
     marginTop: -10,
 
     marginLeft: 62,
     marginRight: 18,
 
-                borderRadius: 34,
+    borderRadius: 34,
 
-                cursor: 'pointer',
+    cursor: 'pointer',
 
-                overflow: 'hidden',
+    overflow: 'hidden',
 
-                background:
-                  'rgba(255,255,255,0.28)',
+    position: 'relative',
 
-                backdropFilter:
-                  'blur(16px)',
+    background:
+      'rgba(255,255,255,0.28)',
 
-                border:
-                  '1px solid rgba(255,255,255,0.45)',
-              }}
-            >
+    backdropFilter:
+      'blur(16px)',
 
-              <div
-                style={{
-                  padding: 22,
+    border:
+      '1px solid rgba(255,255,255,0.45)',
+  }}
+>
+  {/* POST TEXT */}
+  <div
+    style={{
+      padding: '22px 22px 42px',
 
-                  fontSize: 18,
+      fontSize: 18,
 
-                  lineHeight: '34px',
+      lineHeight: '34px',
 
-                  color: '#111827',
+      color: '#111827',
 
-                  fontWeight: 600,
-                }}
-              >
-                {post.text}
-              </div>
+      fontWeight: 600,
 
-            </div>
+      wordBreak: 'break-word',
+
+      overflowWrap: 'break-word',
+    }}
+  >
+    {post.text}
+  </div>
+
+  {/* POST TIME */}
+  <div
+    style={{
+      position: 'absolute',
+
+      right: 20,
+
+      bottom: 14,
+
+      fontSize: 12,
+
+      fontWeight: 500,
+
+      color: '#64748B',
+
+      lineHeight: '16px',
+
+      whiteSpace: 'nowrap',
+
+      pointerEvents: 'none',
+    }}
+  >
+    {new Date(post.created_at).toLocaleTimeString([], {
+      hour: 'numeric',
+
+      minute: '2-digit',
+
+      hour12: true,
+    })}
+  </div>
+</div>
 
             {/* REACTIONS 
 
@@ -1831,6 +2949,283 @@ if (loading) {
 
 </div>
 
+{/* MEMBER ALERT COMPOSER */}
+
+{showAlertComposer && (
+  <div
+    style={{
+      position: 'fixed',
+
+      inset: 0,
+
+      zIndex: 9998,
+
+      background:
+        'rgba(0,0,0,0.30)',
+
+      backdropFilter:
+        'blur(10px)',
+
+      WebkitBackdropFilter:
+        'blur(10px)',
+
+      display: 'flex',
+
+      alignItems: 'flex-end',
+
+      justifyContent: 'center',
+    }}
+
+    onClick={() =>
+      setShowAlertComposer(false)
+    }
+  >
+
+    <div
+      onClick={(e) =>
+        e.stopPropagation()
+      }
+
+      style={{
+        width: '100%',
+
+        maxWidth: 680,
+
+        padding:
+          '24px 20px calc(env(safe-area-inset-bottom) + 24px)',
+
+        borderTopLeftRadius: 32,
+
+        borderTopRightRadius: 32,
+
+        background:
+          '#EFE7DD',
+
+        boxShadow:
+          '0 -10px 40px rgba(0,0,0,0.14)',
+      }}
+    >
+
+      <div
+        style={{
+          fontSize: 20,
+
+          fontWeight: 800,
+
+          color: '#111827',
+        }}
+      >
+        📣 Send a community alert
+      </div>
+
+      <div
+        style={{
+          marginTop: 6,
+
+          fontSize: 13,
+
+          lineHeight: '20px',
+
+          color: '#64748B',
+        }}
+      >
+        This is a temporary alert for
+        members of this community.
+      </div>
+
+     <div
+  style={{
+    marginTop: 18,
+  }}
+>
+  {/* INPUT */}
+  <input
+    type="text"
+    value={alertText}
+
+    onChange={(e) => {
+      setAlertText(
+        e.target.value.slice(0, 60)
+      )
+    }}
+
+    onKeyDown={(e) => {
+      // Never allow Enter.
+      if (e.key === 'Enter') {
+        e.preventDefault()
+      }
+    }}
+
+    placeholder="What's happening?"
+
+    maxLength={60}
+
+    autoFocus
+
+    autoComplete="off"
+    autoCorrect="off"
+    autoCapitalize="sentences"
+    spellCheck={false}
+
+    style={{
+      width: '100%',
+
+      height: 54,
+
+      padding: '0 16px',
+
+      borderRadius: 22,
+
+      border:
+        '1px solid rgba(15,23,42,0.08)',
+
+      outline: 'none',
+
+      background: '#FFFFFF',
+
+      fontSize: 16,
+
+      lineHeight: '24px',
+
+      color: '#111827',
+
+      fontFamily: 'inherit',
+
+      boxSizing: 'border-box',
+
+      whiteSpace: 'nowrap',
+
+      overflow: 'hidden',
+
+      textOverflow: 'ellipsis',
+
+      display: 'block',
+    }}
+  />
+
+  {/* CHARACTER COUNTER */}
+  <div
+    style={{
+      marginTop: 6,
+
+      paddingRight: 6,
+
+      textAlign: 'right',
+
+      fontSize: 11,
+
+      lineHeight: '14px',
+
+      fontWeight: 600,
+
+      color:
+        alertText.length >= 55
+          ? '#9A6700'
+          : '#94A3B8',
+    }}
+  >
+    {alertText.length}/60
+  </div>
+</div>
+
+      <div
+        style={{
+          display: 'flex',
+
+          gap: 10,
+
+          marginTop: 12,
+        }}
+      >
+
+        <button
+          onClick={() => {
+
+            setAlertText('')
+
+            setShowAlertComposer(
+              false
+            )
+          }}
+
+          style={{
+            flex: 1,
+
+            height: 54,
+
+            borderRadius: 999,
+
+            border:
+              '1px solid rgba(15,23,42,0.08)',
+
+            background:
+              'rgba(255,255,255,0.7)',
+
+            fontSize: 15,
+
+            fontWeight: 700,
+
+            color: '#475569',
+
+            cursor: 'pointer',
+          }}
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={
+            handleCreateAlert
+          }
+
+          disabled={
+            sendingAlert ||
+            !alertText.trim()
+          }
+
+          style={{
+            flex: 1,
+
+            height: 54,
+
+            borderRadius: 999,
+
+            border: 'none',
+
+            background:
+              '#F4C542',
+
+            fontSize: 15,
+
+            fontWeight: 800,
+
+            color: '#111827',
+
+            cursor:
+              sendingAlert ||
+              !alertText.trim()
+                ? 'default'
+                : 'pointer',
+
+            opacity:
+              sendingAlert ||
+              !alertText.trim()
+                ? 0.55
+                : 1,
+          }}
+        >
+          {sendingAlert
+            ? 'Sending...'
+            : 'Send Alert'}
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+)}
+
       {/* OWNER COMPOSER */}
 
 {isOwner && (
@@ -1909,7 +3304,7 @@ if (loading) {
     background: 'transparent',
 
     fontSize: 16,
-    lineHeight: 1.5,
+    lineHeight: 2.8,
 
     color: '#111827',
 
@@ -2540,7 +3935,7 @@ if (loading) {
     background: 'transparent',
 
     fontSize: 16,
-    lineHeight: 1.5,
+    lineHeight: 2.8,
 
     color: '#111827',
 

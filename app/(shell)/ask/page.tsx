@@ -33,8 +33,9 @@ export default function AskPage() {
   const searchParams = useSearchParams()
   const { notify } = useNotify()
 
-  const [text, setText] = useState('')
-  const [hours, setHours] = useState(1)
+const [text, setText] = useState('')
+const [hours, setHours] = useState(1)
+
   const [category, setCategory] = useState<string>('general')
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
@@ -351,7 +352,8 @@ link_type: linkPreview?.type || null,
         return
       }
 
-      notify('✅ Question posted!')
+            notify('✅ Question posted!')
+
       router.back()
       
     } catch (err) {
@@ -448,6 +450,7 @@ return (
   overflowX: 'hidden',
 }}
   >
+
     {pageLoading ? (
       <div
         style={{
@@ -520,22 +523,43 @@ return (
             ✕
           </button>
 
-         {/* Center Title */}
+         {/* ================= CENTER TITLE ================= */}
 
 <div
   style={{
     position: 'absolute',
+
     left: '50%',
     transform: 'translateX(-50%)',
 
-    fontSize: 18,
-    fontWeight: 700,
-    color: '#111827',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    padding: '6px 10px',
 
     pointerEvents: 'none',
   }}
 >
-  New question
+
+  <span
+    style={{
+      position: 'relative',
+
+      zIndex: 1,
+
+      fontSize: 18,
+      fontWeight: 700,
+
+      color: '#111827',
+
+      lineHeight: 1,
+
+      whiteSpace: 'nowrap',
+    }}
+  >
+    New question
+  </span>
 </div>
 
 {/* Character Counter */}

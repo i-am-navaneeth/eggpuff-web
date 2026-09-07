@@ -81,7 +81,7 @@ left: 0,
 right: 0,
 bottom: fullScreen ? 0 : bottomInset,
 
-  zIndex: 1000,
+  zIndex: fullScreen ? 50 : 1000,
 
   background:
     'rgba(0,0,0,0.25)',

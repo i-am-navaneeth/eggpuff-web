@@ -80,6 +80,7 @@ const isPublicPage =
   pathname.startsWith('/reader/')
 
 return (
+    <>
   <NotificationProvider>
     <AuthProvider>
       <UserProvider>
@@ -217,5 +218,6 @@ return (
       </UserProvider>
     </AuthProvider>
   </NotificationProvider>
+   </>
 )
 }

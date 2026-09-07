@@ -546,14 +546,14 @@ return (
   />
 </div>
     <div
-      className={`fixed top-0 left-0 right-0 z-[2000] transition-transform duration-300 ${
-        isProfilePage
-  ? 'translate-y-0'
-  : showUI
-  ? 'translate-y-0'
-  : '-translate-y-full'
-      }`}
-    >
+  className={`fixed top-0 left-0 right-0 z-[2000] ${
+    isProfilePage
+      ? 'translate-y-0'
+      : showUI
+      ? 'translate-y-0'
+      : '-translate-y-full'
+  }`}
+>
       <div
         style={{
           display: 'flex',
@@ -564,22 +564,69 @@ return (
           borderBottom: '1px solid #eee',
         }}
       >
-       {/* LEFT */}
+
+{/* LEFT */}
 <div
   style={{
+    /*
+     * FEED:
+     * No back button space at all.
+     *
+     * QUESTION / PROFILE / OTHER:
+     * Reserve exactly 40px for the back button.
+     */
+    width:
+      showBack || isQuestionPage || isProfilePage
+        ? 40
+        : 0,
+
     flexShrink: 0,
+
     display: 'flex',
     alignItems: 'center',
+    justifyContent: 'flex-start',
   }}
 >
-  {showBack ? (
-  <BackButton
-    onClick={
-      onBack ??
-      (() => router.back())
-    }
-  />
-) : null}
+  {(showBack || isQuestionPage || isProfilePage) ? (
+    <button
+      onClick={
+        onBack ??
+        (() => router.back())
+      }
+      aria-label="Go back"
+      style={{
+        width: 40,
+        height: 40,
+
+        padding: 0,
+        border: 'none',
+        background: 'transparent',
+
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+
+        cursor: 'pointer',
+        flexShrink: 0,
+      }}
+    >
+      <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M15 18L9 12L15 6"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
+  ) : null}
 </div>
 
 {/* CENTER */}
@@ -587,11 +634,13 @@ return (
   style={{
     flex: 1,
     minWidth: 0,
-    marginLeft: 16,
-    marginRight: 8,
 
     display: 'flex',
     alignItems: 'center',
+    justifyContent: 'flex-start',
+
+    marginLeft: 0,
+    marginRight: 8,
   }}
 >
   {pathname === '/browser' ? (
@@ -763,37 +812,107 @@ return (
 
   ) : (
 
-    <DefaultTitle
-      title={
-        title ??
-        (pathname === '/notifications'
-          ? 'Notifications'
-          : 'EggPuff')
-      }
-      onClick={() => {
-        const now = Date.now()
+  <div
+    onClick={() => {
+      const now = Date.now()
 
-        if (
-          (window as any).__ep_last_tap &&
-          now -
-            (window as any).__ep_last_tap <
-            320
-        ) {
-          if (pathname === '/feed') {
-            onRefreshFeed?.()
-          } else {
-            router.push('/feed')
-          }
+      if (
+        (window as any).__ep_last_tap &&
+        now - (window as any).__ep_last_tap < 320
+      ) {
+        if (pathname === '/feed') {
+          onRefreshFeed?.()
         } else {
           router.push('/feed')
         }
+      } else {
+        router.push('/feed')
+      }
 
-        ;(window as any).__ep_last_tap =
-          now
+      ;(window as any).__ep_last_tap = now
+    }}
+    style={{
+  /*
+   * FEED:
+   * Position EggPuff independently so it aligns
+   * directly above the post avatar.
+   *
+   * IMPORTANT:
+   * This value only applies to /feed.
+   */
+  position:
+    pathname === '/feed'
+      ? 'absolute'
+      : 'relative',
+
+  left:
+    pathname === '/feed'
+      ? 38
+      : 'auto',
+
+  top:
+    pathname === '/feed'
+      ? '50%'
+      : 'auto',
+
+  transform:
+    pathname === '/feed'
+      ? 'translateY(-50%)'
+      : 'none',
+
+  /*
+   * QUESTION / PROFILE / OTHER:
+   * Keep the existing compact spacing.
+   */
+  marginLeft:
+    pathname === '/feed'
+      ? 0
+      : 4,
+
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'flex-start',
+
+  cursor: 'pointer',
+
+  fontSize: 20,
+  fontWeight: 800,
+  lineHeight: 1,
+
+  whiteSpace: 'nowrap',
+
+  padding: 0,
+
+  overflow: 'visible',
+
+  flexShrink: 0,
+
+  zIndex:
+    pathname === '/feed'
+      ? 3
+      : 'auto',
+}}
+  >
+    <span
+      style={{
+        color: 'inherit',
+
+        fontSize: 20,
+        fontWeight: 800,
+        lineHeight: 1,
+
+        whiteSpace: 'nowrap',
       }}
-    />
+    >
+      {title ??
+        (pathname === '/notifications'
+          ? 'Notifications'
+          : 'EggPuff')}
+    </span>
+  </div>
 
-  )}
+)}
+
 </div>
 
 {/* RIGHT */}
