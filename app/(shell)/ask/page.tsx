@@ -1442,7 +1442,7 @@ overflow: 'hidden',
     'background .18s ease, transform .12s ease',
 
   boxShadow:
-    loading ||
+    loading || 
     !text.trim() ||
     !isProfileComplete ||
     text.length > 280

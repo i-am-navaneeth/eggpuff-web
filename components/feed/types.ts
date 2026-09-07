@@ -17,6 +17,8 @@ export type FilterType = 'all' | 'unanswered' | 'answered'
 export type QuestionRow = {
   id: string
 
+  user_id: string
+
   text: string
 
   created_at: string
@@ -46,6 +48,10 @@ export type QuestionRow = {
   is_verified?: boolean
 
   _missed?: boolean
+
+  feed_snapshot_at: string | null
+
+  total_score: number
 }
 
 export type Question = {

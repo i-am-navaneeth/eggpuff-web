@@ -244,29 +244,113 @@ const submitUTR = async () => {
 )}
 
       {/* STEP: PAY */}
-      {step === 'pay' && (
-        <>
-          <p style={priceRow}>
-            <strong>Get 5 🥐 for ₹9</strong>
-            <span style={bonus}>+2 BONUS</span>
-          </p>
+{step === 'pay' && (
+  <div
+    style={{
+      padding: '4px 0 2px',
+    }}
+  >
+    <p
+      style={{
+        fontSize: 16,
+        fontWeight: 600,
+        color: '#0F1419',
+        margin: '0 0 8px',
+        letterSpacing: '-0.12px',
+        lineHeight: 1.55,
+      }}
+    >
+      Get 5 🥐 for ₹9
+    </p>
 
-          <p style={subText}>Scan & pay using any UPI app</p>
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '3px 8px',
+        borderRadius: 999,
+        background: '#ECFDF3',
+        color: '#047857',
+        fontSize: 11,
+        fontWeight: 600,
+        marginBottom: 16,
+      }}
+    >
+      +2 BONUS
+    </span>
 
-          <img
-            src="/eggpuff.paymentQR.jpeg"
-            alt="UPI QR"
-            style={qr}
-          />
+    <div
+      style={{
+        width: '100%',
+        minHeight: 180,
+        borderRadius: 18,
+        background:
+          'linear-gradient(145deg, #F8FAFC, #F3F4F6)',
+        border: '1px solid #E5E7EB',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px 18px',
+        boxSizing: 'border-box',
+        marginBottom: 14,
+      }}
+    >
+      <div
+        style={{
+          width: 50,
+          height: 50,
+          borderRadius: 15,
+          background: '#FFFFFF',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 25,
+          boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
+          marginBottom: 12,
+        }}
+      >
+        🥐
+      </div>
 
-          <button
-  onClick={() => setStep('utr')}
-  style={actionBtn}
->
-  Payment done →
-</button>
-        </>
-      )}
+      <div
+        style={{
+          fontSize: 16,
+          fontWeight: 600,
+          color: '#0F1419',
+          letterSpacing: '-0.12px',
+          lineHeight: 1.55,
+        }}
+      >
+        Coming Soon
+      </div>
+
+      <div
+        style={{
+          fontSize: 13,
+          color: '#71767B',
+          marginTop: 5,
+          lineHeight: 1.5,
+          maxWidth: 250,
+        }}
+      >
+        Scan & pay using any UPI app
+      </div>
+    </div>
+
+    <button
+      disabled
+      style={{
+        ...actionBtn,
+        opacity: 0.55,
+        cursor: 'not-allowed',
+        boxShadow: 'none',
+      }}
+    >
+      Payment done →
+    </button>
+  </div>
+)}
 
       {/* STEP: UTR */}
       {step === 'utr' && (
@@ -434,13 +518,6 @@ const subText = {
   fontSize: 13,
   opacity: 0.7,
   marginTop: 6,
-}
-
-const qr = {
-  width: 180,
-  height: 180,
-  borderRadius: 12,
-  margin: '12px auto',
 }
 
 const input = {

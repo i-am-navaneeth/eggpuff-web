@@ -120,13 +120,17 @@ const [myProfile, setMyProfile] =
   useState<CurrentUserProfile | null>(null)
   const [posting, setPosting] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [showMenu, setShowMenu] =
+const [answersLoading, setAnswersLoading] =
+  useState(true)
+
+const [showMenu, setShowMenu] =
   useState(false)
-  const PAGE_SIZE = 15
+
+const PAGE_SIZE = 15
 
 const [page, setPage] = useState(0)
 
-const [hasMore, setHasMore] = useState(true)
+const [hasMore, setHasMore] = useState(false)
 const textareaRef =
   useRef<HTMLTextAreaElement>(null)
 
@@ -169,6 +173,8 @@ useEffect(() => {
 
 useEffect(() => {
   const loadAnswers = async () => {
+    setAnswersLoading(true)
+
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -193,7 +199,10 @@ useEffect(() => {
           page * PAGE_SIZE + PAGE_SIZE - 1
         )
 
-    if (!answersData) return
+    if (!answersData) {
+  setAnswersLoading(false)
+  return
+}
 
     const answerIds = answersData.map(a => a.id)
 
@@ -329,9 +338,11 @@ useEffect(() => {
         : [...prev, ...loadedAnswers]
     )
 
-    setHasMore(
+       setHasMore(
       loadedAnswers.length === PAGE_SIZE
     )
+
+    setAnswersLoading(false)
   }
 
   loadAnswers()
@@ -1034,7 +1045,7 @@ await supabase.from('notifications').insert({
   // ===============================
   // SAFE RENDER
   // ===============================
-if (loading) {
+if (loading && !question) {
   return (
     <div
       style={{
@@ -1075,291 +1086,350 @@ return (
     position: 'relative',
   }}
 >
+
   {/* HEADER */}
+<div
+  style={{
+    display: 'flex',
+    gap: 10,
+    alignItems: 'flex-start',
+  }}
+>
+  {/* AVATAR */}
+  <div
+    onClick={() => {
+      if (question.username) {
+        replace(`/u/${question.username}`)
+      }
+    }}
+    style={{
+      width: 38,
+      height: 38,
+      borderRadius: '50%',
+      backgroundImage: `url(${
+        question.avatar_url || '/avatar.png'
+      })`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      flexShrink: 0,
+      cursor: 'pointer',
+    }}
+  />
+
   <div
     style={{
-      display: 'flex',
-      gap: 12,
-      alignItems: 'flex-start',
+      flex: 1,
+      minWidth: 0,
     }}
   >
-    {/* AVATAR */}
-    <div
-  onClick={() => {
-    if (question.username) {
-      replace(`/u/${question.username}`)
-    }
-  }}
+    {/* NAME + MORE */}
+<div
   style={{
-    width: 42,
-    height: 42,
-    borderRadius: '50%',
-    backgroundImage: `url(${
-      question.avatar_url ||
-      '/avatar.png'
-    })`,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    flexShrink: 0,
-    cursor: 'pointer',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    height: 26,
+    minHeight: 26,
+    maxHeight: 26,
   }}
-/>
-
-    <div
-      style={{
-        flex: 1,
-        minWidth: 0,
-      }}
-    >
-      {/* NAME + MENU */}
+>
       <div
+        onClick={() => {
+          if (question.username) {
+            replace(`/u/${question.username}`)
+          }
+        }}
         style={{
+          fontWeight: 600,
+          fontSize: 14.5,
+          letterSpacing: '-0.15px',
           display: 'flex',
-          justifyContent:
-            'space-between',
-          alignItems: 'flex-start',
+          alignItems: 'center',
+          gap: 4,
+          cursor: 'pointer',
+          width: 'fit-content',
+          flexWrap: 'wrap',
         }}
       >
-        <div
-  onClick={() => {
-    if (question.username) {
-      replace(`/u/${question.username}`)
-    }
-  }}
-  style={{
-    cursor: 'pointer',
-    width: 'fit-content',
-  }}
->
-          <div
+        {/* Display Name */}
+        <span>
+          {question.user_name || 'Anonymous'}
+        </span>
+
+        {/* Verified */}
+        {question.is_verified && (
+          <span
             style={{
-              fontWeight: 700,
-              fontSize: 15,
-              color: '#0F1419',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: 6,
+              justifyContent: 'center',
+              transform: 'translateY(1px)',
             }}
           >
-            <span>
-  {question.user_name || 'Anonymous'}
-</span>
-
-{question.is_verified && (
-  <span
-    style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      transform: 'translateY(1px)',
-    }}
-  >
-    <svg
-      viewBox="0 0 24 24"
-      width="18"
-      height="18"
-    >
-      <path
-        fill="#1D9BF0"
-        d="M12 2.5L13.8 4.2L16.2 3.8L17 6.2L19.4 7L19 9.4L20.5 11.5L19 13.6L19.4 16L17 16.8L16.2 19.2L13.8 18.8L12 20.5L10.2 18.8L7.8 19.2L7 16.8L4.6 16L5 13.6L3.5 11.5L5 9.4L4.6 7L7 6.2L7.8 3.8L10.2 4.2Z"
-      />
-      <path
-        d="M8.6 11.7l2.4 2.4 4.8-4.8"
-        fill="none"
-        stroke="#FFF"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  </span>
-)}
-
-{!question.hideStreak &&
-  (question.is_friend || question.user_id === me) &&
-  (question.streak_count ?? 0) > 0 && (
-    <span
-  style={{
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 4,
-    width: 28,
-    height: 28,
-    flexShrink: 0,
-    transform: "translateY(-4px)",
-  }}
->
-  <svg
-    width="28"
-    height="28"
-    viewBox="0 0 64 64"
-    fill="none"
-  >
-    {/* Sparkles */}
-    <circle cx="9" cy="14" r="2.5" fill="#FFD54A" />
-    <circle cx="55" cy="15" r="2.5" fill="#FFD54A" />
-    <circle cx="12" cy="50" r="2.2" fill="#FFD54A" />
-    <circle cx="52" cy="48" r="2.2" fill="#FFD54A" />
-
-    {/* Flame */}
-    <path
-      d="M32 4
-         C42 12 49 22 49 33
-         C49 47 41 58 32 58
-         C21 58 13 48 13 35
-         C13 25 19 18 25 12
-         C25 22 32 24 32 4Z"
-      fill="#FF7A1A"
-    />
-
-    {/* Inner Flame */}
-    <path
-      d="M32 16
-         C38 22 42 28 42 35
-         C42 43 37 50 32 50
-         C26 50 22 44 22 37
-         C22 31 25 27 29 23
-         C29 29 32 31 32 16Z"
-      fill="#FFC547"
-    />
-
-    {/* White Badge */}
-    <circle
-      cx="32"
-      cy="39"
-      r="10.5"
-      fill="#FFF"
-    />
-
-    {/* Orange Border */}
-    <circle
-      cx="32"
-      cy="39"
-      r="9.5"
-      fill="none"
-      stroke="#FF8A24"
-      strokeWidth="2"
-    />
-
-    {/* Number */}
-    <text
-      x="32"
-      y="43.5"
-      textAnchor="middle"
-      fontSize="16"
-      fontWeight="900"
-      fill="#F97316"
-      fontFamily="Inter, sans-serif"
-    >
-      {question.streak_count}
-    </text>
-  </svg>
-</span>
-)}
-          </div>
-
-          <div
-            style={{
-              fontSize: 13,
-              color: '#71767B',
-              marginTop: 2,
-            }}
-          >
-            @
-            {question.username ||
-              'user'}
-            {' • '}
-            {question.created_at
-  ? new Date(
-      question.created_at
-    ).toLocaleDateString(
-      'en-US',
-      {
-        month: 'numeric',
-        day: 'numeric',
-      }
-    )
-  : ''}
-          </div>
-        </div>
-
-        {/* REAL MENU */}
-        <div
-          style={{
-            position: 'relative',
-          }}
-        >
-          <button
-  data-question-menu-button
-  onClick={(e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setShowMenu(prev => !prev)
-  }}
-  style={{
-    border: 'none',
-    background: 'transparent',
-    cursor: 'pointer',
-    width: 32,
-    height: 32,
-    borderRadius: '50%',
-    color: '#6B7280',
-  }}
->
             <svg
+              viewBox="0 0 24 24"
               width="18"
               height="18"
-              viewBox="0 0 24 24"
-              fill="currentColor"
             >
-              <circle
-                cx="5"
-                cy="12"
-                r="1.8"
+              <path
+                fill="#1D9BF0"
+                d="
+                  M12 2.5
+                  L13.8 4.2 L16.2 3.8 L17 6.2 L19.4 7 L19 9.4
+                  L20.5 11.5 L19 13.6 L19.4 16 L17 16.8
+                  L16.2 19.2 L13.8 18.8 L12 20.5
+                  L10.2 18.8 L7.8 19.2 L7 16.8 L4.6 16
+                  L5 13.6 L3.5 11.5 L5 9.4
+                  L4.6 7 L7 6.2 L7.8 3.8 L10.2 4.2 Z
+                "
               />
-              <circle
-                cx="12"
-                cy="12"
-                r="1.8"
-              />
-              <circle
-                cx="19"
-                cy="12"
-                r="1.8"
+
+              <path
+                d="M8.6 11.7l2.4 2.4 4.8-4.8"
+                fill="none"
+                stroke="#FFF"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
             </svg>
-          </button>
+          </span>
+        )}
 
-          {showMenu && (
-            <div
+        {/* Streak */}
+        {!question.hideStreak &&
+          (question.is_friend ||
+            question.user_id === me) && (
+            <span
               style={{
-                position:
-                  'absolute',
-                top: 36,
-                right: 0,
-                zIndex: 9999,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+
+                gap: 6,
+
+                marginLeft: 7,
+                marginRight: 4,
+
+                padding: '2px 9px 2px 7px',
+
+                minWidth: 42,
+                height: 26,
+
+                borderRadius: 999,
+
+                background: '#FFF8F1',
+                border: '1px solid #FFD2A8',
+
+                flexShrink: 0,
+
+                transform: 'translateY(-3px)',
+
+                boxSizing: 'border-box',
+
+                whiteSpace: 'nowrap',
+
+                lineHeight: 1,
               }}
             >
-              <QuestionActionsMenu
-                onClose={() =>
-                  setShowMenu(
-                    false
-                  )
-                }
-                isOwner={
-                  question.user_id ===
-                  me
-                }
-                questionId={
-                  question.id
-                }
-              />
-            </div>
+              {/* Old EggPuff Fire */}
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 64 64"
+                fill="none"
+                aria-hidden="true"
+                style={{
+                  flexShrink: 0,
+                  display: 'block',
+                }}
+              >
+                {/* Sparkles */}
+                <circle
+                  cx="9"
+                  cy="14"
+                  r="2.5"
+                  fill="#FFD54A"
+                />
+
+                <circle
+                  cx="55"
+                  cy="15"
+                  r="2.5"
+                  fill="#FFD54A"
+                />
+
+                <circle
+                  cx="12"
+                  cy="50"
+                  r="2.2"
+                  fill="#FFD54A"
+                />
+
+                <circle
+                  cx="52"
+                  cy="48"
+                  r="2.2"
+                  fill="#FFD54A"
+                />
+
+                {/* Flame */}
+                <path
+                  d="
+                    M32 4
+                    C42 12 49 22 49 33
+                    C49 47 41 58 32 58
+                    C21 58 13 48 13 35
+                    C13 25 19 18 25 12
+                    C25 22 32 24 32 4Z
+                  "
+                  fill="#FF7A1A"
+                />
+
+                {/* Inner Flame */}
+                <path
+                  d="
+                    M32 16
+                    C38 22 42 28 42 35
+                    C42 43 37 50 32 50
+                    C26 50 22 44 22 37
+                    C22 31 25 27 29 23
+                    C29 29 32 31 32 16Z
+                  "
+                  fill="#FFC547"
+                />
+              </svg>
+
+              {/* Adaptive Streak Number */}
+              <span
+                style={{
+                  color: '#F97316',
+
+                  fontWeight: 800,
+
+                  lineHeight: 1,
+
+                  fontSize:
+                    (question.streak_count ?? 0) >= 100
+                      ? 11
+                      : (question.streak_count ?? 0) >= 10
+                      ? 12
+                      : 14,
+
+                  letterSpacing:
+                    (question.streak_count ?? 0) >= 100
+                      ? '-0.4px'
+                      : '-0.2px',
+
+                  whiteSpace: 'nowrap',
+
+                  fontVariantNumeric: 'tabular-nums',
+
+                  display: 'inline-block',
+                }}
+              >
+                {question.streak_count ?? 0}
+              </span>
+            </span>
           )}
-        </div>
       </div>
+
+      {/* REAL MENU */}
+      <div
+        style={{
+          position: 'relative',
+        }}
+      >
+        <button
+          data-question-menu-button
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            setShowMenu(prev => !prev)
+          }}
+          style={{
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            color: '#6B7280',
+          }}
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <circle
+              cx="5"
+              cy="12"
+              r="1.8"
+            />
+            <circle
+              cx="12"
+              cy="12"
+              r="1.8"
+            />
+            <circle
+              cx="19"
+              cy="12"
+              r="1.8"
+            />
+          </svg>
+        </button>
+
+        {showMenu && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 36,
+              right: 0,
+              zIndex: 9999,
+            }}
+          >
+            <QuestionActionsMenu
+              onClose={() =>
+                setShowMenu(false)
+              }
+              isOwner={
+                question.user_id === me
+              }
+              questionId={
+                question.id
+              }
+            />
+          </div>
+        )}
       </div>
-      </div></div>
+    </div>
+
+   {/* USERNAME + DATE */}
+<div
+  style={{
+    fontSize: 13,
+    color: '#71767B',
+    marginTop: 0,
+    lineHeight: '16px',
+    height: 16,
+  }}
+>
+  @
+  {question.username || 'user'}
+  {' • '}
+  {question.created_at
+    ? new Date(
+        question.created_at
+      ).toLocaleDateString('en-US', {
+        month: 'numeric',
+        day: 'numeric',
+      })
+    : ''}
+</div>
+  </div>
+</div>
 
       {/* QUESTION TEXT */}
 <div
@@ -1505,121 +1575,285 @@ return (
     />
   </div>
 </div>
-        {/* ANSWERS */}
+
+{/* ANSWERS */}
 <div
   style={{
     flex: 1,
     overflowY: 'auto',
     paddingBottom:
-  answers.length === 0 ? '90px' : '140px',
+      answers.length === 0
+        ? '90px'
+        : '140px',
   }}
 >
-  {answers.length === 0 && (
+  {/* ANSWER LOADING SKELETON */}
+  {answersLoading && (
     <div
       style={{
-        textAlign: 'center',
-        padding: '32px 12px',
-        color: '#6B7280',
-        fontSize: 14,
+        paddingTop: 8,
       }}
     >
-      Be the first to reply
+      {[0, 1, 2].map(index => (
+        <div
+          key={index}
+          style={{
+            padding: '16px 0',
+            borderBottom:
+              index !== 2
+                ? '1px solid #E5E7EB'
+                : 'none',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              gap: 10,
+              alignItems: 'flex-start',
+            }}
+          >
+            {/* AVATAR */}
+            <div
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: '50%',
+                background:
+                  '#E5E7EB',
+                flexShrink: 0,
+                animation:
+                  'pulse 1.5s ease-in-out infinite',
+              }}
+            />
+
+            <div
+              style={{
+                flex: 1,
+              }}
+            >
+              {/* NAME */}
+              <div
+                style={{
+                  width:
+                    index === 0
+                      ? 110
+                      : 85,
+                  height: 13,
+                  borderRadius: 7,
+                  background:
+                    '#E5E7EB',
+                  animation:
+                    'pulse 1.5s ease-in-out infinite',
+                }}
+              />
+
+              {/* USERNAME */}
+              <div
+                style={{
+                  width: 75,
+                  height: 10,
+                  borderRadius: 6,
+                  background:
+                    '#E5E7EB',
+                  marginTop: 7,
+                  animation:
+                    'pulse 1.5s ease-in-out infinite',
+                }}
+              />
+
+              {/* ANSWER TEXT */}
+              <div
+                style={{
+                  width:
+                    index === 1
+                      ? '78%'
+                      : '62%',
+                  height: 15,
+                  borderRadius: 7,
+                  background:
+                    '#E5E7EB',
+                  marginTop: 16,
+                  animation:
+                    'pulse 1.5s ease-in-out infinite',
+                }}
+              />
+
+              {/* ACTIONS */}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 18,
+                  marginTop: 14,
+                }}
+              >
+                <div
+                  style={{
+                    width: 48,
+                    height: 11,
+                    borderRadius: 6,
+                    background:
+                      '#E5E7EB',
+                  }}
+                />
+
+                <div
+                  style={{
+                    width: 32,
+                    height: 11,
+                    borderRadius: 6,
+                    background:
+                      '#E5E7EB',
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   )}
-          {orderedAnswers.map((a, i) => (
-  <div key={a.id}>
-    <AnswerCard
-  answer={a}
-  isAsker={question.user_id === me}
-  isLast={i === orderedAnswers.length - 1}
-  currentUserId={me}
-  questionId={question.id}
-  onReply={(answerId, username) => {
-  const value = `@${username} `
 
-  setReplyTarget({
-    answerId,
-    username,
-  })
+  {/* EMPTY STATE */}
+  {!answersLoading &&
+    answers.length === 0 && (
+      <div
+        style={{
+          textAlign: 'center',
+          padding: '32px 12px',
+          color: '#6B7280',
+          fontSize: 14,
+        }}
+      >
+        Be the first to reply
+      </div>
+    )}
 
-  setText(value)
+  {/* ANSWERS */}
+  {!answersLoading &&
+    orderedAnswers.map((a, i) => (
+      <div key={a.id}>
+        <AnswerCard
+          answer={a}
+          isAsker={
+            question.user_id === me
+          }
+          isLast={
+            i ===
+            orderedAnswers.length - 1
+          }
+          currentUserId={me}
+          questionId={question.id}
+          onReply={(
+            answerId,
+            username
+          ) => {
+            const value =
+              `@${username} `
 
-  requestAnimationFrame(() => {
-    textareaRef.current?.focus()
+            setReplyTarget({
+              answerId,
+              username,
+            })
 
-    textareaRef.current?.setSelectionRange(
-      value.length,
-      value.length
-    )
-  })
-}}
-  onDelete={async (answerId) => {
-    const previousAnswers = [...answers]
+            setText(value)
 
-    setAnswers(prev =>
-      prev.filter(a => a.id !== answerId)
-    )
+            requestAnimationFrame(() => {
+              textareaRef.current?.focus()
 
-    const { error } = await supabase
-      .from('answers')
-      .delete()
-      .eq('id', answerId)
+              textareaRef.current?.setSelectionRange(
+                value.length,
+                value.length
+              )
+            })
+          }}
+          onDelete={async answerId => {
+            const previousAnswers =
+              [...answers]
 
-    if (error) {
-      console.error(error)
-      setAnswers(previousAnswers)
-    }
-  }}
-/>
+            setAnswers(prev =>
+              prev.filter(
+                a =>
+                  a.id !== answerId
+              )
+            )
 
-    {i !== orderedAnswers.length - 1 && (
+            const { error } =
+              await supabase
+                .from('answers')
+                .delete()
+                .eq(
+                  'id',
+                  answerId
+                )
+
+            if (error) {
+              console.error(error)
+              setAnswers(
+                previousAnswers
+              )
+            }
+          }}
+        />
+
+        {i !==
+          orderedAnswers.length - 1 && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent:
+                'center',
+              gap: 10,
+              margin:
+                '6px 0 2px',
+              opacity: 0.6,
+            }}
+          >
+            <div
+              style={{
+                width: 338,
+                height: 1,
+                background:
+                  '#E5E7EB',
+              }}
+            />
+          </div>
+        )}
+      </div>
+    ))}
+
+  {/* LOAD MORE */}
+  {!answersLoading &&
+    hasMore && (
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 10,
-          margin: '6px 0 2px',
-          opacity: 0.6,
+          justifyContent:
+            'center',
+          padding: '18px 0',
         }}
       >
-        <div
+        <button
+          onClick={() =>
+            setPage(p => p + 1)
+          }
           style={{
-            width: 338,
-            height: 1,
-            background: '#E5E7EB',
+            border:
+              '1px solid #E5E7EB',
+            background: '#fff',
+            borderRadius: 999,
+            padding:
+              '10px 18px',
+            fontSize: 14,
+            color: '#374151',
+            cursor: 'pointer',
           }}
-        />
+        >
+          Load more answers
+        </button>
       </div>
     )}
-  </div>
-))}
-
-{hasMore && (
-  <div
-    style={{
-      display: 'flex',
-      justifyContent: 'center',
-      padding: '18px 0',
-    }}
-  >
-    <button
-      onClick={() => setPage(p => p + 1)}
-      style={{
-        border: '1px solid #E5E7EB',
-        background: '#fff',
-        borderRadius: 999,
-        padding: '10px 18px',
-        fontSize: 14,
-        color: '#374151',
-        cursor: 'pointer',
-      }}
-    >
-      Load more answers
-    </button>
-  </div>
-)}
-        </div>
+</div>
 
 {answers.length === 2 && (
   <div
@@ -1791,7 +2025,26 @@ placeholder="Write your answer..."
           </p>
         )}
 
-      </div>
+            </div>
+
+      <style jsx>{`
+        @keyframes pulse {
+          0% {
+            opacity: 1;
+          }
+
+          50% {
+            opacity: 0.45;
+          }
+
+          100% {
+            opacity: 1;
+          }
+        }
+      `}</style>
+
     </div>
-  )
+
+  </div>
+)
 }
