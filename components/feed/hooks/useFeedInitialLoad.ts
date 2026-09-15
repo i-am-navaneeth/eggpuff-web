@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 import type {
@@ -86,8 +85,6 @@ export function useFeedInitialLoad({
   cursorIdRef,
 }: Props) {
 
-  const router = useRouter()
-
 useEffect(() => {
 
 let mounted = true
@@ -161,10 +158,8 @@ const onboardingComplete =
   !!profile?.college_id &&
   !!profile?.batch_year
 
-if (!onboardingComplete) {
-  router.replace('/profile')
-  return
-}
+// Users without a college/batch can still access the feed.
+// Profile completion is handled by the fallback UI in FeedContent.
 
 const questionsData =
   (feedRes.data ?? []) as QuestionRow[]

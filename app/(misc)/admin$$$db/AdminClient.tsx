@@ -105,39 +105,86 @@ const loadCollegeRequests = async () => {
 }, [authorized])
 
 const approveCollege = async (req: any) => {
-  // 1. insert into colleges
-  const { error: insertError } = await supabase
-    .from('colleges')
-    .insert({
-      name: req.name,
-    })
+  try {
+    // 1. Create the college
+    const { data: college, error: insertError } = await supabase
+      .from('colleges')
+      .insert({
+        name: req.name,
+      })
+      .select('id, name')
+      .single()
 
-  if (insertError) {
-    notify('❌ Failed to add college')
-    return
+    if (insertError || !college) {
+      console.error('COLLEGE INSERT ERROR:', insertError)
+      notify('❌ Failed to add college')
+      return
+    }
+
+    // 2. Mark the request as approved
+    const { error: requestError } = await supabase
+      .from('college_requests')
+      .update({
+        status: 'approved',
+      })
+      .eq('id', req.id)
+
+    if (requestError) {
+      console.error('COLLEGE REQUEST UPDATE ERROR:', requestError)
+      notify('❌ College added, but request update failed')
+      return
+    }
+
+    // 3. Create in-app notification
+    const { error: notificationError } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: req.requested_by,
+        type: 'college_approved',
+        title: '🎓 Your college is here!',
+        message: `${college.name} is now live. Join your campus on EggPuff.`,
+        url: '/feed',
+      })
+
+    if (notificationError) {
+      console.error(
+        'COLLEGE NOTIFICATION ERROR:',
+        notificationError
+      )
+    }
+
+    // 4. Send existing push notification
+    try {
+      const pushResponse = await fetch('/api/push/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: req.requested_by,
+          title: '🎓 Your college is here!',
+          message: `${college.name} is now live. Tap to join your campus.`,
+          url: '/feed',
+        }),
+      })
+
+      if (!pushResponse.ok) {
+        console.error(
+          'COLLEGE PUSH FAILED:',
+          await pushResponse.text()
+        )
+      }
+    } catch (pushError) {
+      console.error('COLLEGE PUSH ERROR:', pushError)
+    }
+
+    notify('🎓 College approved')
+
+    await loadCollegeRequests()
+  } catch (error) {
+    console.error('APPROVE COLLEGE ERROR:', error)
+    notify('❌ Failed to approve college')
   }
-
-  // 2. update request status
-  await supabase
-    .from('college_requests')
-    .update({ status: 'approved' })
-    .eq('id', req.id)
-
-  // 🔔 PUSH TO USER WHO REQUESTED
-await fetch('/api/push/send', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    userId: req.requested_by,
-    title: '🎓 College Approved',
-    message: 'Your college request has been accepted',
-    url: '/feed',
-  }),
-})
-
-notify('🎓 College approved')
-
-loadCollegeRequests()
 }
 
 const rejectCollege = async (req: any) => {

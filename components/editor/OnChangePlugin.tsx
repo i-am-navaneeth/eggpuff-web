@@ -4,7 +4,10 @@ import { OnChangePlugin as LexicalOnChangePlugin } from '@lexical/react/LexicalO
 import { $getRoot } from 'lexical'
 
 type Props = {
-  onChange: (text: string) => void
+  onChange: (
+    text: string,
+    richContent: string
+  ) => void
 }
 
 export default function EditorOnChangePlugin({
@@ -14,7 +17,22 @@ export default function EditorOnChangePlugin({
     <LexicalOnChangePlugin
       onChange={(editorState) => {
         editorState.read(() => {
-          onChange($getRoot().getTextContent())
+          const text = $getRoot().getTextContent()
+
+          const richContent = JSON.stringify(
+  editorState.toJSON()
+)
+
+console.log(
+  '🔥 EGGPuff RICH:',
+  JSON.stringify(
+    editorState.toJSON(),
+    null,
+    2
+  )
+)
+
+onChange(text, richContent)
         })
       }}
     />
