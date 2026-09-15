@@ -54,6 +54,8 @@ import {
   buildFeedItems,
 } from './utils/buildFeedItems'
 
+import ExploreIntro from './ExploreIntro'
+
 // ─────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────
@@ -76,8 +78,14 @@ export default function FeedContent() {
   const [filter, setFilter] = useState<FilterType>('all')
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
   const [profile, setProfile] = useState<any>(null)
-  const [profileLoading, setProfileLoading] = useState(true)
-  const isProfileComplete = !!profile?.college_id && !!profile?.batch_year
+const [profileLoading, setProfileLoading] = useState(true)
+const isProfileComplete =
+  !!profile?.college_id && !!profile?.batch_year
+
+// ─── Approved college discovery ───────────────
+const [approvedCollege, setApprovedCollege] = useState<any>(null)
+const [showCollegeBanner, setShowCollegeBanner] = useState(false)
+const [joiningCollege, setJoiningCollege] = useState(false)
 
   const now = useFeedClock()
   const [newQuestions, setNewQuestions] = useState<any[]>([])
@@ -229,9 +237,174 @@ const feedItems = useMemo(
   [visibleQuestions, promoted]
 )
 
+const showExploreMode =
+  !profileLoading &&
+  !profile?.college_id
+
+// ─────────────────────────────────────────────
+// Approved College Discovery
+// ─────────────────────────────────────────────
+
+useEffect(() => {
+  if (profileLoading || !profile || profile.college_id || !userId) {
+    setShowCollegeBanner(false)
+    return
+  }
+
+  const checkApprovedCollege = async () => {
+    try {
+      // Find this user's approved college request
+      const { data: request, error: requestError } =
+        await supabase
+          .from('college_requests')
+          .select('id, name, status')
+          .eq('requested_by', userId)
+          .eq('status', 'approved')
+          .order('created_at', {
+            ascending: false,
+          })
+          .limit(1)
+          .maybeSingle()
+
+      if (requestError) {
+        console.error(
+          'APPROVED COLLEGE REQUEST ERROR:',
+          requestError
+        )
+        return
+      }
+
+      if (!request) {
+        setShowCollegeBanner(false)
+        return
+      }
+
+      // Find the actual college that admin created
+      const { data: college, error: collegeError } =
+        await supabase
+          .from('colleges')
+          .select('id, name')
+          .eq('name', request.name)
+          .maybeSingle()
+
+      if (collegeError) {
+        console.error(
+          'APPROVED COLLEGE LOOKUP ERROR:',
+          collegeError
+        )
+        return
+      }
+
+      if (!college) {
+        setShowCollegeBanner(false)
+        return
+      }
+
+      setApprovedCollege(college)
+      setShowCollegeBanner(true)
+    } catch (error) {
+      console.error(
+        'CHECK APPROVED COLLEGE ERROR:',
+        error
+      )
+    }
+  }
+
+  checkApprovedCollege()
+
+}, [profileLoading, profile, userId])
+
   // ─────────────────────────────────────────────
   // Handlers
   // ─────────────────────────────────────────────
+
+const handleNotThisCollege = () => {
+  setShowCollegeBanner(false)
+
+  // Tell the profile page where to scroll
+  sessionStorage.setItem(
+    'eggpuff_scroll_to_college',
+    'true'
+  )
+
+  notify(
+    '✏️ Let’s update your college name.'
+  )
+
+  router.push('/profile')
+}
+
+ const joinApprovedCollege = async () => {
+  if (
+    !userId ||
+    !approvedCollege ||
+    joiningCollege
+  ) {
+    return
+  }
+
+  setJoiningCollege(true)
+
+  try {
+    // 1. Attach the user to the new college
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        college_id: approvedCollege.id,
+      })
+      .eq('user_id', userId)
+
+    if (error) {
+      console.error(
+        'JOIN COLLEGE ERROR:',
+        error
+      )
+      notify('❌ Failed to join college')
+      setJoiningCollege(false)
+      return
+    }
+
+    // 2. Clear stale local feed/profile setup data
+    // so the feed rebuilds for the newly joined college.
+    try {
+      localStorage.removeItem(`feed_cache_${userId}`)
+      localStorage.removeItem(`feed_launch_cache_${userId}`)
+      localStorage.removeItem('eggpuff_profile_setup_completed')
+    } catch (error) {
+      console.warn(
+        'Failed to clear local feed cache:',
+        error
+      )
+    }
+
+    // 3. Update local profile immediately
+    setProfile((prev: any) => ({
+      ...prev,
+      college_id: approvedCollege.id,
+    }))
+
+    // 4. Hide the discovery banner
+    setShowCollegeBanner(false)
+
+    notify(
+      `🎉 Welcome to ${approvedCollege.name}!`
+    )
+
+    // 5. Reload the feed so the newly joined
+    // college's questions appear immediately.
+    window.location.reload()
+
+  } catch (error) {
+    console.error(
+      'JOIN COLLEGE ERROR:',
+      error
+    )
+
+    notify('❌ Failed to join college')
+  } finally {
+    setJoiningCollege(false)
+  }
+}
 
   const handleCategoryClick = (slug: string) => {
     setActiveCategorySlug(slug)
@@ -401,44 +574,139 @@ pointerEvents: 'none',
               ↑ {newQuestions.length} new question{newQuestions.length > 1 ? 's' : ''}
             </div>
           )}
+
+          {/* 🎓 APPROVED COLLEGE DISCOVERY */}
+{showCollegeBanner && approvedCollege && (
+  <div
+    style={{
+      position: 'relative',
+      overflow: 'hidden',
+      marginBottom: 18,
+      padding: '22px 20px',
+      borderRadius: 20,
+      background:
+        'linear-gradient(135deg, #FFF8E8 0%, #FFFDF7 100%)',
+      border: '1px solid rgba(244,184,96,0.35)',
+      boxShadow:
+        '0 8px 30px rgba(244,184,96,0.12)',
+    }}
+  >
+    <div
+      style={{
+        position: 'absolute',
+        top: -30,
+        right: -20,
+        fontSize: 100,
+        opacity: 0.08,
+        pointerEvents: 'none',
+      }}
+    >
+      🎓
+    </div>
+
+    <div
+      style={{
+        position: 'relative',
+        zIndex: 1,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 13,
+          fontWeight: 700,
+          color: '#B7791F',
+          marginBottom: 6,
+          letterSpacing: 0.2,
+        }}
+      >
+        🎉 GOOD NEWS
+      </div>
+
+      <div
+        style={{
+          fontSize: 21,
+          fontWeight: 800,
+          color: '#111827',
+          marginBottom: 5,
+        }}
+      >
+        Your college is here!
+      </div>
+
+      <div
+        style={{
+          fontSize: 14,
+          lineHeight: 1.5,
+          color: '#6B7280',
+          marginBottom: 16,
+        }}
+      >
+        {approvedCollege.name} is now live on EggPuff.
+      </div>
+
+            <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          flexWrap: 'wrap',
+        }}
+      >
+        <button
+          onClick={joinApprovedCollege}
+          disabled={joiningCollege}
+          style={{
+            border: 'none',
+            borderRadius: 999,
+            padding: '11px 20px',
+            background: joiningCollege
+              ? '#E5E7EB'
+              : '#F4B860',
+            color: '#111827',
+            fontSize: 14,
+            fontWeight: 800,
+            cursor: joiningCollege
+              ? 'default'
+              : 'pointer',
+            transition:
+              'transform 0.15s ease, opacity 0.15s ease',
+            opacity: joiningCollege ? 0.7 : 1,
+          }}
+        >
+          {joiningCollege
+            ? 'Joining…'
+            : 'Join now →'}
+        </button>
+
+        <button
+          onClick={handleNotThisCollege}
+          disabled={joiningCollege}
+          style={{
+            border: 'none',
+            background: 'transparent',
+            padding: '8px 4px',
+            color: '#6B7280',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: joiningCollege
+              ? 'default'
+              : 'pointer',
+            textDecoration: 'underline',
+            textUnderlineOffset: 3,
+            opacity: joiningCollege ? 0.5 : 1,
+          }}
+        >
+          Not my college
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 {/* Mobile top actions temporarily hidden */}
 
           {/* IPL SCOREBOARD */}
           {/* <IPLScoreCard /> */}
-
-          {!loading && !profileLoading && !isProfileComplete && (
-            <div
-              style={{
-                padding: '12px 14px',
-                background: '#FEF3C7',
-                borderRadius: 12,
-                fontSize: 13,
-                marginBottom: 12,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: 10,
-              }}
-            >
-              <span>Complete your profile to unlock features 🚀</span>
-              <button
-                onClick={() => {
-  openEditProfile()
-}}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: 999,
-                  border: 'none',
-                  background: '#F4B860',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Complete
-              </button>
-            </div>
-          )}
 
           {loading && [1, 2, 3, 4, 5].map(i => (
             <QuestionCardSkeleton key={i} />
@@ -522,95 +790,161 @@ pointerEvents: 'none',
     </div>
 )}
 
-          {!loading && (
-  <div className="space-y-3">
-    {feedItems.map((item, index) => {
-  if (item.type === 'promotion') {
-    return (
-      <CampusSpotlight
-        key={`promotion-${item.promotion.id}-${index}`}
-        name={item.promotion.creator.name}
-        avatar={item.promotion.creator.avatar_url}
-        category={item.promotion.category}
-        caption={item.promotion.caption}
-        discoveries={item.promotion.discoveries}
-        onClick={() => {
-          console.log('Promotion:', item.promotion)
+       {!loading && !profileLoading && (
+  <div
+    style={{
+      position: 'relative',
+      width: '100%',
+    }}
+  >
+    {/* =========================================================
+        EXPLORE MODE
 
-          openExternal(
-            item.promotion.id,
-            item.promotion.link
-          )
-        }}
-      />
-    )
-  }
+        Only users WITHOUT a college see Explore.
 
-  const q = item.question
+        Users with a college go directly to the normal feed.
+       ========================================================= */}
 
-  return (
-    <div key={`${q.id}-${q._missed ? 'missed' : 'normal'}`}>
-      <div
-        data-question-id
-        data-id={q.id}
-        data-created-at={q.created_at}
-      >
-        <QuestionCard
-          q={q}
-          currentUserId={userId}
-          onDelete={(id: string) => {
-            try {
-              const deletedIds = JSON.parse(
-                localStorage.getItem(
-                  'deleted_questions'
-                ) || '[]'
-              )
+    {showExploreMode && (
+  <div
+    style={{
+      position: 'sticky',
+      top: 0,
+      zIndex: 3,
+      width: '100%',
+      height: '80svh',
+      pointerEvents: 'auto',
+    }}
+  >
+    <ExploreIntro />
+  </div>
+)}
 
-              if (!deletedIds.includes(id)) {
-                localStorage.setItem(
-                  'deleted_questions',
-                  JSON.stringify([
-                    ...deletedIds,
-                    id,
-                  ])
+    {/* =========================================================
+        NORMAL FEED
+       ========================================================= */}
+
+    <div
+      className="space-y-3"
+      style={{
+        position: 'relative',
+        zIndex: 2,
+
+        /*
+         * Only create the Explore overlap when
+         * the user has NO college.
+         *
+         * College users get a completely normal feed.
+         */
+        marginTop:
+          showExploreMode
+            ? '-80svh'
+            : 0,
+
+        paddingTop:
+          showExploreMode
+            ? '80svh'
+            : 0,
+      }}
+    >
+      {feedItems.map((item, index) => {
+        if (item.type === 'promotion') {
+          return (
+            <CampusSpotlight
+              key={`promotion-${item.promotion.id}-${index}`}
+              name={item.promotion.creator.name}
+              avatar={item.promotion.creator.avatar_url}
+              category={item.promotion.category}
+              caption={item.promotion.caption}
+              discoveries={item.promotion.discoveries}
+              onClick={() => {
+                console.log(
+                  'Promotion:',
+                  item.promotion
                 )
-              }
-            } catch {}
 
-            setQuestions((prev) => {
-              const updated = prev.filter(
-                (question) =>
-                  question.id !== id
-              )
+                openExternal(
+  item.promotion.id,
+  item.promotion.link,
+  notify
+)
+              }}
+            />
+          )
+        }
 
-              try {
-                if (userId) {
-                  localStorage.setItem(
-                    `feed_cache_${userId}`,
-                    JSON.stringify(
-                      updated.slice(0, 10)
+        const q = item.question
+
+        return (
+          <div
+            key={`${q.id}-${q._missed ? 'missed' : 'normal'}`}
+          >
+            <div
+              data-question-id
+              data-id={q.id}
+              data-created-at={q.created_at}
+            >
+              <QuestionCard
+                q={q}
+                currentUserId={userId}
+                onDelete={(id: string) => {
+                  try {
+                    const deletedIds =
+                      JSON.parse(
+                        localStorage.getItem(
+                          'deleted_questions'
+                        ) || '[]'
+                      )
+
+                    if (
+                      !deletedIds.includes(id)
+                    ) {
+                      localStorage.setItem(
+                        'deleted_questions',
+                        JSON.stringify([
+                          ...deletedIds,
+                          id,
+                        ])
+                      )
+                    }
+                  } catch {}
+
+                  setQuestions((prev) => {
+                    const updated =
+                      prev.filter(
+                        (question) =>
+                          question.id !== id
+                      )
+
+                    try {
+                      if (userId) {
+                        localStorage.setItem(
+                          `feed_cache_${userId}`,
+                          JSON.stringify(
+                            updated.slice(0, 10)
+                          )
+                        )
+                      }
+                    } catch {}
+
+                    return updated
+                  })
+
+                  setNewQuestions((prev) =>
+                    prev.filter(
+                      (question) =>
+                        question.id !== id
                     )
                   )
-                }
-              } catch {}
-
-              return updated
-            })
-
-            setNewQuestions((prev) =>
-              prev.filter(
-                (question) =>
-                  question.id !== id
-              )
-            )
-          }}
-        />
-      </div>
+                }}
+              />
+            </div>
+          </div>
+        )
+      })}
     </div>
-  )
-})}
-     </div>
-     )}
+  </div>
+)}
 
           {loadingMore &&
       hasMore &&

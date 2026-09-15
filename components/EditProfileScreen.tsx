@@ -19,6 +19,31 @@ type Props = {
   scrollContainer?: React.RefObject<HTMLDivElement |null>
 }
 
+const formatCollegeName = (value: string) => {
+  const smallWords = new Set([
+    'of',
+    'the',
+    'and',
+    'in',
+    'at',
+    'for',
+    'on',
+  ]);
+
+  return value
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word, index) => {
+      if (index > 0 && smallWords.has(word)) {
+        return word;
+      }
+
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(' ');
+};
+
 export default function EditProfileScreen({
   scrollContainer,
 }: Props) {
@@ -30,6 +55,7 @@ export default function EditProfileScreen({
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [batchYear, setBatchYear] = useState('');
+  const [batchYearError, setBatchYearError] = useState('');
   const [collegeId, setCollegeId] = useState('');
   const [bio, setBio] = useState('');
   const [avatar, setAvatar] = useState(
@@ -38,6 +64,9 @@ export default function EditProfileScreen({
 
   const [colleges, setColleges] = useState<any[]>([]);
   const [collegeSearch, setCollegeSearch] = useState('');
+  const [collegeSearching, setCollegeSearching] = useState(false);
+  const [collegeExistsInDB, setCollegeExistsInDB] = useState(false);
+  const [collegeRequestSent, setCollegeRequestSent] = useState(false);
   
   const [usernameStatus, setUsernameStatus] = useState<
   'idle' | 'checking' | 'available' | 'taken'
@@ -51,8 +80,9 @@ export default function EditProfileScreen({
   username.length >= 3 &&
   !usernameError &&
   usernameStatus !== 'taken' &&
-  !!collegeId &&
-  !!batchYear;
+  (!!collegeId || collegeRequestSent) &&
+  /^\d{4}-\d{2}$/.test(batchYear) &&
+  !batchYearError;
 
 const isChanged =
   !!originalProfile &&
@@ -128,6 +158,7 @@ const user = session?.user
 }
       }
       if (profile && profile.college_id) {
+  // College already exists in EggPuff
   const { data: college } = await supabase
     .from('colleges')
     .select('name')
@@ -136,33 +167,141 @@ const user = session?.user
 
   setCollegeName(college?.name || '');
   setCollegeSearch(college?.name || '');
+  setCollegeRequestSent(false);
+} else {
+  // No EP college yet — check whether this user already requested one
+  const { data: request } = await supabase
+    .from('college_requests')
+    .select('name, status')
+    .eq('requested_by', user.id)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (request) {
+  const formattedCollegeName = formatCollegeName(request.name || '');
+
+  setCollegeSearch(formattedCollegeName);
+  setCollegeName(formattedCollegeName);
+  setCollegeRequestSent(true);
+}
 }
 
-      setLoading(false);
+setLoading(false);
     };
 
     load();
   }, []);
 
-  /* ---------------- SEARCH COLLEGES ---------------- */
-  useEffect(() => {
-    const fetchColleges = async () => {
-      if (!collegeSearch || isLocked) {
+ /* ---------------- SEARCH COLLEGES ---------------- */
+useEffect(() => {
+  const search = collegeSearch.trim();
+
+  // Empty search / locked profile / already requested
+  if (!search || isLocked || collegeRequestSent) {
+    setColleges([]);
+    setCollegeSearching(false);
+
+    if (!search || isLocked) {
+      setCollegeExistsInDB(false);
+    }
+
+    return;
+  }
+
+  // 🔎 Searching
+  setCollegeSearching(true);
+  setCollegeExistsInDB(false);
   setColleges([]);
-  return;
-}
 
-      const { data } = await supabase
-        .from('colleges')
-        .select('*')
-        .ilike('name', `%${collegeSearch}%`)
-        .limit(6);
+  const fetchColleges = async () => {
+    console.log('🔎 COLLEGE SEARCH:', search);
 
-      if (data) setColleges(data);
-    };
+    // 1️⃣ Search EggPuff database first
+    const { data: localColleges, error: localError } = await supabase
+      .from('colleges')
+      .select('*')
+      .ilike('name', `%${search}%`)
+      .limit(6);
 
-    fetchColleges();
-  }, [collegeSearch, isLocked]);
+    console.log('🏫 LOCAL RESULT:', localColleges);
+    console.log('❌ LOCAL ERROR:', localError);
+
+    // ✅ College exists in EggPuff DB
+    if (localColleges && localColleges.length > 0) {
+      console.log('✅ COLLEGE EXISTS IN EGGPuff DB');
+
+      setCollegeExistsInDB(true);
+      setColleges(localColleges);
+      setCollegeSearching(false);
+      return;
+    }
+
+    // 2️⃣ Not in EggPuff DB → check Hipo
+    console.log('🌍 NOT IN EGGPuff DB → CALLING HIPO API');
+
+    // Important: keep this false even if Hipo finds the college
+    setCollegeExistsInDB(false);
+
+    const apiUrl =
+      `/api/colleges/search?q=${encodeURIComponent(search)}`;
+
+    console.log('📡 API URL:', apiUrl);
+
+    try {
+      const response = await fetch(apiUrl);
+
+      console.log('📡 API STATUS:', response.status);
+      console.log('📡 API OK:', response.ok);
+
+      const rawText = await response.text();
+
+      console.log('📦 API RAW RESPONSE:', rawText);
+
+      if (!response.ok) {
+        console.error('❌ HIPO API FAILED');
+
+        setColleges([]);
+        setCollegeSearching(false);
+        return;
+      }
+
+      let result;
+
+      try {
+        result = JSON.parse(rawText);
+      } catch (jsonError) {
+        console.error('❌ API DID NOT RETURN JSON:', jsonError);
+
+        setColleges([]);
+        setCollegeSearching(false);
+        return;
+      }
+
+      console.log('📦 API JSON:', result);
+      console.log('🎓 API COLLEGES:', result.results);
+
+      // Hipo results are NOT EggPuff colleges yet.
+      // We keep them only as reference, but the request warning will show.
+      setColleges(result.results ?? []);
+      setCollegeSearching(false);
+
+    } catch (error) {
+      console.error('🔥 FETCH ERROR:', error);
+
+      setColleges([]);
+      setCollegeSearching(false);
+      setCollegeExistsInDB(false);
+    }
+  };
+
+  // ⏳ Debounce
+  const timer = setTimeout(fetchColleges, 300);
+
+  return () => clearTimeout(timer);
+}, [collegeSearch, isLocked, collegeRequestSent]);
+
 
   /* ---------------- SAVE ---------------- */
   const handleSave = async () => {
@@ -196,7 +335,7 @@ const user = session?.user
     username,
     bio,
     batch_year: batchYear,
-    college_id: collegeId,
+    college_id: collegeId || null,
     avatar_url: avatar,
     profile_completed: true,
 
@@ -225,23 +364,27 @@ const user = session?.user
   setSaving(false);
   return;
 } else {
-      notify('Profile updated ✅');
-setSaving(false);
+  notify('Profile updated ✅');
+  setSaving(false);
 
-// 🔥 Update global profile instantly
-setCurrentProfile({
-  user_id: user!.id,
-  username,
-  name,
-  avatar_url: avatar,
-});
+  // 🔥 Update global profile instantly
+  setCurrentProfile({
+    user_id: user!.id,
+    username,
+    name,
+    avatar_url: avatar,
+  });
 
-if (isSetupMode) {
-  window.location.replace('/feed');
-} else {
-  router.replace(`/u/${username}`);
+  // ✅ Mark profile setup as completed locally
+  // College is mandatory before this point because canSave must be true.
+  if (isSetupMode) {
+    localStorage.setItem('eggpuff_profile_setup_completed', 'true');
+
+    window.location.replace('/feed');
+  } else {
+    router.replace(`/u/${username}`);
+  }
 }
-    }
   };
 
  useEffect(() => {
@@ -362,6 +505,59 @@ useEffect(() => {
 
   return () => clearInterval(interval);
 }, []);
+
+useEffect(() => {
+  if (loading) return
+
+  const shouldScrollToCollege =
+    sessionStorage.getItem('eggpuff_scroll_to_college') === 'true'
+
+  if (!shouldScrollToCollege) return
+
+  sessionStorage.removeItem('eggpuff_scroll_to_college')
+
+  const scrollToCollege = () => {
+    const collegeInput = document.querySelector(
+      '[data-college-input]'
+    ) as HTMLElement | null
+
+    if (!collegeInput) return
+
+    const container = scrollContainer?.current
+
+    // If the profile page uses a custom scroll container
+    if (container) {
+      const inputRect = collegeInput.getBoundingClientRect()
+      const containerRect = container.getBoundingClientRect()
+
+      const targetScroll =
+        container.scrollTop +
+        (inputRect.top - containerRect.top) -
+        container.clientHeight / 2 +
+        collegeInput.offsetHeight / 2
+
+      container.scrollTo({
+        top: Math.max(0, targetScroll),
+        behavior: 'smooth',
+      })
+
+      return
+    }
+
+    // Fallback: normal page/window scrolling
+    collegeInput.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    })
+  }
+
+  // Wait until the profile DOM has fully painted
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      scrollToCollege()
+    })
+  })
+}, [loading, scrollContainer])
 
   /* ---------------- LOGOUT ---------------- */
   const handleLogout = async () => {
@@ -821,10 +1017,21 @@ return (
 <input
   type="search"
   name="college-search"
+  data-college-input
   value={collegeSearch}
-  onChange={(e) =>
-    setCollegeSearch(e.target.value)
+  onChange={(e) => {
+  const value = e.target.value;
+
+  setCollegeSearch(value);
+
+  // User is changing the requested college,
+  // so the previous request message should disappear.
+  if (collegeRequestSent) {
+    setCollegeRequestSent(false);
+    setCollegeId('');
+    setCollegeName('');
   }
+}}
   placeholder="Search college"
   disabled={isLocked}
   autoComplete="off"
@@ -836,11 +1043,96 @@ return (
   style={input(isLocked)}
 />
 
-        {/* 🔥 NO RESULTS → REQUEST COLLEGE */}
+{/* 🔎 COLLEGE SEARCHING ANIMATION */}
 {!isLocked &&
-  collegeSearch &&
-  colleges.length === 0 &&
-  !collegeId && ( 
+  collegeSearch.trim() &&
+  collegeSearching && (
+    <>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          padding: '12px 14px',
+          marginTop: -6,
+          marginBottom: 12,
+          borderRadius: 12,
+          background: '#F9FAFB',
+          border: '1px solid #F1F3F5',
+          color: '#6B7280',
+          fontSize: 13,
+          animation: 'collegeSearchFadeIn 0.2s ease',
+        }}
+      >
+        <span>Searching campus</span>
+
+        <span
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 3,
+          }}
+        >
+          <span className="college-search-dot" />
+          <span className="college-search-dot" />
+          <span className="college-search-dot" />
+        </span>
+      </div>
+
+      <style jsx>{`
+        @keyframes collegeSearchDot {
+          0%,
+          60%,
+          100% {
+            transform: translateY(0);
+            opacity: 0.35;
+          }
+
+          30% {
+            transform: translateY(-3px);
+            opacity: 1;
+          }
+        }
+
+        @keyframes collegeSearchFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(-3px);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .college-search-dot {
+          width: 4px;
+          height: 4px;
+          border-radius: 50%;
+          background: #9CA3AF;
+          animation: collegeSearchDot 1.1s infinite ease-in-out;
+        }
+
+        .college-search-dot:nth-child(2) {
+          animation-delay: 0.15s;
+        }
+
+        .college-search-dot:nth-child(3) {
+          animation-delay: 0.3s;
+        }
+      `}</style>
+    </>
+  )}
+
+    {/* 🔥 COLLEGE NOT YET AVAILABLE → REQUEST COLLEGE */}
+{!isLocked &&
+  collegeSearch.trim() &&
+  !collegeSearching &&
+  !collegeExistsInDB &&
+  !collegeId &&
+  !collegeRequestSent && (
     <div
       style={{
         background: '#FEF3C7',
@@ -852,52 +1144,104 @@ return (
         fontSize: 13,
       }}
     >
-      <div style={{ marginBottom: 6 }}>
-        No college found. Type full name and
+      <div
+        style={{
+          marginBottom: 6,
+          color: '#374151',
+        }}
+      >
+        We don’t have this college in EggPuff yet.
+      </div>
+
+      <div
+        style={{
+          fontSize: 12,
+          color: '#6B7280',
+          marginBottom: 8,
+        }}
+      >
+        Request it and we’ll add it to the campus list.
       </div>
 
       <span
         onClick={async () => {
           const {
-  data: { session },
-} = await supabase.auth.getSession()
+            data: { session },
+          } = await supabase.auth.getSession();
 
-const user = session?.user
+          const user = session?.user;
 
-          if (!user) return
+          if (!user) return;
 
-           const normalizedCollege = collegeSearch.trim().toLowerCase()
+          const requestedName = formatCollegeName(collegeSearch.trim());
 
-          // 🔒 prevent duplicate
-          const { data: existing } = await supabase
-            .from('college_requests')
-            .select('id')
-            .eq('requested_by', user.id)
-            .ilike('name', collegeSearch)
-            .maybeSingle()
+// 🔑 requested_by references profiles.id, NOT auth.users.id
+const { data: profile, error: profileError } = await supabase
+  .from('profiles')
+  .select('id')
+  .eq('user_id', user.id)
+  .maybeSingle();
 
-          if (existing) {
-            notify('Already requested 👍')
-            return
-          }
+if (profileError || !profile) {
+  console.error('❌ Could not find user profile:', profileError);
+  notify('Could not find your profile ❌');
+  return;
+}
 
-          const { error } = await supabase
-            .from('college_requests')
-            .insert({
-              name: normalizedCollege,
-              requested_by: user.id,
-              status: 'pending',
-            })
+const profileId = profile.id;
 
-          if (error) {
-            notify('Failed to send request ❌')
-            return
-          }
+// 🔒 Prevent duplicate requests from the same user
+const { data: existing } = await supabase
+  .from('college_requests')
+  .select('id')
+  .eq('requested_by', profileId)
+  .ilike('name', requestedName)
+  .maybeSingle();
 
-          notify('🎓 College request sent!')
+if (existing) {
+  setCollegeRequestSent(true);
+  notify('Already requested 👍');
+  return;
+}
 
-          // optional cleanup
-          setCollegeSearch('')
+const { data: insertedRequest, error } = await supabase
+  .from('college_requests')
+  .insert({
+    name: requestedName,
+    requested_by: profileId,
+    status: 'pending',
+  })
+  .select()
+  .single();
+
+if (error) {
+  console.error('❌ College request failed:', {
+    message: error.message,
+    details: error.details,
+    hint: error.hint,
+    code: error.code,
+  });
+
+  notify(
+    error.message
+      ? `Failed: ${error.message}`
+      : 'Failed to send request ❌'
+  );
+
+  return;
+}
+
+console.log('✅ College request inserted:', insertedRequest);
+
+          // ✅ Keep the college name in the input
+          setCollegeSearch(requestedName);
+          setCollegeName(requestedName);
+
+          // ✅ Mark this user's request as sent
+          setCollegeRequestSent(true);
+
+          // ❌ DO NOT clear collegeSearch
+          notify('🎓 College request sent!');
         }}
         style={{
           fontWeight: 600,
@@ -905,10 +1249,46 @@ const user = session?.user
           color: '#92400E',
         }}
       >
-        Request college.
+        Request this college →
       </span>
     </div>
-)}
+  )}
+
+{/* 🎓 COLLEGE REQUEST SENT */}
+{!isLocked &&
+  collegeSearch.trim() &&
+  collegeRequestSent && (
+    <div
+      style={{
+        background: '#FEF3C7',
+        borderRadius: 12,
+        padding: 12,
+        marginTop: -6,
+        marginBottom: 12,
+        textAlign: 'center',
+        fontSize: 13,
+      }}
+    >
+      <div
+        style={{
+          color: '#92400E',
+          fontWeight: 600,
+          marginBottom: 4,
+        }}
+      >
+        🎓 College request sent
+      </div>
+
+      <div
+        style={{
+          fontSize: 12,
+          color: '#6B7280',
+        }}
+      >
+        We’ll add this college to EggPuff’s campus list once it’s approved.
+      </div>
+    </div>
+  )}
   {!isLocked &&
   collegeSearch &&
   colleges.length > 0 &&
@@ -925,16 +1305,15 @@ const user = session?.user
       boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
     }}
   >
-    {colleges.map((c) => (
-      <div
-        key={c.id}
-        onClick={() => {
-
-  setCollegeId(c.id)
-  setCollegeName(c.name)
-  setCollegeSearch(c.name)
-  setColleges([])
-}}
+    {colleges.map((c, index) => (
+  <div
+    key={c.id ?? `${c.name}-${c.country}-${index}`}
+    onClick={() => {
+      setCollegeId(c.id)
+      setCollegeName(c.name)
+      setCollegeSearch(c.name)
+      setColleges([])
+    }}
         style={{
           padding: '10px 12px',
           cursor: 'pointer',
@@ -963,41 +1342,101 @@ onMouseLeave={(e) => {
   Graduation Batch
 </p>
 {/* BATCH */}
-<select
+<input
+  type="text"
+  name="graduation-batch"
   value={batchYear}
   onChange={(e) => {
-  setBatchYear(e.target.value)
+  let value = e.target.value
+
+  // Allow only numbers and "-"
+  value = value.replace(/[^0-9-]/g, '')
+
+  if (value.length > 7) return
+
+  setBatchYear(value)
+
+  if (value.length === 0) {
+    setBatchYearError('')
+    return
+  }
+
+  // Check format first
+  if (!/^\d{4}-\d{2}$/.test(value)) {
+    setBatchYearError('Please use this format: 2025-29')
+    return
+  }
+
+  const [start, end] = value.split('-').map(Number)
+  const endYear = Math.floor(start / 100) * 100 + end
+
+  // Years must be between 1900–2100
+  if (start < 1900 || start > 2100 || endYear < 1900 || endYear > 2100) {
+    setBatchYearError('Please use this format: 2025-29')
+    return
+  }
+
+  // Starting year must be before ending year
+  if (endYear <= start) {
+    setBatchYearError('Please use this format: 2025-29')
+    return
+  }
+
+  setBatchYearError('')
 }}
+
+onBlur={() => {
+  if (!batchYear) return
+
+  if (!/^\d{4}-\d{2}$/.test(batchYear)) {
+    setBatchYearError('Please use this format: 2025-29')
+    return
+  }
+
+  const [start, end] = batchYear.split('-').map(Number)
+  const endYear = Math.floor(start / 100) * 100 + end
+
+  if (
+    start < 1900 ||
+    start > 2100 ||
+    endYear < 1900 ||
+    endYear > 2100
+  ) {
+    setBatchYearError('Please use this format: 2025-29')
+    return
+  }
+
+  if (endYear <= start) {
+    setBatchYearError('Please use this format: 2025-29')
+    return
+  }
+
+  setBatchYearError('')
+}}
+  placeholder="ex: 2025-29"
+  inputMode="numeric"
+  autoComplete="off"
+  autoCorrect="off"
+  autoCapitalize="none"
+  spellCheck={false}
+  disabled={isLocked}
   style={{
     ...input(isLocked),
-    appearance: 'none',
-    WebkitAppearance: 'none',
-    MozAppearance: 'none',
-    backgroundImage:
-      "url(\"data:image/svg+xml;utf8,<svg fill='%236B7280' height='20' viewBox='0 0 20 20' width='20' xmlns='http://www.w3.org/2000/svg'><path d='M5 7l5 5 5-5H5z'/></svg>\")",
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'right 12px center',
-    backgroundSize: '16px',
-    paddingRight: 36,
+    marginBottom: batchYearError ? 6 : 12,
   }}
-  disabled={isLocked}
->
-  <option value="">Select batch</option>
+/>
 
-{Array.from(
-  { length: Math.max(new Date().getFullYear(), 2026) - 2022 + 1 },
-  (_, i) => {
-    const start = Math.max(new Date().getFullYear(), 2026) - i;
-    const end = String(start + 4).slice(-2);
-
-    return (
-      <option key={start} value={`${start}-${end}`}>
-        {start}–{end}
-      </option>
-    );
-  }
+{batchYearError && (
+  <div
+    style={{
+      fontSize: 12,
+      color: '#DC2626',
+      marginBottom: 12,
+    }}
+  >
+    ⚠️ {batchYearError}
+  </div>
 )}
-</select>
 
 {/* DANGER ZONE TEXT */}
         {!isSetupMode && (

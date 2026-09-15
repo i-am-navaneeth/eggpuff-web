@@ -21,6 +21,8 @@ export type QuestionRow = {
 
   text: string
 
+  text_rich?: unknown
+
   created_at: string
 
   expires_at?: string
