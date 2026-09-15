@@ -19,6 +19,7 @@ type Props = {
   q: {
     id: string
     text: string
+    text_rich?: unknown
     created_at: string
     expires_at?: string
     type?: 'normal' | 'bubble'
@@ -141,6 +142,335 @@ function formatTime(dateString: string) {
   return `${date.getMonth() + 1}/${date.getDate()}`
 }
 
+type RichNode = {
+  type?: string
+  text?: string
+  format?: number
+  url?: string
+  children?: RichNode[]
+}
+
+function parseRichContent(
+  value: unknown
+): RichNode | null {
+  if (!value) return null
+
+  try {
+    const parsed =
+      typeof value === 'string'
+        ? JSON.parse(value)
+        : value
+
+    if (
+      !parsed ||
+      typeof parsed !== 'object'
+    ) {
+      return null
+    }
+
+    const root =
+      (parsed as {
+        root?: unknown
+      }).root
+
+    if (
+      root &&
+      typeof root === 'object'
+    ) {
+      return root as RichNode
+    }
+
+    return parsed as RichNode
+  } catch {
+    return null
+  }
+}
+
+function truncateRichContent(
+  content: RichNode,
+  maxChars: number
+): RichNode {
+  let remaining = Math.max(
+    0,
+    maxChars
+  )
+
+  const walk = (
+    node: RichNode
+  ): RichNode | null => {
+    if (
+      node.type === 'text'
+    ) {
+      if (remaining <= 0) {
+        return null
+      }
+
+      const value =
+        node.text || ''
+
+      const sliced =
+        value.slice(
+          0,
+          remaining
+        )
+
+      remaining -= sliced.length
+
+      return {
+        ...node,
+        text: sliced,
+      }
+    }
+
+    if (
+      Array.isArray(
+        node.children
+      )
+    ) {
+      const children: RichNode[] = []
+
+      for (
+        const child of node.children
+      ) {
+        if (remaining <= 0) {
+          break
+        }
+
+        const result =
+          walk(child)
+
+        if (result) {
+          children.push(result)
+        }
+      }
+
+      return {
+        ...node,
+        children,
+      }
+    }
+
+    return {
+      ...node,
+    }
+  }
+
+  return (
+    walk(content) || {
+      type: 'root',
+      children: [],
+    }
+  )
+}
+
+function renderRichNodes(
+  nodes: RichNode[],
+  onLinkClick: (
+    href: string
+  ) => void,
+  keyPrefix = '',
+  insideLink = false
+): React.ReactNode[] {
+  return nodes.flatMap<React.ReactNode>(
+    (node, index) => {
+      const key =
+        `${keyPrefix}-${index}`
+
+      if (
+        node.type === 'text'
+      ) {
+        const value =
+          node.text || ''
+
+        const format =
+          node.format ?? 0
+
+          console.log('🔥 FEED RICH NODE:', {
+  text: value,
+  format,
+})
+
+        const text =
+          insideLink
+            ? value
+                .replace(
+                  /^https?:\/\//i,
+                  ''
+                )
+                .replace(
+                  /^www\./i,
+                  ''
+                )
+                .replace(
+                  /\/$/,
+                  ''
+                )
+            : value
+
+        const textDecoration = [
+          format & 8
+            ? 'underline'
+            : '',
+          format & 4
+            ? 'line-through'
+            : undefined,
+        ]
+          .filter(Boolean)
+          .join(' ')
+
+        const style: React.CSSProperties = {
+          fontWeight:
+  format & 1
+    ? 600
+    : undefined,
+
+          fontStyle:
+            format & 2
+              ? 'italic'
+              : undefined,
+
+          textDecoration:
+            textDecoration ||
+            undefined,
+
+          fontFamily:
+            format & 16
+              ? 'monospace'
+              : undefined,
+
+          verticalAlign:
+            format & 32
+              ? 'sub'
+              : format & 64
+              ? 'super'
+              : undefined,
+
+          background:
+            format & 128
+              ? '#FFF3CD'
+              : undefined,
+
+          borderRadius:
+            format & 128
+              ? 3
+              : undefined,
+        }
+
+        const TextTag =
+  format & 4
+    ? 's'
+    : 'span'
+
+return [
+  <TextTag
+    key={key}
+    style={style}
+  >
+    {text}
+  </TextTag>,
+]
+      }
+
+      if (
+        node.type === 'linebreak'
+      ) {
+        return [
+          <br
+            key={key}
+          />,
+        ]
+      }
+
+      if (
+        node.type === 'link' ||
+        node.type === 'autolink'
+      ) {
+        const href =
+          node.url || ''
+
+        if (!href) {
+          return renderRichNodes(
+            node.children || [],
+            onLinkClick,
+            key,
+            true
+          )
+        }
+
+        return [
+          <span
+            key={key}
+            onClick={(e) => {
+              e.stopPropagation()
+
+              onLinkClick(href)
+            }}
+            style={{
+  display: 'block',
+
+  maxWidth: '100%',
+
+  overflow: 'hidden',
+
+  textOverflow: 'ellipsis',
+
+  whiteSpace: 'nowrap',
+
+  color: '#1D9BF0',
+
+  cursor: 'pointer',
+
+  wordBreak: 'normal',
+
+  overflowWrap: 'normal',
+
+  textDecoration: 'none',
+
+  transition:
+    'opacity 0.12s ease',
+}}
+          >
+            {renderRichNodes(
+              node.children || [],
+              onLinkClick,
+              key,
+              true
+            )}
+          </span>,
+        ]
+      }
+
+      if (
+        node.type === 'paragraph'
+      ) {
+        return [
+          ...renderRichNodes(
+            node.children || [],
+            onLinkClick,
+            key,
+            insideLink
+          ),
+        ]
+      }
+
+      if (
+        Array.isArray(
+          node.children
+        )
+      ) {
+        return renderRichNodes(
+          node.children,
+          onLinkClick,
+          key,
+          insideLink
+        )
+      }
+
+      return []
+    }
+  )
+}
+
 export default function QuestionCard({
   q,
   currentUserId,
@@ -193,6 +523,21 @@ const [saved, setSaved] =
 
 const [showShareMenu, setShowShareMenu] =
   useState(false)
+
+const [isTextExpanded, setIsTextExpanded] =
+  useState(false)
+
+const [isTextLong, setIsTextLong] =
+  useState(false)
+
+const [displayText, setDisplayText] =
+  useState('')
+
+const [collapsedText, setCollapsedText] =
+  useState('')
+
+const textRef =
+  useRef<HTMLParagraphElement>(null)
 
   const [shareMenuPlacement, setShareMenuPlacement] =
   useState<'up' | 'down'>('up')
@@ -305,7 +650,7 @@ setTimeout(() => {
 const actionStyle = {
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'center',
+  justifyContent: 'flex-start',
 
   gap: 4,
 
@@ -879,6 +1224,362 @@ useEffect(() => {
   currentUserId,
 ])
 
+useLayoutEffect(() => {
+  const element = textRef.current
+
+  if (!element) return
+
+  /*
+   * Keep the exact same text-cleaning rules
+   * already used by QuestionCard.
+   */
+  const cleanText =
+  (q.text || '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\n+$/g, '')
+    .replace(
+      /\bhttps?:\/\/https?:\/\//gi,
+      'https://'
+    )
+
+setDisplayText(cleanText)
+
+/*
+ * A post that is only a URL should NEVER use
+ * the normal question "Read more" system.
+ *
+ * Long URLs are visually truncated with CSS instead.
+ */
+const isUrlOnly =
+  /^(?:https?:\/\/|www\.)[^\s]+$/i.test(
+    cleanText
+  ) ||
+  /^[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?$/i.test(
+    cleanText
+  )
+
+if (isUrlOnly) {
+  setIsTextLong(false)
+  setCollapsedText(cleanText)
+  return
+}
+
+  /*
+   * Nothing to measure yet if there is no text.
+   */
+  if (!cleanText) {
+    setIsTextLong(false)
+    setCollapsedText('')
+    return
+  }
+
+  const checkTextHeight = () => {
+    /*
+     * Make sure the real paragraph has its
+     * current responsive width.
+     */
+    const width =
+      element.getBoundingClientRect().width
+
+    if (!width) return
+
+    const lineHeight = 1.55
+    const fontSize = 16
+
+    const maxHeight =
+      fontSize *
+      lineHeight *
+      5
+
+    /*
+     * ------------------------------------------------
+     * STEP 1
+     * ------------------------------------------------
+     * Determine whether the COMPLETE post is longer
+     * than five lines.
+     */
+    const fullMeasure =
+      document.createElement('div')
+
+    const computed =
+      window.getComputedStyle(element)
+
+    fullMeasure.style.position =
+      'absolute'
+
+    fullMeasure.style.visibility =
+      'hidden'
+
+    fullMeasure.style.pointerEvents =
+      'none'
+
+    fullMeasure.style.left =
+      '-99999px'
+
+    fullMeasure.style.top =
+      '0'
+
+    fullMeasure.style.width =
+      `${width}px`
+
+    fullMeasure.style.fontFamily =
+      computed.fontFamily
+
+    fullMeasure.style.fontSize =
+      computed.fontSize
+
+    fullMeasure.style.fontWeight =
+      computed.fontWeight
+
+    fullMeasure.style.lineHeight =
+      computed.lineHeight
+
+    fullMeasure.style.letterSpacing =
+      computed.letterSpacing
+
+    fullMeasure.style.whiteSpace =
+      'pre-wrap'
+
+    fullMeasure.style.wordBreak =
+      'break-word'
+
+    fullMeasure.style.overflowWrap =
+      'anywhere'
+
+    fullMeasure.textContent =
+      cleanText
+
+    document.body.appendChild(
+      fullMeasure
+    )
+
+    const fullHeight =
+      fullMeasure.scrollHeight
+
+    document.body.removeChild(
+      fullMeasure
+    )
+
+    const long =
+      fullHeight >
+      maxHeight + 2
+
+    setIsTextLong(long)
+
+    /*
+     * Short post:
+     * no truncation and no Read more.
+     */
+    if (!long) {
+      setCollapsedText(cleanText)
+      return
+    }
+
+    /*
+     * ------------------------------------------------
+     * STEP 2
+     * ------------------------------------------------
+     * Measure the actual collapsed version.
+     *
+     * The suffix is included in the measurement.
+     * Therefore Read more can NEVER overlap the text.
+     */
+    const measure =
+      document.createElement('div')
+
+    measure.style.position =
+      'absolute'
+
+    measure.style.visibility =
+      'hidden'
+
+    measure.style.pointerEvents =
+      'none'
+
+    measure.style.left =
+      '-99999px'
+
+    measure.style.top =
+      '0'
+
+    measure.style.width =
+      `${width}px`
+
+    measure.style.fontFamily =
+      computed.fontFamily
+
+    measure.style.fontSize =
+      computed.fontSize
+
+    measure.style.fontWeight =
+      computed.fontWeight
+
+    measure.style.lineHeight =
+      computed.lineHeight
+
+    measure.style.letterSpacing =
+      computed.letterSpacing
+
+    measure.style.whiteSpace =
+      'pre-wrap'
+
+    measure.style.wordBreak =
+      'break-word'
+
+    measure.style.overflowWrap =
+      'anywhere'
+
+    document.body.appendChild(
+      measure
+    )
+
+    /*
+     * This is the exact text that will appear
+     * after the truncated portion.
+     */
+    const suffix =
+      '... Read more'
+
+    let low = 0
+    let high = cleanText.length
+
+    let best = ''
+
+    /*
+     * Binary search for the largest amount
+     * of text that still fits inside five lines.
+     */
+    while (low <= high) {
+      const middle =
+        Math.floor(
+          (low + high) / 2
+        )
+
+      let candidate =
+        cleanText.slice(
+          0,
+          middle
+        )
+
+      /*
+       * Only cut at a word boundary.
+       *
+       * This prevents:
+       *
+       * "navigation is bett... Read more"
+       *
+       * and instead gives:
+       *
+       * "navigation is ... Read more"
+       */
+      if (
+        middle <
+        cleanText.length
+      ) {
+        const lastSpace =
+          candidate.lastIndexOf(' ')
+
+        if (lastSpace > 0) {
+          candidate =
+            candidate.slice(
+              0,
+              lastSpace
+            )
+        }
+      }
+
+      candidate =
+        candidate.replace(
+          /\s+$/,
+          ''
+        )
+
+      measure.textContent =
+        `${candidate}${suffix}`
+
+      if (
+        measure.scrollHeight <=
+        maxHeight + 2
+      ) {
+        best = candidate
+
+        low =
+          middle + 1
+      } else {
+        high =
+          middle - 1
+      }
+    }
+
+    /*
+     * Safety fallback.
+     */
+    if (!best) {
+      best =
+        cleanText.slice(
+          0,
+          Math.max(
+            1,
+            Math.floor(
+              cleanText.length * 0.4
+            )
+          )
+        )
+          .replace(
+            /\s+\S*$/,
+            ''
+          )
+          .replace(
+            /\s+$/,
+            ''
+          )
+    }
+
+    setCollapsedText(best)
+
+    document.body.removeChild(
+      measure
+    )
+  }
+
+  /*
+   * Wait one animation frame so the paragraph
+   * has its real responsive width.
+   */
+  const frame =
+    requestAnimationFrame(
+      checkTextHeight
+    )
+
+  const resizeObserver =
+    new ResizeObserver(
+      checkTextHeight
+    )
+
+  resizeObserver.observe(
+    element
+  )
+
+  window.addEventListener(
+    'resize',
+    checkTextHeight
+  )
+
+  return () => {
+    cancelAnimationFrame(frame)
+
+    resizeObserver.disconnect()
+
+    window.removeEventListener(
+      'resize',
+      checkTextHeight
+    )
+  }
+}, [q.text])
+
 const toggleSave = async (
   e: React.MouseEvent
 ) => {
@@ -1005,20 +1706,20 @@ onPointerLeave={() => setPopped(false)}
 
 onPointerCancel={() => setPopped(false)}
   style={{
-    marginBottom: 0,
+  marginBottom: 0,
 
-    padding: '16px 18px 12px',
+  padding: '16px 0 12px',
 
-    borderRadius: 0,
+  borderRadius: 0,
 
-    border: 'none',
+  border: 'none',
 
-    backgroundColor:
-  popped
-    ? 'rgba(15,20,25,0.02)'
-    : q.type === 'bubble'
-    ? '#F8FAFC'
-    : 'transparent',
+  backgroundColor:
+    popped
+      ? 'rgba(15,20,25,0.02)'
+      : q.type === 'bubble'
+      ? '#F8FAFC'
+      : 'transparent',
 
 boxShadow: 'none',
 
@@ -1059,7 +1760,7 @@ animation: undefined,
   }}
 >
 
-      {/* HEADER */}
+    {/* HEADER */}
 <div
   style={{
     display: 'flex',
@@ -1067,421 +1768,372 @@ animation: undefined,
     alignItems: 'flex-start',
   }}
 >
-        
-        {/* AVATAR */}
-<div
-  onClick={(e) => {
-    e.stopPropagation()
-
-    if (q.username) {
-      openProfile(q.username)
-    }
-  }}
-  style={{
-    width: 38,
-height: 38,
-
-    borderRadius: '50%',
-
-    backgroundImage: `url(${q.avatar_url})`,
-
-    backgroundSize: 'cover',
-
-    backgroundPosition: 'center',
-
-    cursor: 'pointer',
-
-    flexShrink: 0,
-  }}
-/>
-
-        <div
-  style={{
-    flex: 1,
-    minWidth: 0,
-  }}
->
-          
-          {/* NAME + MORE */}
-          <div
-  style={{
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  }}
->
+  {/* AVATAR */}
   <div
-  onClick={(e) => {
-    e.stopPropagation()
+    onClick={(e) => {
+      e.stopPropagation()
 
-    if (q.username) {
-      openProfile(q.username)
-    }
-  }}
-  style={{
-    fontWeight: 600,
-    fontSize: 14.5,
-    letterSpacing: '-0.15px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 4,
-    cursor: 'pointer',
-    width: 'fit-content',
-    flexWrap: 'wrap',
-  }}
->
-  {/* Display Name */}
-  <span>
-    {q.user_name || 'Anonymous'}
-  </span>
-
-  {/* Verified */}
-  {q.is_verified && (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        transform: 'translateY(1px)',
-      }}
-    >
-      <svg
-        viewBox="0 0 24 24"
-        width="18"
-        height="18"
-      >
-        <path
-          fill="#1D9BF0"
-          d="
-            M12 2.5
-            L13.8 4.2 L16.2 3.8 L17 6.2 L19.4 7 L19 9.4
-            L20.5 11.5 L19 13.6 L19.4 16 L17 16.8
-            L16.2 19.2 L13.8 18.8 L12 20.5
-            L10.2 18.8 L7.8 19.2 L7 16.8 L4.6 16
-            L5 13.6 L3.5 11.5 L5 9.4
-            L4.6 7 L7 6.2 L7.8 3.8 L10.2 4.2 Z
-          "
-        />
-
-        <path
-          d="M8.6 11.7l2.4 2.4 4.8-4.8"
-          fill="none"
-          stroke="#FFF"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </span>
-  )}
-
-  {/* Streak */}
-{!q.hideStreak &&
-  (q.is_friend || q.user_id === currentUserId) && (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-
-        gap: 6,
-
-        marginLeft: 7,
-        marginRight: 4,
-
-        padding: '2px 9px 2px 7px',
-
-        minWidth: 42,
-        height: 26,
-
-        borderRadius: 999,
-
-        background: '#FFF8F1',
-        border: '1px solid #FFD2A8',
-
-        flexShrink: 0,
-
-        /*
-         * Keeps the pill aligned with the username
-         * without pushing into the username/date row.
-         */
-        transform: 'translateY(-3px)',
-
-        boxSizing: 'border-box',
-
-        whiteSpace: 'nowrap',
-
-        lineHeight: 1,
-      }}
-    >
-      {/* Old EggPuff Fire */}
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 64 64"
-        fill="none"
-        aria-hidden="true"
-        style={{
-          flexShrink: 0,
-          display: 'block',
-        }}
-      >
-        {/* Sparkles */}
-        <circle
-          cx="9"
-          cy="14"
-          r="2.5"
-          fill="#FFD54A"
-        />
-
-        <circle
-          cx="55"
-          cy="15"
-          r="2.5"
-          fill="#FFD54A"
-        />
-
-        <circle
-          cx="12"
-          cy="50"
-          r="2.2"
-          fill="#FFD54A"
-        />
-
-        <circle
-          cx="52"
-          cy="48"
-          r="2.2"
-          fill="#FFD54A"
-        />
-
-        {/* Flame */}
-        <path
-          d="
-            M32 4
-            C42 12 49 22 49 33
-            C49 47 41 58 32 58
-            C21 58 13 48 13 35
-            C13 25 19 18 25 12
-            C25 22 32 24 32 4Z
-          "
-          fill="#FF7A1A"
-        />
-
-        {/* Inner Flame */}
-        <path
-          d="
-            M32 16
-            C38 22 42 28 42 35
-            C42 43 37 50 32 50
-            C26 50 22 44 22 37
-            C22 31 25 27 29 23
-            C29 29 32 31 32 16Z
-          "
-          fill="#FFC547"
-        />
-      </svg>
-
-      {/* Adaptive Streak Number */}
-      <span
-        style={{
-          color: '#F97316',
-
-          fontWeight: 800,
-
-          lineHeight: 1,
-
-          fontSize:
-            (q.streak_count ?? 0) >= 100
-              ? 11
-              : (q.streak_count ?? 0) >= 10
-              ? 12
-              : 14,
-
-          letterSpacing:
-            (q.streak_count ?? 0) >= 100
-              ? '-0.4px'
-              : '-0.2px',
-
-          whiteSpace: 'nowrap',
-
-          fontVariantNumeric: 'tabular-nums',
-
-          display: 'inline-block',
-        }}
-      >
-        {q.streak_count ?? 0}
-      </span>
-    </span>
-  )}
-</div>
-{q.is_trending && (
-  <span
-    style={{
-      display: 'flex',
-      justifyContent: 'space-around',
-      alignItems: 'center',
-      gap: 6,
-      padding: '3px 10px',
-      borderRadius: 999,
-      fontSize: 10,
-      fontWeight: 600,
-      background: 'linear-gradient(135deg, #FFF4E5, #FFE7CC)',
-      color: '#D97706',
-      border: '1px solid #FCD9A8',
-      width: 'fit-content',
-      marginTop: 6,
-    }}
-  >
-    🔥 Trending
-  </span>
-)}
-
-{q._missed && (
-  <div
-    style={{
-      fontSize: 12,
-      fontWeight: 600,
-      color: '#F59E0B',
-      marginBottom: 6,
-    }}
-  >
-    You might’ve missed this 👇
-  </div>
-)}
-
-
-            <div
-  onClick={(e) => {
-  e.preventDefault()
-  e.stopPropagation()
-}}
-  style={{
-  position: 'relative',
-}}
->
-  <button
-  data-question-menu-button
-  ref={menuButtonRef}
-  onMouseDown={(e) => {
-    e.preventDefault()
-    e.stopPropagation()
-  }}
-
-onClick={(e) => {
-  e.preventDefault()
-  e.stopPropagation()
-
-  const next = !showMenu
-
-  /*
-   * Tell every other QuestionCard
-   * to close its More menu.
-   */
-  if (next) {
-    window.dispatchEvent(
-      new CustomEvent(
-        'ep-question-menu-open',
-        {
-          detail: q.id,
-        }
-      )
-    )
-  }
-
-  setShowMenu(next)
-}}
-  style={{
-    border: 'none',
-
-    background: 'transparent',
-
-    cursor: 'pointer',
-
-    width: 32,
-    height: 32,
-
-    borderRadius: '50%',
-
-    display: 'flex',
-
-    alignItems: 'center',
-
-    justifyContent: 'center',
-
-    color: '#6B7280',
-  }}
->
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-  >
-    <circle cx="5" cy="12" r="1.8" />
-    <circle cx="12" cy="12" r="1.8" />
-    <circle cx="19" cy="12" r="1.8" />
-  </svg>
-</button>
-
-  {/* DROPDOWN */}
-{showMenu && (
-  <div
-    data-question-dropdown
-    onClick={(e) => e.stopPropagation()}
-    style={{
-      position: 'absolute',
-      top: 34,
-      right: 0,
-
-      zIndex: 999999,
-
-      minWidth: 240,
-    }}
-  >
-    <QuestionActionsMenu
-      onClose={() => {
-        setShowMenu(false)
-      }}
-      isOwner={
-        q.user_id === currentUserId
+      if (q.username) {
+        openProfile(q.username)
       }
-      questionId={q.id}
-      onDelete={() => {
-        onDelete?.(q.id)
+    }}
+    style={{
+      width: 38,
+      height: 38,
+      borderRadius: '50%',
+      backgroundImage: `url(${q.avatar_url})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      cursor: 'pointer',
+      flexShrink: 0,
+    }}
+  />
+
+  {/* RIGHT CONTENT COLUMN */}
+  <div
+    style={{
+      flex: 1,
+      minWidth: 0,
+    }}
+  >
+    {/* TOP ROW */}
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: 10,
+        minWidth: 0,
       }}
-    />
+    >
+      {/* NAME + STREAK */}
+      <div
+        onClick={(e) => {
+          e.stopPropagation()
+
+          if (q.username) {
+            openProfile(q.username)
+          }
+        }}
+        style={{
+          fontWeight: 600,
+          fontSize: 14.5,
+          letterSpacing: '-0.15px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          cursor: 'pointer',
+          minWidth: 0,
+          flexWrap: 'wrap',
+        }}
+      >
+        {/* Display Name */}
+        <span>
+          {q.user_name || 'Anonymous'}
+        </span>
+
+        {/* Verified */}
+        {q.is_verified && (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transform: 'translateY(1px)',
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+            >
+              <path
+                fill="#1D9BF0"
+                d="
+                  M12 2.5
+                  L13.8 4.2 L16.2 3.8 L17 6.2 L19.4 7 L19 9.4
+                  L20.5 11.5 L19 13.6 L19.4 16 L17 16.8
+                  L16.2 19.2 L13.8 18.8 L12 20.5
+                  L10.2 18.8 L7.8 19.2 L7 16.8 L4.6 16
+                  L5 13.6 L3.5 11.5 L5 9.4
+                  L4.6 7 L7 6.2 L7.8 3.8 L10.2 4.2 Z
+                "
+              />
+
+              <path
+                d="M8.6 11.7l2.4 2.4 4.8-4.8"
+                fill="none"
+                stroke="#FFF"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        )}
+
+        {/* Streak */}
+        {!q.hideStreak &&
+          (q.is_friend || q.user_id === currentUserId) && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                marginLeft: 7,
+                marginRight: 10,
+                padding: '2px 9px 2px 7px',
+                minWidth: 42,
+                height: 26,
+                borderRadius: 999,
+                background: '#FFF8F1',
+                border: '1px solid #FFD2A8',
+                flexShrink: 0,
+                transform: 'translateY(-3px)',
+                boxSizing: 'border-box',
+                whiteSpace: 'nowrap',
+                lineHeight: 1,
+              }}
+            >
+              {/* Old EggPuff Fire */}
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 64 64"
+                fill="none"
+                aria-hidden="true"
+                style={{
+                  flexShrink: 0,
+                  display: 'block',
+                }}
+              >
+                {/* Sparkles */}
+                <circle
+                  cx="9"
+                  cy="14"
+                  r="2.5"
+                  fill="#FFD54A"
+                />
+
+                <circle
+                  cx="55"
+                  cy="15"
+                  r="2.5"
+                  fill="#FFD54A"
+                />
+
+                <circle
+                  cx="12"
+                  cy="50"
+                  r="2.2"
+                  fill="#FFD54A"
+                />
+
+                <circle
+                  cx="52"
+                  cy="48"
+                  r="2.2"
+                  fill="#FFD54A"
+                />
+
+                {/* Flame */}
+                <path
+                  d="
+                    M32 4
+                    C42 12 49 22 49 33
+                    C49 47 41 58 32 58
+                    C21 58 13 48 13 35
+                    C13 25 19 18 25 12
+                    C25 22 32 24 32 4Z
+                  "
+                  fill="#FF7A1A"
+                />
+
+                {/* Inner Flame */}
+                <path
+                  d="
+                    M32 16
+                    C38 22 42 28 42 35
+                    C42 43 37 50 32 50
+                    C26 50 22 44 22 37
+                    C22 31 25 27 29 23
+                    C29 29 32 31 32 16Z
+                  "
+                  fill="#FFC547"
+                />
+              </svg>
+
+              {/* Streak Number */}
+              <span
+                style={{
+                  color: '#F97316',
+                  fontWeight: 800,
+                  lineHeight: 1,
+                  fontSize:
+                    (q.streak_count ?? 0) >= 100
+                      ? 11
+                      : (q.streak_count ?? 0) >= 10
+                      ? 12
+                      : 14,
+                  letterSpacing:
+                    (q.streak_count ?? 0) >= 100
+                      ? '-0.4px'
+                      : '-0.2px',
+                  whiteSpace: 'nowrap',
+                  fontVariantNumeric: 'tabular-nums',
+                  display: 'inline-block',
+                }}
+              >
+                {q.streak_count ?? 0}
+              </span>
+            </span>
+          )}
+      </div>
+
+      {/* RIGHT SIDE: TRENDING + MORE */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          flexShrink: 0,
+        }}
+      >
+        {/* TRENDING */}
+        {q.is_trending && (
+          <span
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '3px 9px',
+              borderRadius: 999,
+              fontSize: 10,
+              fontWeight: 600,
+              background:
+                'linear-gradient(135deg, #FFF4E5, #FFE7CC)',
+              color: '#D97706',
+              border: '1px solid #FCD9A8',
+              whiteSpace: 'nowrap',
+              lineHeight: 1.2,
+            }}
+          >
+            🔥 Trending
+          </span>
+        )}
+
+        {/* MORE MENU */}
+        <div
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+          }}
+          style={{
+            position: 'relative',
+          }}
+        >
+          <button
+            data-question-menu-button
+            ref={menuButtonRef}
+            onMouseDown={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+            }}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+
+              const next = !showMenu
+
+              if (next) {
+                window.dispatchEvent(
+                  new CustomEvent(
+                    'ep-question-menu-open',
+                    {
+                      detail: q.id,
+                    }
+                  )
+                )
+              }
+
+              setShowMenu(next)
+            }}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#6B7280',
+            }}
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <circle cx="5" cy="12" r="1.8" />
+              <circle cx="12" cy="12" r="1.8" />
+              <circle cx="19" cy="12" r="1.8" />
+            </svg>
+          </button>
+
+          {/* DROPDOWN */}
+          {showMenu && (
+            <div
+              data-question-dropdown
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: 'absolute',
+                top: 34,
+                right: 0,
+                zIndex: 999999,
+                minWidth: 240,
+              }}
+            >
+              <QuestionActionsMenu
+                onClose={() => {
+                  setShowMenu(false)
+                }}
+                isOwner={
+                  q.user_id === currentUserId
+                }
+                questionId={q.id}
+                onDelete={() => {
+                  onDelete?.(q.id)
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+
+    {/* USERNAME + TIME */}
+    <div
+      style={{
+        fontSize: 12.5,
+        opacity: 1,
+        letterSpacing: '-0.1px',
+        color: '#71767B',
+        marginTop: -2,
+        lineHeight: 1.2,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 3,
+      }}
+    >
+      @{q.username || 'user'} •{' '}
+      {formatTime(q.created_at)}
+    </div>
   </div>
-)}
 </div>
-          </div>
-
-          {/* USERNAME + TIME */}
-<div
-  style={{
-  fontSize: 12.5,
-
-  opacity: 1,
-
-  letterSpacing: '-0.1px',
-
-  color: '#71767B',
-
-  marginTop: -8,
-
-  lineHeight: 1.2,
-
-  display: 'flex',
-
-  alignItems: 'center',
-
-  gap: 3,
-}}
->
-  @{q.username || 'user'} •{' '}
-  {formatTime(q.created_at)}
-</div>
-</div></div>
 
 {/* QUESTION CONTENT */}
 <div
@@ -1491,20 +2143,18 @@ onClick={(e) => {
   }}
   style={{
     cursor: 'pointer',
-    maxWidth: '94%',
+    marginLeft: 48,
+    width: 'calc(100% - 48px)',
   }}
 >
-  <p
+  <div
+    ref={textRef}
     style={{
       marginTop: 12,
 
       marginBottom:
         q.link_url ? 8 : 10,
 
-      /*
-       * Feed typography:
-       * Smaller and tighter like modern social feeds.
-       */
       fontSize: '16px',
 
       fontFamily:
@@ -1518,10 +2168,6 @@ onClick={(e) => {
 
       color: '#0F1419',
 
-      /*
-       * Preserve intentional line breaks,
-       * while allowing long URLs/text to wrap.
-       */
       whiteSpace: 'pre-wrap',
 
       wordBreak: 'break-word',
@@ -1529,150 +2175,392 @@ onClick={(e) => {
       overflowWrap: 'anywhere',
     }}
   >
-    {/*
-     * CLEAN POST TEXT
-     *
-     * 1. Normalize Windows/Mac line endings.
-     * 2. Remove spaces/tabs sitting at the end of lines.
-     * 3. Remove empty lines ONLY from the END.
-     *
-     * Important:
-     * Internal blank lines are preserved.
-     *
-     * Example:
-     *
-     * "Hello\n\nHow are you?\n\n\n"
-     *
-     * becomes:
-     *
-     * "Hello\n\nHow are you?"
-     */}
     {(() => {
-  const cleanText =
-    (q.text || '')
-      // Normalize Windows/Mac line endings
-      .replace(/\r\n?/g, '\n')
-
-      // Convert literal "\n" text into real line breaks
-      .replace(/\\n/g, '\n')
-
-      // Remove spaces/tabs sitting before a newline
-      .replace(/[ \t]+\n/g, '\n')
-
-      // Collapse excessive consecutive line breaks.
-      // One empty line = maximum two \n characters.
-      .replace(/\n{3,}/g, '\n\n')
-
-      // Remove empty lines from the very end
-      .replace(/\n+$/g, '')
-
-  return cleanText
-    .replace(
-      /\bhttps?:\/\/https?:\/\//gi,
-      'https://'
-    )
-        .split(
-          /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s]*)/
+      /*
+       * Prefer Lexical rich content when available.
+       *
+       * Old questions have no text_rich, so they
+       * automatically use the existing plain-text
+       * renderer below.
+       */
+      const richContent =
+        parseRichContent(
+          q.text_rich
         )
-        .map((part, index) => {
-          const isLink =
-            /^(https?:\/\/|www\.|[a-zA-Z0-9-]+\.[a-zA-Z]{2,})/.test(
-              part
+
+      const textToRender =
+        isTextExpanded ||
+        !isTextLong
+          ? displayText
+          : collapsedText
+
+      /*
+       * ------------------------------------------------
+       * RICH TEXT
+       * ------------------------------------------------
+       */
+      if (
+        richContent?.children ||
+        richContent?.type === 'root'
+      ) {
+        const richToRender =
+          isTextExpanded ||
+          !isTextLong
+            ? richContent
+            : truncateRichContent(
+                richContent,
+                collapsedText.length
+              )
+
+        const handleRichLinkClick =
+          (href: string) => {
+            const normalizedHref =
+              href.startsWith('http')
+                ? href
+                : `https://${href}`
+
+            let domain =
+              'Website'
+
+            try {
+              domain =
+                new URL(
+                  normalizedHref
+                )
+                  .hostname
+                  .replace(
+                    /^www\./,
+                    ''
+                  )
+            } catch {}
+
+            sessionStorage.setItem(
+              'ep_inapp_browser',
+              normalizedHref
             )
 
-          if (isLink) {
-            const href =
-              part.startsWith('http')
-                ? part
-                : `https://${part}`
-
-            const domain =
-              (() => {
-                try {
-                  return new URL(href)
-                    .hostname
-                    .replace(/^www\./, '')
-                } catch {
-                  return 'Website'
-                }
-              })()
-
-            /*
-             * Clean URL display.
-             *
-             * We don't show:
-             * https://
-             * www.
-             *
-             * We also keep the URL contained inside
-             * the post instead of allowing it to
-             * create horizontal overflow.
-             */
-            const displayText =
-              part
-                .replace(/^https?:\/\//i, '')
-                .replace(/^www\./i, '')
-                .replace(/\/$/, '')
-
-            return (
-              <span
-                key={index}
-                onClick={(e) => {
-                  e.stopPropagation()
-
-                  sessionStorage.setItem(
-                    'ep_inapp_browser',
-                    href
-                  )
-
-                  router.push(
-                    `/browser?url=${encodeURIComponent(
-                      href
-                    )}&domain=${encodeURIComponent(
-                      domain
-                    )}`
-                  )
-                }}
-                style={{
-                  color: '#1D9BF0',
-
-                  cursor: 'pointer',
-
-                  /*
-                   * Long URLs wrap naturally.
-                   * This prevents ugly overflow.
-                   */
-                  wordBreak: 'break-word',
-
-                  overflowWrap: 'anywhere',
-
-                  textDecoration: 'none',
-
-                  transition:
-                    'opacity 0.12s ease',
-                }}
-                onTouchStart={(e) => {
-                  e.currentTarget.style.opacity =
-                    '0.7'
-                }}
-                onTouchEnd={(e) => {
-                  e.currentTarget.style.opacity =
-                    '1'
-                }}
-              >
-                {displayText}
-              </span>
+            router.push(
+              `/browser?url=${encodeURIComponent(
+                normalizedHref
+              )}&domain=${encodeURIComponent(
+                domain
+              )}`
             )
           }
 
-          return (
-            <span key={index}>
-              {part}
-            </span>
+        const rootChildren =
+          Array.isArray(
+            richToRender.children
           )
-        })
+            ? richToRender.children
+            : []
+
+        return (
+          <>
+            {rootChildren.map(
+              (node, index) => (
+                <span
+                  key={`paragraph-${index}`}
+                >
+                  {renderRichNodes(
+                    [node],
+                    handleRichLinkClick,
+                    `rich-${index}`
+                  )}
+
+                  {node.type ===
+                    'paragraph' &&
+                    index <
+                      rootChildren.length -
+                        1 && (
+                      <br />
+                    )}
+                </span>
+              )
+            )}
+
+            {isTextLong &&
+              !isTextExpanded && (
+                <>
+                  {'... '}
+
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+
+                      setIsTextExpanded(
+                        true
+                      )
+                    }}
+                    style={{
+                      display:
+                        'inline',
+
+                      margin: 0,
+
+                      padding: 0,
+
+                      border: 'none',
+
+                      background:
+                        'transparent',
+
+                      color:
+                        '#1D9BF0',
+
+                      fontSize:
+                        'inherit',
+
+                      fontWeight:
+                        600,
+
+                      lineHeight:
+                        'inherit',
+
+                      fontFamily:
+                        'inherit',
+
+                      letterSpacing:
+                        'inherit',
+
+                      cursor:
+                        'pointer',
+
+                      verticalAlign:
+                        'baseline',
+
+                      WebkitTapHighlightColor:
+                        'transparent',
+                    }}
+                  >
+                    Read more
+                  </button>
+                </>
+              )}
+          </>
+        )
+      }
+
+      /*
+       * ------------------------------------------------
+       * EXISTING PLAIN-TEXT FALLBACK
+       * ------------------------------------------------
+       *
+       * This is intentionally kept for:
+       * - old questions
+       * - questions without text_rich
+       * - backwards compatibility
+       */
+      const cleanText =
+        textToRender.replace(
+          /\bhttps?:\/\/https?:\/\//gi,
+          'https://'
+        )
+
+      return (
+        <>
+          {cleanText
+            .split(
+              /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s]*)/
+            )
+            .map(
+              (
+                part,
+                index
+              ) => {
+                const isLink =
+                  /^(https?:\/\/|www\.|[a-zA-Z0-9-]+\.[a-zA-Z]{2,})/.test(
+                    part
+                  )
+
+                if (isLink) {
+                  const href =
+                    part.startsWith(
+                      'http'
+                    )
+                      ? part
+                      : `https://${part}`
+
+                  const domain =
+                    (() => {
+                      try {
+                        return new URL(
+                          href
+                        )
+                          .hostname
+                          .replace(
+                            /^www\./,
+                            ''
+                          )
+                      } catch {
+                        return 'Website'
+                      }
+                    })()
+
+                  /*
+                   * Keep the existing URL display
+                   * behavior unchanged.
+                   */
+                  const displayLinkText =
+                    part
+                      .replace(
+                        /^https?:\/\//i,
+                        ''
+                      )
+                      .replace(
+                        /^www\./i,
+                        ''
+                      )
+                      .replace(
+                        /\/$/,
+                        ''
+                      )
+
+                  return (
+                    <span
+                      key={index}
+                      onClick={(e) => {
+                        e.stopPropagation()
+
+                        sessionStorage.setItem(
+                          'ep_inapp_browser',
+                          href
+                        )
+
+                        router.push(
+                          `/browser?url=${encodeURIComponent(
+                            href
+                          )}&domain=${encodeURIComponent(
+                            domain
+                          )}`
+                        )
+                      }}
+                      style={{
+  display: 'inline-block',
+
+  maxWidth: '100%',
+
+  overflow: 'hidden',
+
+  textOverflow: 'ellipsis',
+
+  whiteSpace: 'nowrap',
+
+  color:
+    '#1D9BF0',
+
+  cursor:
+    'pointer',
+
+  wordBreak:
+    'normal',
+
+  overflowWrap:
+    'normal',
+
+  textDecoration:
+    'none',
+
+  verticalAlign:
+    'bottom',
+
+  transition:
+    'opacity 0.12s ease',
+}}
+                      onTouchStart={(
+                        e
+                      ) => {
+                        e.currentTarget.style.opacity =
+                          '0.7'
+                      }}
+                      onTouchEnd={(
+                        e
+                      ) => {
+                        e.currentTarget.style.opacity =
+                          '1'
+                      }}
+                    >
+                      {
+                        displayLinkText
+                      }
+                    </span>
+                  )
+                }
+
+                return (
+                  <span
+                    key={index}
+                  >
+                    {part}
+                  </span>
+                )
+              }
+            )}
+
+          {isTextLong &&
+            !isTextExpanded && (
+              <>
+                {'... '}
+
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+
+                    setIsTextExpanded(
+                      true
+                    )
+                  }}
+                  style={{
+                    display:
+                      'inline',
+
+                    margin: 0,
+
+                    padding: 0,
+
+                    border: 'none',
+
+                    background:
+                      'transparent',
+
+                    color:
+                      '#1D9BF0',
+
+                    fontSize:
+                      'inherit',
+
+                    fontWeight:
+                      600,
+
+                    lineHeight:
+                      'inherit',
+
+                    fontFamily:
+                      'inherit',
+
+                    letterSpacing:
+                      'inherit',
+
+                    cursor:
+                      'pointer',
+
+                    verticalAlign:
+                      'baseline',
+
+                    WebkitTapHighlightColor:
+                      'transparent',
+                  }}
+                >
+                  Read more
+                </button>
+              </>
+            )}
+        </>
+      )
     })()}
-  </p>
+  </div>
 </div>
 
 {/* 🔥 RICH PREVIEW */}
@@ -1683,6 +2571,9 @@ onClick={(e) => {
     }}
     style={{
       cursor: 'pointer',
+
+      marginLeft: 48,
+      width: 'calc(100% - 48px)',
     }}
   >
     <LinkPreviewCard
@@ -1696,7 +2587,7 @@ onClick={(e) => {
   </div>
 )}
 
-      {/* ACTION ROW */}
+    {/* ACTION ROW */}
 <div
   style={{
     display: 'flex',
@@ -1705,9 +2596,13 @@ onClick={(e) => {
 
     marginTop: 6,
 
-    width: '100%',
+    marginLeft: 48,
+    width: 'calc(100% - 48px)',
 
     color: '#6B7280',
+
+    paddingLeft: 0,
+    paddingRight: 0,
   }}
 >
   {/* ANSWERS */}

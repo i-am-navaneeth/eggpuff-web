@@ -6,6 +6,11 @@ import { ContentEditable } from '@lexical/react/LexicalContentEditable'
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
 import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin'
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
+import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin'
+import {
+  TEXT_FORMAT_TRANSFORMERS,
+  STRIKETHROUGH,
+} from '@lexical/markdown'
 
 import EditorOnChangePlugin from './OnChangePlugin'
 import LinkPlugin from './LinkPlugin'
@@ -13,12 +18,20 @@ import { LinkNode, AutoLinkNode } from '@lexical/link'
 
 type Props = {
   value: string
-  onChange: (text: string) => void
+  onChange: (
+    text: string,
+    richContent: string
+  ) => void
 }
 
 const theme = {
   paragraph: 'editor-paragraph',
   link: 'editor-link',
+}
+
+const SINGLE_STRIKETHROUGH = {
+  ...STRIKETHROUGH,
+  tag: '~',
 }
 
 export default function ComposerEditor({
@@ -71,13 +84,23 @@ export default function ComposerEditor({
 
       <HistoryPlugin />
 
-      <AutoFocusPlugin />
+<AutoFocusPlugin />
 
-      <LinkPlugin />
+<MarkdownShortcutPlugin
+  transformers={[
+    ...TEXT_FORMAT_TRANSFORMERS.filter(
+      (transformer) =>
+        transformer !== STRIKETHROUGH
+    ),
+    SINGLE_STRIKETHROUGH,
+  ]}
+/>
 
-      <EditorOnChangePlugin
-        onChange={(text) => {
-    onChange(text)
+<LinkPlugin />
+
+<EditorOnChangePlugin
+  onChange={(text, richContent) => {
+    onChange(text, richContent)
 
     requestAnimationFrame(() => {
       const editor = document.querySelector(
@@ -90,7 +113,7 @@ export default function ComposerEditor({
       }
     })
   }}
-      />
+/>
     </LexicalComposer>
   )
 }

@@ -75,12 +75,32 @@ if (user) {
         return;
       }
 
-      // ✅ Logged in → only redirect from login page
-      if (path === '/login') {
-        router.replace('/feed');
-        setLoading(false);
-        return;
-      }
+    // ✅ Logged in → check the REAL profile completion state
+if (path === '/login') {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('college_id, batch_year, profile_completed')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  const profileSetupCompleted =
+    profile?.profile_completed === true &&
+    !!profile?.college_id &&
+    !!profile?.batch_year;
+
+  if (!profileSetupCompleted) {
+    // Fresh account / incomplete profile
+    localStorage.removeItem('eggpuff_profile_setup_completed');
+    router.replace('/profile');
+  } else {
+    // Existing completed account
+    localStorage.setItem('eggpuff_profile_setup_completed', 'true');
+    router.replace('/feed');
+  }
+
+  setLoading(false);
+  return;
+}
 
       // ✅ IMPORTANT: DO NOT force redirect to /feed everywhere
       // (this was causing your bug)
@@ -90,17 +110,49 @@ if (user) {
 
     init();
 
-    const {
+    const handleSignedIn = async (userId: string) => {
+  if (!mounted || pathname !== '/login') return;
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('college_id, batch_year, profile_completed')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!mounted) return;
+
+  const profileSetupCompleted =
+    profile?.profile_completed === true &&
+    !!profile?.college_id &&
+    !!profile?.batch_year;
+
+  if (!profileSetupCompleted) {
+    localStorage.removeItem('eggpuff_profile_setup_completed');
+    router.replace('/profile');
+  } else {
+    localStorage.setItem(
+      'eggpuff_profile_setup_completed',
+      'true'
+    );
+    router.replace('/feed');
+  }
+};
+
+const {
   data: { subscription },
 } = supabase.auth.onAuthStateChange((event, session) => {
   if (!mounted) return;
 
   switch (event) {
-    case 'SIGNED_IN':
-      if (pathname === '/login') {
-        router.replace('/feed');
+    case 'SIGNED_IN': {
+      const userId = session?.user?.id;
+
+      if (userId) {
+        void handleSignedIn(userId);
       }
+
       break;
+    }
 
     case 'SIGNED_OUT':
       if (!skipRedirect) {

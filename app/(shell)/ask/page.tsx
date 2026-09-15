@@ -34,6 +34,7 @@ export default function AskPage() {
   const { notify } = useNotify()
 
 const [text, setText] = useState('')
+const [richContent, setRichContent] = useState('')
 const [hours, setHours] = useState(1)
 
   const [category, setCategory] = useState<string>('general')
@@ -298,7 +299,7 @@ if (
     '⚠️ Complete your profile to ask questions'
   )
 
-  router.push('/setup-profile')
+  router.push('/profile')
 
   return
 }
@@ -326,6 +327,7 @@ if (type === 'bubble') {
   .from('questions')
   .insert({
   text,
+  text_rich: richContent || null,
   user_id: userId,
   category_id: categoryId,
   type: type || 'normal',
@@ -697,13 +699,14 @@ overflow: 'hidden',
   }}
 >
 
-      <ComposerEditor
+    <ComposerEditor
   value={text}
-  onChange={(value) => {
-  setText(value)
+  onChange={(value, richContent) => {
+    setText(value)
+    setRichContent(richContent)
 
-  setPreviewDismissed(false)
-}}
+    setPreviewDismissed(false)
+  }}
 />
 
       {loadingPreview && !linkPreview && !previewDismissed && (
@@ -1385,7 +1388,7 @@ overflow: 'hidden',
   onClick={() => {
     if (!isProfileComplete) {
       notify('⚠️ Complete your profile to ask questions')
-      router.push('/setup-profile')
+      router.push('/profile')
       return
     }
 
