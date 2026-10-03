@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { useNotify } from '@/components/NotificationProvider';
 import { setCurrentProfile } from '@/lib/currentProfile';
+import PublicTopBar from '@/components/PublicTopBar'
 import ConfirmationSheet from '@/components/ui/ConfirmationSheet'
 
 const avatars = [
@@ -565,7 +566,254 @@ useEffect(() => {
     router.push('/login');
   };
 
-  if (loading) return <div style={{ padding: 20 }}>Loading your profile...</div>;
+  if (loading) {
+  return (
+    <div
+      style={{
+        minHeight: '100dvh',
+        width: '100%',
+        background: '#FFFFFF',
+        display: 'flex',
+        justifyContent: 'center',
+        padding: 0,
+        boxSizing: 'border-box',
+      }}
+    >
+      {/* ================= REAL TOP BAR ================= */}
+      <PublicTopBar
+        title={isSetupMode ? 'Complete Profile' : 'Edit Profile'}
+        showBack={!isSetupMode}
+        onBack={() => router.back()}
+        rightSlot={
+          <button
+            disabled
+            style={{
+              minWidth: 84,
+              height: 42,
+              border: 'none',
+              borderRadius: 14,
+              background: '#ECEFF3',
+              color: '#9CA3AF',
+              fontSize: 15,
+              fontWeight: 700,
+              cursor: 'not-allowed',
+            }}
+          >
+            Save
+          </button>
+        }
+      />
+
+      {/* ================= PROFILE SKELETON ================= */}
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 420,
+          minHeight: '100dvh',
+          background: '#FFFFFF',
+
+          // PublicTopBar = 55px
+          // Small breathing room below it
+          paddingTop: 63,
+
+          // Match the real UI spacing
+          paddingRight: 4,
+          paddingLeft: 4,
+
+          paddingBottom: 40,
+          boxSizing: 'border-box',
+        }}
+      >
+        {/* ================= PROFILE HEADER ================= */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            marginBottom: 39,
+          }}
+        >
+          {/* Avatar */}
+          <div
+            className="animate-pulse"
+            style={{
+              width: 88,
+              height: 88,
+              borderRadius: '50%',
+              background: '#F1F2F4',
+              marginBottom: 23,
+            }}
+          />
+
+          {/* @username */}
+          <div
+            className="animate-pulse"
+            style={{
+              width: 84,
+              height: 29,
+              borderRadius: 8,
+              background: '#F1F2F4',
+              marginBottom: 9,
+            }}
+          />
+
+          {/* Display name */}
+          <div
+            className="animate-pulse"
+            style={{
+              width: 72,
+              height: 20,
+              borderRadius: 6,
+              background: '#F7F7F8',
+            }}
+          />
+        </div>
+
+        {/* ================= PROFILE ================= */}
+        <div>
+          {/* Section title */}
+          <div
+            className="animate-pulse"
+            style={{
+              width: 70,
+              height: 15,
+              borderRadius: 5,
+              background: '#F1F2F4',
+              marginBottom: 25,
+            }}
+          />
+
+          {/* Select your avatar */}
+          <div
+            className="animate-pulse"
+            style={{
+              width: 128,
+              height: 18,
+              borderRadius: 5,
+              background: '#F7F7F8',
+              marginBottom: 15,
+            }}
+          />
+
+          {/* Avatar options */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 14,
+              marginBottom: 34,
+            }}
+          >
+            {[1, 2, 3, 4].map((item) => (
+              <div
+                key={item}
+                className="animate-pulse"
+                style={{
+                  width: 72,
+                  height: 72,
+                  flexShrink: 0,
+                  borderRadius: '50%',
+                  background: '#F1F2F4',
+                }}
+              />
+            ))}
+          </div>
+
+          {/* ================= DISPLAY NAME ================= */}
+          <div
+            style={{
+              marginBottom: 34,
+            }}
+          >
+            {/* Label */}
+            <div
+              className="animate-pulse"
+              style={{
+                width: 105,
+                height: 18,
+                borderRadius: 5,
+                background: '#F7F7F8',
+                marginBottom: 12,
+              }}
+            />
+
+            {/* Input */}
+            <div
+              className="animate-pulse"
+              style={{
+                width: '100%',
+                height: 58,
+                borderRadius: 16,
+                border: '1px solid #F0F1F3',
+                background: '#FAFAFA',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          {/* ================= USERNAME ================= */}
+          <div
+            style={{
+              marginBottom: 34,
+            }}
+          >
+            {/* Label */}
+            <div
+              className="animate-pulse"
+              style={{
+                width: 82,
+                height: 18,
+                borderRadius: 5,
+                background: '#F7F7F8',
+                marginBottom: 12,
+              }}
+            />
+
+            {/* Input */}
+            <div
+              className="animate-pulse"
+              style={{
+                width: '100%',
+                height: 58,
+                borderRadius: 16,
+                border: '1px solid #F0F1F3',
+                background: '#FAFAFA',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          {/* ================= BIO ================= */}
+          <div>
+            {/* Label */}
+            <div
+              className="animate-pulse"
+              style={{
+                width: 38,
+                height: 18,
+                borderRadius: 5,
+                background: '#F7F7F8',
+                marginBottom: 12,
+              }}
+            />
+
+            {/* Textarea */}
+            <div
+              className="animate-pulse"
+              style={{
+                width: '100%',
+                height: 82,
+                borderRadius: 16,
+                border: '1px solid #F0F1F3',
+                background: '#FAFAFA',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 return (
   <div
@@ -583,91 +831,47 @@ return (
   }}
 >
   <div
-    style={{
-      width: '100%',
-      maxWidth: 420,
-      minHeight: '100dvh',  // ← fill entire screen
-      background: '#FFFFFF',
-      paddingTop: 8,
-      paddingRight: 20,
-      paddingBottom: 40,
-      paddingLeft: 20,
-      boxSizing: 'border-box',
-    }}
-  >
-
-    {/* TOP BAR */}
-<div
   style={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    height: 58,
-    paddingBottom: 12,
-    marginBottom: 18,
-    borderBottom: '1px solid #ECECEC',
+    width: '100%',
+    maxWidth: 420,
+    minHeight: '100dvh',
+    background: '#FFFFFF',
+
+    // 🔥 Push content below the fixed PublicTopBar (55px)
+    paddingTop: 63,
+
+    paddingRight: 20,
+    paddingBottom: 40,
+    paddingLeft: 20,
+    boxSizing: 'border-box',
   }}
 >
-  <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 14,
-    }}
-  >
-    {!isSetupMode && (
-      <button
-        onClick={() => router.back()}
-        style={{
-          background: 'none',
-          border: 'none',
-          padding: 0,
-          width: 28,
-          height: 28,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          color: '#1F2937',
-          fontSize: 28,
-          lineHeight: 1,
-        }}
-      >
-        ‹
-      </button>
-    )}
 
-    <div
+    <PublicTopBar
+  title={isSetupMode ? 'Complete Profile' : 'Edit Profile'}
+  showBack={!isSetupMode}
+  onBack={() => router.back()}
+  rightSlot={
+    <button
+      onClick={handleSave}
+      disabled={saving || !canSave}
       style={{
-        fontSize: 18,
+        minWidth: 84,
+        height: 42,
+        border: 'none',
+        borderRadius: 14,
+        background: canSave ? '#F4B860' : '#ECEFF3',
+        color: canSave ? '#111827' : '#9CA3AF',
+        fontSize: 15,
         fontWeight: 700,
-        color: '#111827',
-        letterSpacing: '-0.02em',
+        cursor: canSave ? 'pointer' : 'not-allowed',
+        transition: '0.18s',
       }}
     >
-      {isSetupMode ? 'Complete Profile' : 'Edit Profile'}
-    </div>
-  </div>
-
-  <button
-    onClick={handleSave}
-    disabled={saving || !canSave}
-    style={{
-      minWidth: 84,
-      height: 42,
-      border: 'none',
-      borderRadius: 14,
-      background: canSave ? '#F4B860' : '#ECEFF3',
-      color: canSave ? '#111827' : '#9CA3AF',
-      fontSize: 15,
-      fontWeight: 700,
-      cursor: canSave ? 'pointer' : 'not-allowed',
-      transition: '0.18s',
-    }}
-  >
-    {saving ? 'Saving…' : 'Save'}
-  </button>
-</div>
+      {saving ? 'Saving…' : 'Save'}
+    </button>
+  }
+/>
 
         {/* PROFILE HEADER */}
 <div

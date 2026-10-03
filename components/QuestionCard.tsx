@@ -285,11 +285,6 @@ function renderRichNodes(
         const format =
           node.format ?? 0
 
-          console.log('🔥 FEED RICH NODE:', {
-  text: value,
-  format,
-})
-
         const text =
           insideLink
             ? value

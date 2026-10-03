@@ -12,15 +12,10 @@ type Options = {
   setQuestions: React.Dispatch<
     React.SetStateAction<QuestionRow[]>
   >
-
-  setLoading: React.Dispatch<
-    React.SetStateAction<boolean>
-  >
 }
 
 export function useFeedCache({
   setQuestions,
-  setLoading,
 }: Options) {
   useEffect(() => {
   const loadCache = async () => {
@@ -58,7 +53,6 @@ const cleaned = parsed.filter(
 )
 
 setQuestions(cleaned)
-setLoading(false)
     } catch (e) {
       console.warn(
         'cache parse failed',
@@ -68,7 +62,7 @@ setLoading(false)
   }
 
   loadCache()
-}, [setQuestions, setLoading])
+}, [setQuestions])
 }
 
 export default useFeedCache

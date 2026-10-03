@@ -202,7 +202,6 @@ const user = session?.user
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('🔔 Notification realtime connected')
         }
       })
   }
