@@ -506,9 +506,12 @@ return (
     {/* ===================== TOP BAR ===================== */}
     <div
   style={{
-    height: pulling
-      ? pullDistance
-      : 0,
+    height:
+      pathname === '/notifications'
+        ? 0
+        : pulling
+        ? pullDistance
+        : 0,
 
     transition:
       pulling
@@ -555,15 +558,19 @@ return (
   }`}
 >
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '12px 16px',
-          background: '#fff', // 🔥 IMPORTANT (otherwise it becomes transparent)
-          borderBottom: '1px solid #eee',
-        }}
-      >
+  style={{
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+
+    height: 55,
+    padding: '0 16px',
+    boxSizing: 'border-box',
+
+    background: '#fff',
+    borderBottom: '1px solid #eee',
+  }}
+>
 
 {/* LEFT */}
 <div
@@ -576,9 +583,12 @@ return (
      * Reserve exactly 40px for the back button.
      */
     width:
-      showBack || isQuestionPage || isProfilePage
-        ? 40
-        : 0,
+  showBack ||
+  isQuestionPage ||
+  isProfilePage ||
+  isNotificationsPage
+    ? 40
+    : 0,
 
     flexShrink: 0,
 
@@ -587,7 +597,12 @@ return (
     justifyContent: 'flex-start',
   }}
 >
-  {(showBack || isQuestionPage || isProfilePage) ? (
+  {(
+  showBack ||
+  isQuestionPage ||
+  isProfilePage ||
+  isNotificationsPage
+) ? (
     <button
       onClick={
         onBack ??

@@ -8,6 +8,8 @@ import {
 import { useRouter } from 'next/navigation'
 
 import { supabase } from '@/lib/supabase'
+import PublicTopBar from '@/components/PublicTopBar'
+import { useShellLayout } from '@/components/ShellLayoutContext'
 
 type Eligibility = {
   eligible: boolean
@@ -30,6 +32,23 @@ type Community = {
 export default function CommunitiesPage() {
 
   const router = useRouter()
+  const { setTopBar } = useShellLayout()
+
+    useEffect(() => {
+    setTopBar({
+      title: 'Communities',
+      showBack: true,
+      onBack: () => router.back(),
+    })
+
+    return () => {
+      setTopBar({
+        title: undefined,
+        showBack: false,
+        onBack: undefined,
+      })
+    }
+  }, [router, setTopBar])
 
   // ─────────────────────────────────────────────
   // STATE
@@ -223,16 +242,15 @@ const joinedIds =
 const {
   data: exploreData
 } = await supabase
-
   .from('communities')
-
   .select(`
     id,
     name,
     slug,
     description,
     members_count,
-    avatar_url
+    avatar_url,
+    banner_url
   `)
 
   .not(
@@ -634,95 +652,27 @@ if (loading) {
   // ─────────────────────────────────────────────
 
   return (
-
-    <div
-      style={{
-        padding:
-      '1px 20px 24px',
-        maxWidth: 620,
-        margin: '0 auto',
-
-        fontFamily:
-          'Inter, system-ui, sans-serif',
-      }}
-    >
-
-      {/* HEADER */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-        }}
-      >
-
-        <div
-          style={{
-            fontSize: 32,
-
-            fontWeight: 700,
-
-            letterSpacing:
-              '-1.5px',
-
-            color: '#111827',
-          }}
-        >
-          Communities
-        </div>
-
-        <div
-          style={{
-            padding:
-              '6px 10px',
-
-            borderRadius: 999,
-
-            background:
-              'rgba(244,197,66,0.15)',
-
-            border:
-              '1px solid rgba(244,197,66,0.35)',
-
-            fontSize: 12,
-
-            fontWeight: 700,
-
-            color: '#B7791F',
-          }}
-        >
-          BETA
-        </div>
-
-      </div>
-
-      {/* SUBTEXT */}
-      <div
-        style={{
-          marginTop: 6,
-
-          color: '#667085',
-
-          fontSize: 16,
-
-          lineHeight: '28px',
-
-          fontWeight: 500,
-        }}
-      >
-        Join like-minded people
-        inside EggPuff.
-      </div>
+    <>
+    
+    <PublicTopBar />
+    
+    
+  <div
+  style={{
+    padding: '55px 20px 24px',
+    maxWidth: 620,
+    margin: '0 auto',
+    fontFamily: 'Inter, system-ui, sans-serif',
+  }}
+>
 
       {/* TABS */}
       <div
         style={{
-          display: 'flex',
-
-          gap: 10,
-
-          marginTop: 28,
-        }}
+  display: 'flex',
+  gap: 10,
+  marginTop: 0,
+}}
       >
 
         {['joined', 'create']
@@ -1560,5 +1510,6 @@ if (loading) {
       )}
 
     </div>
+    </>
   )
 }

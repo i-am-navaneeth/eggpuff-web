@@ -2,7 +2,41 @@
 
 All notable changes to EggPuff are documented here.
 
-## [0.6.0] — Product Experience Upgrade
+## [v0.6.1] — Product UI Upgrade
+
+### Added
+
+- Added Public Topbar to Community Page.
+- Added Public Topbar to Edit Profile Screen.
+- Added Back button to the Community Page.
+
+### Improved
+
+- Improved spacing between Joined/Create tabs and Topbar in Community Page.
+- Improved verify badge in the connections sheet.
+
+### Fixed
+
+- Fixed question loading bug in profile page.
+- Fixed question, likes and answer counts in profile page.
+- Fixed profile screen unmounting(while clicking questions).
+- Fixed ep points on profile page for non-session users. 
+
+### Internal / Technical
+
+- Skeleton effect is added back to the feed page.
+
+### Release Summary
+
+- v0.6.1 is a UI focused update where the most user noticable UI bugs and UX are updated/fixed.
+- This release strengthens EggPuff's UI.
+- No breaking architectural or product changes were introduced in this release.
+
+# Changelog
+
+All notable changes to EggPuff are documented here.
+
+## [v0.6.0] — Product Experience Upgrade
 
 ### Added
 
@@ -55,7 +89,7 @@ All notable changes to EggPuff are documented here.
 
 All notable changes to EggPuff are documented here.
 
-## [0.5.0] — Smart Feed V4 & UX Improvements
+## [v0.5.0] — Smart Feed V4 & UX Improvements
 
 ### Added
 

@@ -10,14 +10,20 @@ import {
   useRouter,
 } from 'next/navigation'
 
+import { useNavigation } from '@/components/navigation/NavigationProvider'
+
 import ProfileOverlay from './overlays/ProfileOverlay'
 import QuestionOverlay from './overlays/QuestionOverlay'
 import EditProfileOverlay from './overlays/EditProfileOverlay'
 
 export default function OverlayRoot() {
-
-  const pathname = usePathname()
+ 
+  const pathname = usePathname() 
   const router = useRouter()
+
+  const {
+    navigationStack,
+  } = useNavigation()
 
   const [readerTransition, setReaderTransition] =
     useState<{
@@ -136,23 +142,61 @@ return () => {
     )
   }
 
-  if (pathname.startsWith('/u/')) {
-    return (
-      <ProfileOverlay
-        username={pathname.replace('/u/', '')}
-      />
-    )
-  }
+    /*
+   * ==========================================================
+   * NAVIGATION OVERLAY STACK
+   *
+   * Keep previous overlays mounted.
+   *
+   * /u/john
+   *   ↓
+   * /question/123
+   *
+   * becomes:
+   *
+   * ProfileOverlay
+   * QuestionOverlay
+   *
+   * The question sits above the profile while the profile
+   * remains mounted with its scroll position and state.
+   * ==========================================================
+   */
 
-  if (pathname === '/profile') {
-    return <EditProfileOverlay />
-  }
-
-  if (pathname.startsWith('/question/')) {
+  if (navigationStack.length > 0) {
     return (
-      <QuestionOverlay
-        questionId={pathname.replace('/question/', '')}
-      />
+      <>
+        {navigationStack.map((entry) => {
+          const route = entry.route
+
+          if (route.startsWith('/u/')) {
+            return (
+              <ProfileOverlay
+                key={entry.id}
+                username={route.replace('/u/', '')}
+              />
+            )
+          }
+
+          if (route === '/profile') {
+            return (
+              <EditProfileOverlay
+                key={entry.id}
+              />
+            )
+          }
+
+          if (route.startsWith('/question/')) {
+            return (
+              <QuestionOverlay
+                key={entry.id}
+                questionId={route.replace('/question/', '')}
+              />
+            )
+          }
+
+          return null
+        })}
+      </>
     )
   }
 

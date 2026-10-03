@@ -182,7 +182,6 @@ useInfiniteObserver({
 
 useFeedCache({
   setQuestions,
-  setLoading,
 })
 
   // ─────────────────────────────────────────────
