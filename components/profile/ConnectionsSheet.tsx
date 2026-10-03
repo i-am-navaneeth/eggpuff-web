@@ -602,9 +602,42 @@ const router = useRouter()
           </p>
 
           {user.is_verified && (
-            <span className="text-sky-500 text-xs">
-              ✔︎
-            </span>
+            <span
+  style={{
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: 'translateY(1px)',
+  }}
+>
+  <svg
+    viewBox="0 0 24 24"
+    width="18"
+    height="18"
+  >
+    <path
+      fill="#1D9BF0"
+      d="
+        M12 2.5
+        L13.8 4.2 L16.2 3.8 L17 6.2 L19.4 7 L19 9.4
+        L20.5 11.5 L19 13.6 L19.4 16 L17 16.8
+        L16.2 19.2 L13.8 18.8 L12 20.5
+        L10.2 18.8 L7.8 19.2 L7 16.8 L4.6 16
+        L5 13.6 L3.5 11.5 L5 9.4
+        L4.6 7 L7 6.2 L7.8 3.8 L10.2 4.2 Z
+      "
+    />
+
+    <path
+      d="M8.6 11.7l2.4 2.4 4.8-4.8"
+      fill="none"
+      stroke="#FFF"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+</span>
           )}
 
         </div>

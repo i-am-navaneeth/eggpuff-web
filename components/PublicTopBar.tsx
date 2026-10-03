@@ -4,7 +4,19 @@ import { useShellLayout } from '@/components/ShellLayoutContext'
 import { useRouter, usePathname } from 'next/navigation'
 import { BackButton } from '@/components/topbar/TopBarSlots'
 
-export default function PublicTopBar() {
+type PublicTopBarProps = {
+  title?: string
+  showBack?: boolean
+  onBack?: () => void
+  rightSlot?: React.ReactNode
+}
+
+export default function PublicTopBar({
+  title,
+  showBack,
+  onBack,
+  rightSlot,
+}: PublicTopBarProps) {
   const { topBar } = useShellLayout()
   const router = useRouter()
   const pathname = usePathname()
@@ -56,9 +68,10 @@ export default function PublicTopBar() {
       marginRight: 2,
     }}
   >
-   {topBar.showBack || pathname === '/resources' ? (
+   {(showBack ?? topBar.showBack) || pathname === '/resources' ? (
   <BackButton
     onClick={
+      onBack ??
       topBar.onBack ??
       (() => router.back())
     }
@@ -86,12 +99,32 @@ export default function PublicTopBar() {
       marginLeft: 2,
     }}
   >
-    {topBar.title ??
+    {title ??
+  topBar.title ??
   (isReader
     ? 'Reader'
     : pathname.startsWith('/resources')
     ? 'Resources'
     : 'EggPuff')}
+
+{pathname === '/communities' && (
+  <span
+    style={{
+      marginLeft: 8,
+      padding: '4px 8px',
+      borderRadius: 999,
+      background: 'rgba(244,197,66,0.15)',
+      border: '1px solid rgba(244,197,66,0.35)',
+      color: '#B7791F',
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: '0.3px',
+      flexShrink: 0,
+    }}
+  >
+    BETA
+  </span>
+)}
   </div>
 </div>
 
@@ -177,9 +210,9 @@ export default function PublicTopBar() {
 </button>
   )}
 
-  {/* EXISTING RIGHT SLOT */}
+ {/* EXISTING RIGHT SLOT */}
 
-  {topBar.rightSlot}
+{rightSlot ?? topBar.rightSlot}
 </div>
     </div>
   )

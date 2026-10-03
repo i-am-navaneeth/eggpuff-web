@@ -6,14 +6,23 @@ import { supabase } from './supabase'
 // BALANCE (SOURCE OF TRUTH = LEDGER)
 // ===============================
 export async function getEggPuffBalance(userId: string) {
-  const { data, error } = await supabase
-    .from('egg_puff_ledger')
-    .select('amount')
-    .eq('user_id', userId)
+  const { data, error } = await supabase.rpc(
+    'get_egg_puff_balance',
+    {
+      target_user_id: userId,
+    }
+  )
 
-  if (error || !data) return 0
+  if (error) {
+    console.error(
+      'Failed to fetch EggPuff balance:',
+      error
+    )
 
-  return data.reduce((sum, r) => sum + Number(r.amount), 0)
+    return 0
+  }
+
+  return Number(data ?? 0)
 }
 
 // ===============================

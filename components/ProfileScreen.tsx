@@ -10,6 +10,7 @@ import QuestionCard from '@/components/QuestionCard'
 import Link from 'next/link'
 import FollowListSheet from '@/components/FollowListSheet'
 import { useNavigation } from '@/components/navigation/NavigationProvider'
+import { useShellLayout } from '@/components/ShellLayoutContext'
 import ConnectionsSheet from '@/components/profile/ConnectionsSheet'
 
 function timeAgo(date: string) {
@@ -49,6 +50,24 @@ const resolvedUsername =
     : params.username
 
   const router = useRouter()
+
+  const { setTopBar } = useShellLayout()
+
+useEffect(() => {
+  setTopBar({
+    title: 'EggPuff',
+    showBack: true,
+    onBack: () => router.back(),
+  })
+
+  return () => {
+    setTopBar({
+      title: undefined,
+      showBack: false,
+      onBack: undefined,
+    })
+  }
+}, [router, setTopBar])
   
 
 const [loading, setLoading] = useState(true)
@@ -293,7 +312,7 @@ useEffect(() => {
         ),
 
       getEggPuffBalance(
-        profileData.user_id
+       profileData.user_id
       ),
 
       userId
@@ -342,33 +361,53 @@ useEffect(() => {
 
     setFriendsCount(mutual.length)
 
-    const cacheKey =
-  `ep_points_${profileData.user_id}`
+    // ================= EP POINTS =================
+// SOURCE OF TRUTH = egg_puff_ledger
+// Always fetch the balance using the PROFILE user's ID,
+// NOT the currently logged-in/session user's ID.
 
-const cachedEp =
-  localStorage.getItem(cacheKey)
+const profileUserId = profileData.user_id
 
-if (cachedEp !== null) {
-  setEp(Number(cachedEp))
+if (profileUserId) {
+  try {
+    // Fetch the actual EP balance for the profile being viewed.
+    // This works for both:
+    // 1. The logged-in user
+    // 2. Another/non-session profile user
+    const realEp = await getEggPuffBalance(profileUserId)
+
+    const safeEp = Number.isFinite(Number(realEp))
+      ? Number(realEp)
+      : 0
+
+    setEp(safeEp)
+
+    // Cache only AFTER getting the real database value.
+    localStorage.setItem(
+      `ep_points_${profileUserId}`,
+      String(safeEp)
+    )
+
+    // Keep other EP UI components synchronized.
+    window.dispatchEvent(
+      new CustomEvent('ep-updated', {
+        detail: {
+          userId: profileUserId,
+          ep: safeEp,
+        },
+      })
+    )
+  } catch (error) {
+    console.error(
+      'Failed to load EP balance:',
+      error
+    )
+
+    setEp(0)
+  }
+} else {
+  setEp(0)
 }
-
-    const nextEp = epValue || 0
-
-setEp(nextEp)
-
-localStorage.setItem(
-  cacheKey,
-  String(nextEp)
-)
-
-window.dispatchEvent(
-  new CustomEvent('ep-updated', {
-    detail: {
-      userId: profileData.user_id,
-      ep: nextEp,
-    },
-  })
-)
 
     setIsFollowing(
       !!followState.data
@@ -562,111 +601,390 @@ setShowMiniProfile(rect.bottom < 0)
 useEffect(() => {
   if (!profile?.user_id) return
 
+  let cancelled = false
+
   const fetchQuestions = async () => {
     setLoadingQuestions(true)
 
-const { data, error } = await supabase
-  .from("questions")
-  .select("*")
-  .eq("user_id", profile.user_id)
-  .order("created_at", { ascending: false })
-  .range(0, QUESTIONS_PAGE_SIZE - 1)
+    // Reset pagination whenever profile changes
+    questionsHardLockRef.current = false
+    questionsOffsetRef.current = 0
+    setQuestionsOffset(0)
+    setQuestionsHasMore(true)
 
-if (error) {
-  console.error("Questions error:", error)
+    // ================= FETCH QUESTIONS =================
+
+    const {
+      data: questionsData,
+      error: questionsError,
+    } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('user_id', profile.user_id)
+      .order('created_at', {
+        ascending: false,
+      })
+      .range(
+        0,
+        QUESTIONS_PAGE_SIZE - 1
+      )
+
+    if (questionsError) {
+      console.error(
+        'Questions fetch failed:',
+        questionsError
+      )
+
+      if (!cancelled) {
+        setQuestions([])
+        setQuestionsHasMore(false)
+        setLoadingQuestions(false)
+      }
+
+      return
+    }
+
+    if (cancelled) return
+
+    const questionRows = questionsData || []
+
+    // ================= FETCH HELPFUL + ANSWER COUNTS =================
+
+let helpfulRows: any[] = []
+let answerRows: any[] = []
+
+const questionIds = questionRows
+  .map((q: any) => q.id)
+  .filter(Boolean)
+
+if (questionIds.length > 0) {
+
+  // ================= LIKES =================
+
+  const {
+    data: helpfulData,
+    error: helpfulError,
+  } = await supabase
+    .from('question_likes')
+    .select('question_id, user_id')
+    .in(
+      'question_id',
+      questionIds
+    )
+
+  if (helpfulError) {
+    console.warn(
+      'Question likes fetch skipped:',
+      helpfulError?.message ||
+        helpfulError
+    )
+
+    helpfulRows = []
+  } else {
+    helpfulRows = helpfulData || []
+  }
+
+  // ================= ANSWERS =================
+
+  const {
+    data: answerData,
+    error: answerError,
+  } = await supabase
+    .from('answers')
+    .select('question_id')
+    .in(
+      'question_id',
+      questionIds
+    )
+
+  if (answerError) {
+    console.warn(
+      'Answer count fetch skipped:',
+      answerError?.message ||
+        answerError
+    )
+
+    answerRows = []
+  } else {
+    answerRows = answerData || []
+  }
 }
 
-    if (!error) {
-  const formatted =
-    (data || []).map((q: any) => ({
+if (cancelled) return
+
+// ================= FORMAT QUESTIONS =================
+
+const formatted = questionRows.map(
+  (q: any) => {
+
+    const helpfulForQuestion =
+      helpfulRows.filter(
+        (h: any) =>
+          h.question_id === q.id
+      )
+
+    const answersForQuestion =
+      answerRows.filter(
+        (a: any) =>
+          a.question_id === q.id
+      )
+
+    return {
       ...q,
-      helpful_count: q.question_helpful?.length ?? 0,
+
+      helpful_count:
+        helpfulForQuestion.length,
+
       is_helpful:
-        q.question_helpful?.some(
-          (h: any) => h.user_id === currentUserId
-        ) ?? false,
-    }))
+        currentUserId
+          ? helpfulForQuestion.some(
+              (h: any) =>
+                h.user_id === currentUserId
+            )
+          : false,
 
-  setQuestions(formatted)
+      answers_count:
+        answersForQuestion.length,
+    }
+  }
+)
 
-  const nextOffset = formatted.length
+    // ================= UPDATE STATE =================
 
-  questionsOffsetRef.current = nextOffset
-  setQuestionsOffset(nextOffset)
+    setQuestions(formatted)
 
-  setQuestionsHasMore(
-    formatted.length === QUESTIONS_PAGE_SIZE
-  )
-}
+    const nextOffset =
+      formatted.length
+
+    questionsOffsetRef.current =
+      nextOffset
+
+    setQuestionsOffset(
+      nextOffset
+    )
+
+    setQuestionsHasMore(
+      formatted.length ===
+        QUESTIONS_PAGE_SIZE
+    )
 
     setLoadingQuestions(false)
   }
 
   fetchQuestions()
-}, [profile])
+
+  return () => {
+    cancelled = true
+  }
+}, [profile?.user_id, currentUserId])
+
+
+// ================= LOAD MORE QUESTIONS =================
 
 const loadMoreQuestions = async () => {
-
   if (
     questionsHardLockRef.current ||
     !questionsHasMore ||
     !profile?.user_id
   ) {
-  
     return
   }
-
 
   questionsHardLockRef.current = true
   setLoadingMoreQuestions(true)
 
-  const { data, error } = await supabase
-  .from("questions")
-  .select(`
-    *,
-    question_helpful (
-      user_id
+  const currentOffset =
+    questionsOffsetRef.current
+
+  const {
+    data: questionsData,
+    error: questionsError,
+  } = await supabase
+    .from('questions')
+    .select('*')
+    .eq('user_id', profile.user_id)
+    .order('created_at', {
+      ascending: false,
+    })
+    .range(
+      currentOffset,
+      currentOffset +
+        QUESTIONS_PAGE_SIZE -
+        1
     )
-  `)
-  .eq("user_id", profile.user_id)
-  .order("created_at", { ascending: false })
-  .range(
-    questionsOffsetRef.current,
-    questionsOffsetRef.current + QUESTIONS_PAGE_SIZE - 1
-  )
 
-  if (!error && data) {
-const formatted =
-  (data || []).map((q: any) => ({
-    ...q,
-    helpful_count: q.question_helpful?.length ?? 0,
-    is_helpful:
-      q.question_helpful?.some(
-        (h: any) => h.user_id === currentUserId
-      ) ?? false,
-  }))
+  if (questionsError) {
+    console.error(
+      'Load more questions error:',
+      {
+        message: questionsError.message,
+        details: questionsError.details,
+        hint: questionsError.hint,
+        code: questionsError.code,
+      }
+    )
 
-setQuestions(prev => {
-  const map = new Map()
+    setLoadingMoreQuestions(false)
+    questionsHardLockRef.current = false
 
-  prev.forEach(q => map.set(q.id, q))
-  formatted.forEach(q => map.set(q.id, q))
+    return
+  }
 
-  return [...map.values()]
-})
+  const questionsList =
+    questionsData || []
 
-    questionsOffsetRef.current += data.length
-setQuestionsOffset(questionsOffsetRef.current)
+    // ================= FETCH HELPFUL + ANSWER COUNTS =================
 
-    if (data.length < QUESTIONS_PAGE_SIZE) {
-      setQuestionsHasMore(false)
-      questionsObserverRef.current?.disconnect()
+  const questionIds =
+    questionsList.map(
+      (q: any) => q.id
+    )
+
+  let helpfulData: any[] = []
+  let answerData: any[] = []
+
+  if (questionIds.length > 0) {
+
+    // ================= LIKES =================
+
+    const {
+      data,
+      error: helpfulError,
+    } = await supabase
+      .from('question_likes')
+      .select('question_id, user_id')
+      .in(
+        'question_id',
+        questionIds
+      )
+
+    if (helpfulError) {
+      console.warn(
+        'Load more helpful fetch failed:',
+        {
+          message: helpfulError.message,
+          details: helpfulError.details,
+          hint: helpfulError.hint,
+          code: helpfulError.code,
+        }
+      )
+
+      helpfulData = []
+    } else {
+      helpfulData = data || []
+    }
+
+
+    // ================= ANSWERS =================
+
+    const {
+      data: answers,
+      error: answerError,
+    } = await supabase
+      .from('answers')
+      .select('question_id')
+      .in(
+        'question_id',
+        questionIds
+      )
+
+    if (answerError) {
+      console.warn(
+        'Load more answer count fetch failed:',
+        {
+          message: answerError.message,
+          details: answerError.details,
+          hint: answerError.hint,
+          code: answerError.code,
+        }
+      )
+
+      answerData = []
+    } else {
+      answerData = answers || []
     }
   }
+
+
+  // ================= FORMAT =================
+
+  const formatted =
+    questionsList.map((q: any) => {
+
+      const helpfulForQuestion =
+        helpfulData.filter(
+          (h: any) =>
+            h.question_id === q.id
+        )
+
+      const answersForQuestion =
+        answerData.filter(
+          (a: any) =>
+            a.question_id === q.id
+        )
+
+      return {
+        ...q,
+
+        // Helpful / likes
+        helpful_count:
+          helpfulForQuestion.length,
+
+        is_helpful:
+          helpfulForQuestion.some(
+            (h: any) =>
+              h.user_id === currentUserId
+          ),
+
+        // Answers
+        answers_count:
+          answersForQuestion.length,
+      }
+    })
+
+  if (formatted.length > 0) {
+    setQuestions(prev => {
+      const map = new Map()
+
+      prev.forEach(q => {
+        map.set(q.id, q)
+      })
+
+      formatted.forEach(q => {
+        map.set(q.id, q)
+      })
+
+      return Array.from(
+        map.values()
+      )
+    })
+
+    const newOffset =
+      currentOffset +
+      formatted.length
+
+    questionsOffsetRef.current =
+      newOffset
+
+    setQuestionsOffset(
+      newOffset
+    )
+
+    if (
+      formatted.length <
+      QUESTIONS_PAGE_SIZE
+    ) {
+      setQuestionsHasMore(false)
+    }
+  } else {
+    setQuestionsHasMore(false)
+  }
+
   setLoadingMoreQuestions(false)
-questionsHardLockRef.current = false
+  questionsHardLockRef.current = false
 }
 
+// Keep the latest function available
 const loadMoreQuestionsFn =
   useRef(loadMoreQuestions)
 
@@ -675,52 +993,115 @@ useEffect(() => {
     loadMoreQuestions
 })
 
+
+// ================= QUESTION PAGINATION =================
+
 useEffect(() => {
-  if (activeTab !== "questions") return
+  if (
+    activeTab !== 'questions' ||
+    !profile?.user_id
+  ) {
+    return
+  }
 
-  const el = loadMoreQuestionsRef.current
-  if (!el) return
+  const target =
+    scrollContainer?.current ?? null
 
-  // Disconnect any previous observer
-  questionsObserverRef.current?.disconnect()
+  const handleScroll = () => {
+    if (
+      questionsHardLockRef.current ||
+      !questionsHasMore ||
+      loadingQuestions
+    ) {
+      return
+    }
 
-  // Create a new observer
-  questionsObserverRef.current = new IntersectionObserver(
-    (entries) => {
-      const entry = entries[0]
+    const sentinel =
+      loadMoreQuestionsRef.current
+
+    if (!sentinel) return
+
+    const sentinelRect =
+      sentinel.getBoundingClientRect()
+
+    // If using the custom EggPuff scroll container,
+    // calculate against that container.
+    if (target) {
+      const containerRect =
+        target.getBoundingClientRect()
+
+      const distanceFromBottom =
+        sentinelRect.top -
+        containerRect.bottom
 
       if (
-        entry.isIntersecting &&
-        !questionsHardLockRef.current &&
-        questionsHasMore
+        distanceFromBottom <= 700
       ) {
-        loadMoreQuestions()
+        loadMoreQuestionsFn.current()
       }
-    },
-    {
-      root: null,
-      rootMargin: "600px",
-      threshold: 0,
-    }
-  )
 
-  questionsObserverRef.current.observe(el)
+      return
+    }
+
+    // Normal window scrolling
+    const distanceFromBottom =
+      sentinelRect.top -
+      window.innerHeight
+
+    if (
+      distanceFromBottom <= 700
+    ) {
+      loadMoreQuestionsFn.current()
+    }
+  }
+
+  // Check immediately.
+  // This handles cases where the first 10
+  // questions don't fill the screen.
+  handleScroll()
+
+  if (target) {
+    target.addEventListener(
+      'scroll',
+      handleScroll,
+      { passive: true }
+    )
+  } else {
+    window.addEventListener(
+      'scroll',
+      handleScroll,
+      { passive: true }
+    )
+  }
 
   return () => {
-    questionsObserverRef.current?.disconnect()
+    if (target) {
+      target.removeEventListener(
+        'scroll',
+        handleScroll
+      )
+    } else {
+      window.removeEventListener(
+        'scroll',
+        handleScroll
+      )
+    }
   }
 }, [
   activeTab,
-  loadingQuestions,
-  questions.length,
+  profile?.user_id,
   questionsHasMore,
+  questions.length,
+  loadingQuestions,
+  scrollContainer,
 ])
 
+
+// ================= DISCONNECT OLD OBSERVER =================
+
 useEffect(() => {
-  if (!questionsHasMore) {
-    questionsObserverRef.current?.disconnect()
-  }
-}, [questionsHasMore])
+  questionsObserverRef.current?.disconnect()
+}, [])
 
 const loadMoreAnswers = async () => {
   if (
@@ -1048,10 +1429,6 @@ useEffect(() => {
     return <div className="p-5">User not found</div>
   }
 
-if (pathname.startsWith('/question/')) {
-  return null
-}
-
   return (
 <div
   className="max-w-[600px] mx-auto px-5"
@@ -1369,6 +1746,7 @@ if (pathname.startsWith('/question/')) {
     user_name: profile.name,
     username: profile.username,
     avatar_url: profile.avatar_url,
+    is_verified: profile.is_verified,
     is_anonymous: false,
     answers_count: q.answers_count ?? 0,
     hideStreak: true,
