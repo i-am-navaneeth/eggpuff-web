@@ -93,7 +93,7 @@ export function NavigationProvider({
 
         scrollY:
           typeof window !==
-          'undefined'
+            'undefined'
             ? window.scrollY
             : 0,
       }
@@ -103,14 +103,9 @@ export function NavigationProvider({
       )
 
       pushHistory(route)
-console.log(
-  'OPEN',
-  route,
-  state.stack.map(s => s.route)
-)
     },
-[router, state]
-)
+    [router, state]
+  )
 
   /* ==========================================================
      REPLACE
@@ -136,7 +131,7 @@ console.log(
 
           scrollY:
             typeof window !==
-            'undefined'
+              'undefined'
               ? window.scrollY
               : 0,
         }
@@ -148,24 +143,19 @@ console.log(
         )
 
         pushHistory(route)
-console.log(
-  'REPLACE',
-  route,
-  state.stack.map(s => s.route)
-)
-     },
-[router, state]
-)
+      },
+      [router, state]
+    )
 
   /* ==========================================================
      CLOSE
   ========================================================== */
 
-const close = useCallback(() => {
-  // Don't dispatch here.
-  // Browser back will fire popstate, which updates the stack.
-  backHistory()
-}, [])
+  const close = useCallback(() => {
+    // Don't dispatch here.
+    // Browser back will fire popstate, which updates the stack.
+    backHistory()
+  }, [])
 
   /* ==========================================================
      CLEAR
@@ -204,14 +194,14 @@ const close = useCallback(() => {
      TYPED NAVIGATION
   ========================================================== */
 
- const openProfile =
-  useCallback(
-    (username: string) => {
+  const openProfile =
+    useCallback(
+      (username: string) => {
 
-      open(`/u/${username}`)
-    },
-    [open]
-  )
+        open(`/u/${username}`)
+      },
+      [open]
+    )
 
   const openQuestion =
     useCallback(
@@ -225,10 +215,10 @@ const close = useCallback(() => {
       [open]
     )
 
- const openEditProfile =
-  useCallback(() => {
-    open('/profile')
-  }, [open])
+  const openEditProfile =
+    useCallback(() => {
+      open('/profile')
+    }, [open])
 
   /* ==========================================================
      CONTEXT VALUE
@@ -246,7 +236,7 @@ const close = useCallback(() => {
           ),
 
         currentRoute:
-  currentNavigation(state)?.route ?? null,
+          currentNavigation(state)?.route ?? null,
 
         open,
 

@@ -1,6 +1,6 @@
 {
   "name": "eggpuff-web",
-  "version": "0.6.0",
+  "version": "v0.7.1",
   "private": true,
   "scripts": {
     "dev": "next dev",

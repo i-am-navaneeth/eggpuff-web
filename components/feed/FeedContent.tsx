@@ -55,6 +55,7 @@ import {
 } from './utils/buildFeedItems'
 
 import ExploreIntro from './ExploreIntro'
+import CompleteProfilePrompt from './CompleteProfilePrompt'
 
 // ─────────────────────────────────────────────
 // Component
@@ -73,19 +74,41 @@ export default function FeedContent() {
   const [questions, setQuestions] = useState<QuestionRow[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] =
-  useState(false)
+    useState(false)
   const [activeCategorySlug, setActiveCategorySlug] = useState<string>('all')
   const [filter, setFilter] = useState<FilterType>('all')
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
   const [profile, setProfile] = useState<any>(null)
-const [profileLoading, setProfileLoading] = useState(true)
-const isProfileComplete =
-  !!profile?.college_id && !!profile?.batch_year
+  const [profileLoading, setProfileLoading] = useState(true)
 
-// ─── Approved college discovery ───────────────
-const [approvedCollege, setApprovedCollege] = useState<any>(null)
-const [showCollegeBanner, setShowCollegeBanner] = useState(false)
-const [joiningCollege, setJoiningCollege] = useState(false)
+  const isProfileComplete =
+    !!profile?.college_id && !!profile?.batch_year
+
+  const [collegeRequestStatus, setCollegeRequestStatus] =
+    useState<string | null>(null)
+
+  const [collegeRequestChecked, setCollegeRequestChecked] =
+    useState(false)
+
+  const showExploreMode =
+    !loading &&
+    !profileLoading &&
+    collegeRequestChecked &&
+    !profile?.college_id &&
+    collegeRequestStatus === 'pending'
+
+  const showCompleteProfilePrompt =
+    !loading &&
+    !profileLoading &&
+    collegeRequestChecked &&
+    !isProfileComplete &&
+    collegeRequestStatus !== 'pending' &&
+    collegeRequestStatus !== 'approved'
+
+  // ─── Approved college discovery ───────────────
+  const [approvedCollege, setApprovedCollege] = useState<any>(null)
+  const [showCollegeBanner, setShowCollegeBanner] = useState(false)
+  const [joiningCollege, setJoiningCollege] = useState(false)
 
   const now = useFeedClock()
   const [newQuestions, setNewQuestions] = useState<any[]>([])
@@ -93,19 +116,19 @@ const [joiningCollege, setJoiningCollege] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] =
-  useState(true)
+    useState(true)
   const [offset, setOffset] = useState(0)
   useEffect(() => {
-  offsetRef.current = offset
-}, [offset])
+    offsetRef.current = offset
+  }, [offset])
 
   const {
-  openEditProfile,
-} = useNavigation()
+    openEditProfile,
+  } = useNavigation()
   const [userId, setUserId] = useState<string | null>(null)
 
   const questionsRef =
-  useRef<QuestionRow[]>([])
+    useRef<QuestionRow[]>([])
 
   // ─── IntersectionObserver sentinel ──────────
   const loadMoreRefEl = useRef<HTMLDivElement | null>(null)
@@ -113,42 +136,42 @@ const [joiningCollege, setJoiningCollege] = useState(false)
   const offsetRef = useRef(0)
 
   const feedSnapshotRef =
-  useRef<string | null>(null)
+    useRef<string | null>(null)
 
-const cursorScoreRef =
-  useRef<number | null>(null)
+  const cursorScoreRef =
+    useRef<number | null>(null)
 
-const cursorIdRef =
-  useRef<string | null>(null)
+  const cursorIdRef =
+    useRef<string | null>(null)
 
   const {
-  hardLockRef,
-  loadMoreRef,
-  mergeBatch,
-} = useFeedPagination({
-  questions,
-  loaded,
-  hasMore,
-  setHasMore,
-  loadingMore,
-  setLoadingMore,
-  setQuestions,
-  observerRef,
+    hardLockRef,
+    loadMoreRef,
+    mergeBatch,
+  } = useFeedPagination({
+    questions,
+    loaded,
+    hasMore,
+    setHasMore,
+    loadingMore,
+    setLoadingMore,
+    setQuestions,
+    observerRef,
 
-  feedSnapshotRef,
-  cursorScoreRef,
-  cursorIdRef,
-})
+    feedSnapshotRef,
+    cursorScoreRef,
+    cursorIdRef,
+  })
 
-useInfiniteObserver({
-  loaded,
-  loadingMore,
-  hasMore,
-  loadMoreRefEl,
-  observerRef,
-  hardLockRef,
-  loadMoreRef,
-})
+  useInfiniteObserver({
+    loaded,
+    loadingMore,
+    hasMore,
+    loadMoreRefEl,
+    observerRef,
+    hardLockRef,
+    loadMoreRef,
+  })
 
   // ─────────────────────────────────────────────
   // Category param sync
@@ -180,230 +203,245 @@ useInfiniteObserver({
     }
   }
 
-useFeedCache({
-  setQuestions,
-})
+  useFeedCache({
+    setQuestions,
+  })
 
   // ─────────────────────────────────────────────
   // Initial load
   // ─────────────────────────────────────────────
 
   useFeedInitialLoad({
-  questions,
-  loaded,
-
-  mergeBatch,
-
-  createProfileIfNotExists,
-
-  setLoading,
-  setUserId,
-  setOffset,
-  setHasMore,
-  setLoaded,
-
-  setPromoted,
-  setCategories,
-  setQuestions,
-  setProfile,
-  setProfileLoading,
-
-  feedSnapshotRef,
-  cursorScoreRef,
-  cursorIdRef,
-})
-  
-useEffect(() => {
-  questionsRef.current =
-    questions
-}, [questions])
-
-const visibleQuestions =
-  useVisibleQuestions({
     questions,
-    now,
-    activeCategorySlug,
-    filter,
-    categories,
+    loaded,
+
+    mergeBatch,
+
+    createProfileIfNotExists,
+
+    setLoading,
+    setUserId,
+    setOffset,
+    setHasMore,
+    setLoaded,
+
+    setPromoted,
+    setCategories,
+    setQuestions,
+    setProfile,
+    setProfileLoading,
+
+    feedSnapshotRef,
+    cursorScoreRef,
+    cursorIdRef,
   })
 
-const feedItems = useMemo(
-  () =>
-    buildFeedItems({
-      questions: visibleQuestions,
-      promotions: promoted,
-    }),
-  [visibleQuestions, promoted]
-)
+  useEffect(() => {
+    questionsRef.current =
+      questions
+  }, [questions])
 
-const showExploreMode =
-  !profileLoading &&
-  !profile?.college_id
+  const visibleQuestions =
+    useVisibleQuestions({
+      questions,
+      now,
+      activeCategorySlug,
+      filter,
+      categories,
+    })
 
-// ─────────────────────────────────────────────
-// Approved College Discovery
-// ─────────────────────────────────────────────
+  const feedItems = useMemo(
+    () =>
+      buildFeedItems({
+        questions: visibleQuestions,
+        promotions: promoted,
+      }),
+    [visibleQuestions, promoted]
+  )
 
-useEffect(() => {
-  if (profileLoading || !profile || profile.college_id || !userId) {
-    setShowCollegeBanner(false)
-    return
-  }
+  // ─────────────────────────────────────────────
+  // Approved College Discovery
+  // ─────────────────────────────────────────────
 
-  const checkApprovedCollege = async () => {
-    try {
-      // Find this user's approved college request
-      const { data: request, error: requestError } =
-        await supabase
+  useEffect(() => {
+    let cancelled = false
+
+    const checkCollegeRequest = async () => {
+      if (profileLoading || !profile || !userId) {
+        return
+      }
+
+      setCollegeRequestChecked(false)
+
+      // A user already connected to a college needs no discovery UI.
+      if (profile.college_id) {
+        setCollegeRequestStatus(null)
+        setShowCollegeBanner(false)
+        setCollegeRequestChecked(true)
+        return
+      }
+
+      try {
+        // Get the user's latest college request, regardless of status.
+        const { data: request, error: requestError } = await supabase
           .from('college_requests')
           .select('id, name, status')
           .eq('requested_by', userId)
-          .eq('status', 'approved')
-          .order('created_at', {
-            ascending: false,
-          })
+          .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle()
 
-      if (requestError) {
-        console.error(
-          'APPROVED COLLEGE REQUEST ERROR:',
-          requestError
-        )
-        return
-      }
+        if (cancelled) return
 
-      if (!request) {
-        setShowCollegeBanner(false)
-        return
-      }
+        if (requestError) {
+          console.error('COLLEGE REQUEST CHECK ERROR:', requestError)
+          setCollegeRequestStatus(null)
+          setShowCollegeBanner(false)
+          return
+        }
 
-      // Find the actual college that admin created
-      const { data: college, error: collegeError } =
-        await supabase
+        const status = request?.status ?? null
+
+        setCollegeRequestStatus(status)
+
+        // Only approved requests should trigger college discovery.
+        if (status !== 'approved' || !request?.name) {
+          setShowCollegeBanner(false)
+          return
+        }
+
+        const { data: college, error: collegeError } = await supabase
           .from('colleges')
           .select('id, name')
           .eq('name', request.name)
           .maybeSingle()
 
-      if (collegeError) {
-        console.error(
-          'APPROVED COLLEGE LOOKUP ERROR:',
-          collegeError
-        )
-        return
-      }
+        if (cancelled) return
 
-      if (!college) {
+        if (collegeError) {
+          console.error('APPROVED COLLEGE LOOKUP ERROR:', collegeError)
+          setShowCollegeBanner(false)
+          return
+        }
+
+        if (!college) {
+          setShowCollegeBanner(false)
+          return
+        }
+
+        setApprovedCollege(college)
+        setShowCollegeBanner(true)
+      } catch (error) {
+        if (cancelled) return
+
+        console.error('CHECK COLLEGE REQUEST ERROR:', error)
+        setCollegeRequestStatus(null)
         setShowCollegeBanner(false)
-        return
+      } finally {
+        if (!cancelled) {
+          setCollegeRequestChecked(true)
+        }
       }
-
-      setApprovedCollege(college)
-      setShowCollegeBanner(true)
-    } catch (error) {
-      console.error(
-        'CHECK APPROVED COLLEGE ERROR:',
-        error
-      )
     }
-  }
 
-  checkApprovedCollege()
+    checkCollegeRequest()
 
-}, [profileLoading, profile, userId])
+    return () => {
+      cancelled = true
+    }
+  }, [profileLoading, profile, userId])
 
   // ─────────────────────────────────────────────
   // Handlers
   // ─────────────────────────────────────────────
 
-const handleNotThisCollege = () => {
-  setShowCollegeBanner(false)
+  const handleNotThisCollege = () => {
+    setShowCollegeBanner(false)
 
-  // Tell the profile page where to scroll
-  sessionStorage.setItem(
-    'eggpuff_scroll_to_college',
-    'true'
-  )
+    // Tell the profile page where to scroll
+    sessionStorage.setItem(
+      'eggpuff_scroll_to_college',
+      'true'
+    )
 
-  notify(
-    '✏️ Let’s update your college name.'
-  )
+    notify(
+      '✏️ Let’s update your college name.'
+    )
 
-  router.push('/profile')
-}
-
- const joinApprovedCollege = async () => {
-  if (
-    !userId ||
-    !approvedCollege ||
-    joiningCollege
-  ) {
-    return
+    router.push('/profile')
   }
 
-  setJoiningCollege(true)
+  const joinApprovedCollege = async () => {
+    if (
+      !userId ||
+      !approvedCollege ||
+      joiningCollege
+    ) {
+      return
+    }
 
-  try {
-    // 1. Attach the user to the new college
-    const { error } = await supabase
-      .from('profiles')
-      .update({
+    setJoiningCollege(true)
+
+    try {
+      // 1. Attach the user to the new college
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          college_id: approvedCollege.id,
+        })
+        .eq('user_id', userId)
+
+      if (error) {
+        console.error(
+          'JOIN COLLEGE ERROR:',
+          error
+        )
+        notify('❌ Failed to join college')
+        setJoiningCollege(false)
+        return
+      }
+
+      // 2. Clear stale local feed/profile setup data
+      // so the feed rebuilds for the newly joined college.
+      try {
+        localStorage.removeItem(`feed_cache_${userId}`)
+        localStorage.removeItem(`feed_launch_cache_${userId}`)
+        localStorage.removeItem('eggpuff_profile_setup_completed')
+      } catch (error) {
+        console.warn(
+          'Failed to clear local feed cache:',
+          error
+        )
+      }
+
+      // 3. Update local profile immediately
+      setProfile((prev: any) => ({
+        ...prev,
         college_id: approvedCollege.id,
-      })
-      .eq('user_id', userId)
+      }))
 
-    if (error) {
+      // 4. Hide the discovery banner
+      setShowCollegeBanner(false)
+
+      notify(
+        `🎉 Welcome to ${approvedCollege.name}!`
+      )
+
+      // 5. Reload the feed so the newly joined
+      // college's questions appear immediately.
+      window.location.reload()
+
+    } catch (error) {
       console.error(
         'JOIN COLLEGE ERROR:',
         error
       )
+
       notify('❌ Failed to join college')
+    } finally {
       setJoiningCollege(false)
-      return
     }
-
-    // 2. Clear stale local feed/profile setup data
-    // so the feed rebuilds for the newly joined college.
-    try {
-      localStorage.removeItem(`feed_cache_${userId}`)
-      localStorage.removeItem(`feed_launch_cache_${userId}`)
-      localStorage.removeItem('eggpuff_profile_setup_completed')
-    } catch (error) {
-      console.warn(
-        'Failed to clear local feed cache:',
-        error
-      )
-    }
-
-    // 3. Update local profile immediately
-    setProfile((prev: any) => ({
-      ...prev,
-      college_id: approvedCollege.id,
-    }))
-
-    // 4. Hide the discovery banner
-    setShowCollegeBanner(false)
-
-    notify(
-      `🎉 Welcome to ${approvedCollege.name}!`
-    )
-
-    // 5. Reload the feed so the newly joined
-    // college's questions appear immediately.
-    window.location.reload()
-
-  } catch (error) {
-    console.error(
-      'JOIN COLLEGE ERROR:',
-      error
-    )
-
-    notify('❌ Failed to join college')
-  } finally {
-    setJoiningCollege(false)
   }
-}
 
   const handleCategoryClick = (slug: string) => {
     setActiveCategorySlug(slug)
@@ -420,53 +458,53 @@ const handleNotThisCollege = () => {
   const filterLabel =
     filter === 'all' ? 'Filter' : filter === 'unanswered' ? 'Unanswered' : 'Answered'
 
-useFeedRefresh({
-  refreshing,
-  setRefreshing,
-  setQuestions,
-  setOffset,
-  setHasMore,
-})
+  useFeedRefresh({
+    refreshing,
+    setRefreshing,
+    setQuestions,
+    setOffset,
+    setHasMore,
+  })
 
-useFeedRealtime({
-  questionsRef,
-  setQuestions,
-  setNewQuestions,
-  setShowNewBanner,
-})
+  useFeedRealtime({
+    questionsRef,
+    setQuestions,
+    setNewQuestions,
+    setShowNewBanner,
+  })
 
-useEffect(() => {
-  const handleReturn = () => {
-    if (document.visibilityState === 'visible') {
-      completePypDiscovery()
+  useEffect(() => {
+    const handleReturn = () => {
+      if (document.visibilityState === 'visible') {
+        completePypDiscovery()
+      }
     }
-  }
 
-  document.addEventListener(
-    'visibilitychange',
-    handleReturn
-  )
-
-  window.addEventListener(
-    'focus',
-    handleReturn
-  )
-
-  // Covers refresh / direct reopen
-  completePypDiscovery()
-
-  return () => {
-    document.removeEventListener(
+    document.addEventListener(
       'visibilitychange',
       handleReturn
     )
 
-    window.removeEventListener(
+    window.addEventListener(
       'focus',
       handleReturn
     )
-  }
-}, [])
+
+    // Covers refresh / direct reopen
+    completePypDiscovery()
+
+    return () => {
+      document.removeEventListener(
+        'visibilitychange',
+        handleReturn
+      )
+
+      window.removeEventListener(
+        'focus',
+        handleReturn
+      )
+    }
+  }, [])
   /* -------------------- UI -------------------- */
 
   return (
@@ -485,66 +523,66 @@ useEffect(() => {
             <div className="space-y-2">
               {/* Filter temporarily hidden */}
 
-<button
-  onClick={() => router.push('/resources')}
-  style={{
-    padding: '6px 14px',
-    borderRadius: 999,
-    border: '1px solid #E5E7EB',
-    background: '#FFFFFF',
-    fontSize: 'clamp(13px,0.9vw,15px)',
-    fontWeight: 500,
-    width: '100%',
-    textAlign: 'left',
-  }}
->
-  📄 Resources
-</button>
-{/* Categories temporarily hidden */}
+              <button
+                onClick={() => router.push('/resources')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 999,
+                  border: '1px solid #E5E7EB',
+                  background: '#FFFFFF',
+                  fontSize: 'clamp(13px,0.9vw,15px)',
+                  fontWeight: 500,
+                  width: '100%',
+                  textAlign: 'left',
+                }}
+              >
+                📄 Resources
+              </button>
+              {/* Categories temporarily hidden */}
             </div>
           )}
-          
+
         </aside>
 
         {/* CENTER FEED */}
         <main className="px-4 lg:px-10 lg:border-r lg:border-gray-300/40 space-y-8">
 
-        {refreshing && (
-  <div
-    style={{
-      display: 'flex',
-      justifyContent: 'center',
-      position: 'sticky',
-top: 70,
-zIndex: 60,
-padding: '4px 0 10px',
-pointerEvents: 'none',
-    }}
-  >
-    <div
-  style={{
-    width: 24,
-    height: 24,
+          {refreshing && (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                position: 'sticky',
+                top: 70,
+                zIndex: 60,
+                padding: '4px 0 10px',
+                pointerEvents: 'none',
+              }}
+            >
+              <div
+                style={{
+                  width: 24,
+                  height: 24,
 
-    borderRadius: '50%',
+                  borderRadius: '50%',
 
-    border:
-      '2.5px solid rgba(0,0,0,0.08)',
+                  border:
+                    '2.5px solid rgba(0,0,0,0.08)',
 
-    borderTop:
-      '2.5px solid #F4B860',
+                  borderTop:
+                    '2.5px solid #F4B860',
 
-    animation:
-      'ep-spin 0.7s linear infinite',
+                  animation:
+                    'ep-spin 0.7s linear infinite',
 
-    willChange: 'transform',
+                  willChange: 'transform',
 
-    transform:
-      'translateZ(0)',
-  }}
-/>
-  </div>
-)}
+                  transform:
+                    'translateZ(0)',
+                }}
+              />
+            </div>
+          )}
 
           {showNewBanner && newQuestions.length > 0 && (
             <div
@@ -555,154 +593,161 @@ pointerEvents: 'none',
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
               style={{
-  position: 'sticky',
-  top: 72, // Keep it just below the Foundation header
-  zIndex: 250, // Above feed, below dialogs/modals
-  margin: '10px auto',
-  width: 'fit-content',
-  padding: '8px 14px',
-  borderRadius: 999,
-  background: '#111827',
-  color: '#FFFFFF',
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: 'pointer',
-  boxShadow: '0 8px 24px rgba(0,0,0,.18)',
-}}
+                position: 'sticky',
+                top: 72, // Keep it just below the Foundation header
+                zIndex: 250, // Above feed, below dialogs/modals
+                margin: '10px auto',
+                width: 'fit-content',
+                padding: '8px 14px',
+                borderRadius: 999,
+                background: '#111827',
+                color: '#FFFFFF',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 8px 24px rgba(0,0,0,.18)',
+              }}
             >
               ↑ {newQuestions.length} new question{newQuestions.length > 1 ? 's' : ''}
             </div>
           )}
 
+          {/* 👤 COMPLETE PROFILE PROMPT */}
+          {showCompleteProfilePrompt && (
+            <div style={{ marginBottom: 18 }}>
+              <CompleteProfilePrompt />
+            </div>
+          )}
+
           {/* 🎓 APPROVED COLLEGE DISCOVERY */}
-{showCollegeBanner && approvedCollege && (
-  <div
-    style={{
-      position: 'relative',
-      overflow: 'hidden',
-      marginBottom: 18,
-      padding: '22px 20px',
-      borderRadius: 20,
-      background:
-        'linear-gradient(135deg, #FFF8E8 0%, #FFFDF7 100%)',
-      border: '1px solid rgba(244,184,96,0.35)',
-      boxShadow:
-        '0 8px 30px rgba(244,184,96,0.12)',
-    }}
-  >
-    <div
-      style={{
-        position: 'absolute',
-        top: -30,
-        right: -20,
-        fontSize: 100,
-        opacity: 0.08,
-        pointerEvents: 'none',
-      }}
-    >
-      🎓
-    </div>
-
-    <div
-      style={{
-        position: 'relative',
-        zIndex: 1,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 700,
-          color: '#B7791F',
-          marginBottom: 6,
-          letterSpacing: 0.2,
-        }}
-      >
-        🎉 GOOD NEWS
-      </div>
-
-      <div
-        style={{
-          fontSize: 21,
-          fontWeight: 800,
-          color: '#111827',
-          marginBottom: 5,
-        }}
-      >
-        Your college is here!
-      </div>
-
-      <div
-        style={{
-          fontSize: 14,
-          lineHeight: 1.5,
-          color: '#6B7280',
-          marginBottom: 16,
-        }}
-      >
-        {approvedCollege.name} is now live on EggPuff.
-      </div>
-
+          {showCollegeBanner && approvedCollege && (
             <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          flexWrap: 'wrap',
-        }}
-      >
-        <button
-          onClick={joinApprovedCollege}
-          disabled={joiningCollege}
-          style={{
-            border: 'none',
-            borderRadius: 999,
-            padding: '11px 20px',
-            background: joiningCollege
-              ? '#E5E7EB'
-              : '#F4B860',
-            color: '#111827',
-            fontSize: 14,
-            fontWeight: 800,
-            cursor: joiningCollege
-              ? 'default'
-              : 'pointer',
-            transition:
-              'transform 0.15s ease, opacity 0.15s ease',
-            opacity: joiningCollege ? 0.7 : 1,
-          }}
-        >
-          {joiningCollege
-            ? 'Joining…'
-            : 'Join now →'}
-        </button>
+              style={{
+                position: 'relative',
+                overflow: 'hidden',
+                marginBottom: 18,
+                padding: '22px 20px',
+                borderRadius: 20,
+                background:
+                  'linear-gradient(135deg, #FFF8E8 0%, #FFFDF7 100%)',
+                border: '1px solid rgba(244,184,96,0.35)',
+                boxShadow:
+                  '0 8px 30px rgba(244,184,96,0.12)',
+              }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  top: -30,
+                  right: -20,
+                  fontSize: 100,
+                  opacity: 0.08,
+                  pointerEvents: 'none',
+                }}
+              >
+                🎓
+              </div>
 
-        <button
-          onClick={handleNotThisCollege}
-          disabled={joiningCollege}
-          style={{
-            border: 'none',
-            background: 'transparent',
-            padding: '8px 4px',
-            color: '#6B7280',
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: joiningCollege
-              ? 'default'
-              : 'pointer',
-            textDecoration: 'underline',
-            textUnderlineOffset: 3,
-            opacity: joiningCollege ? 0.5 : 1,
-          }}
-        >
-          Not my college
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+              <div
+                style={{
+                  position: 'relative',
+                  zIndex: 1,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: '#B7791F',
+                    marginBottom: 6,
+                    letterSpacing: 0.2,
+                  }}
+                >
+                  🎉 GOOD NEWS
+                </div>
 
-{/* Mobile top actions temporarily hidden */}
+                <div
+                  style={{
+                    fontSize: 21,
+                    fontWeight: 800,
+                    color: '#111827',
+                    marginBottom: 5,
+                  }}
+                >
+                  Your college is here!
+                </div>
+
+                <div
+                  style={{
+                    fontSize: 14,
+                    lineHeight: 1.5,
+                    color: '#6B7280',
+                    marginBottom: 16,
+                  }}
+                >
+                  {approvedCollege.name} is now live on EggPuff.
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <button
+                    onClick={joinApprovedCollege}
+                    disabled={joiningCollege}
+                    style={{
+                      border: 'none',
+                      borderRadius: 999,
+                      padding: '11px 20px',
+                      background: joiningCollege
+                        ? '#E5E7EB'
+                        : '#F4B860',
+                      color: '#111827',
+                      fontSize: 14,
+                      fontWeight: 800,
+                      cursor: joiningCollege
+                        ? 'default'
+                        : 'pointer',
+                      transition:
+                        'transform 0.15s ease, opacity 0.15s ease',
+                      opacity: joiningCollege ? 0.7 : 1,
+                    }}
+                  >
+                    {joiningCollege
+                      ? 'Joining…'
+                      : 'Join now →'}
+                  </button>
+
+                  <button
+                    onClick={handleNotThisCollege}
+                    disabled={joiningCollege}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      padding: '8px 4px',
+                      color: '#6B7280',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: joiningCollege
+                        ? 'default'
+                        : 'pointer',
+                      textDecoration: 'underline',
+                      textUnderlineOffset: 3,
+                      opacity: joiningCollege ? 0.5 : 1,
+                    }}
+                  >
+                    Not my college
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Mobile top actions temporarily hidden */}
 
           {/* IPL SCOREBOARD */}
           {/* <IPLScoreCard /> */}
@@ -714,68 +759,68 @@ pointerEvents: 'none',
           {/* Filter sheet temporarily hidden */}
 
           {!loading &&
-  visibleQuestions.length === 0 && (
-    <div
-      style={{
-        textAlign: 'center',
-        padding: '48px 20px',
-      }}
-    >
-      <div
-  style={{
-    fontSize: 48,
-    marginBottom: 12,
-    display: 'inline-block',
-    animation: 'eggWiggle 4s ease-in-out infinite',
-    transformOrigin: 'bottom center',
-  }}
->
-  🥚
-</div>
+            visibleQuestions.length === 0 && (
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '48px 20px',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 48,
+                    marginBottom: 12,
+                    display: 'inline-block',
+                    animation: 'eggWiggle 4s ease-in-out infinite',
+                    transformOrigin: 'bottom center',
+                  }}
+                >
+                  🥚
+                </div>
 
-      <div
-        style={{
-          fontSize: 16,
-          fontWeight: 600,
-          color: '#111827',
-          marginBottom: 4,
-        }}
-      >
-         No questions are here yet
-      </div>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 600,
+                    color: '#111827',
+                    marginBottom: 4,
+                  }}
+                >
+                  No questions are here yet
+                </div>
 
-      <div
-        style={{
-          fontSize: 14,
-          color: '#6B7280',
-          marginBottom: 18,
-        }}
-      >
-        Be the first to ask.
-      </div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    color: '#6B7280',
+                    marginBottom: 18,
+                  }}
+                >
+                  Be the first to ask.
+                </div>
 
-      <button
-        onClick={() =>
-          router.push(
-            `/ask?category=${encodeURIComponent(
-              activeCategorySlug
-            )}`
-          )
-        }
-        style={{
-          background: '#F4B860',
-          border: 'none',
-          borderRadius: 999,
-          padding: '14px 24px',
-          fontWeight: 700,
-          fontSize: 15,
-          cursor: 'pointer',
-        }}
-      >
-        Ask a Question
-      </button>
+                <button
+                  onClick={() =>
+                    router.push(
+                      `/ask?category=${encodeURIComponent(
+                        activeCategorySlug
+                      )}`
+                    )
+                  }
+                  style={{
+                    background: '#F4B860',
+                    border: 'none',
+                    borderRadius: 999,
+                    padding: '14px 24px',
+                    fontWeight: 700,
+                    fontSize: 15,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Ask a Question
+                </button>
 
-      <style jsx>{`
+                <style jsx>{`
   @keyframes eggWiggle {
     0%   { transform: translateY(0) rotate(0deg); }
 4%   { transform: translateY(-2px) rotate(-5deg); }
@@ -786,17 +831,17 @@ pointerEvents: 'none',
 100% { transform: translateY(0) rotate(0deg); }
   }
 `}</style>
-    </div>
-)}
+              </div>
+            )}
 
-       {!loading && !profileLoading && (
-  <div
-    style={{
-      position: 'relative',
-      width: '100%',
-    }}
-  >
-    {/* =========================================================
+          {!loading && !profileLoading && (
+            <div
+              style={{
+                position: 'relative',
+                width: '100%',
+              }}
+            >
+              {/* =========================================================
         EXPLORE MODE
 
         Only users WITHOUT a college see Explore.
@@ -804,173 +849,173 @@ pointerEvents: 'none',
         Users with a college go directly to the normal feed.
        ========================================================= */}
 
-    {showExploreMode && (
-  <div
-    style={{
-      position: 'sticky',
-      top: 0,
-      zIndex: 3,
-      width: '100%',
-      height: '80svh',
-      pointerEvents: 'auto',
-    }}
-  >
-    <ExploreIntro />
-  </div>
-)}
+              {showExploreMode && (
+                <div
+                  style={{
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 3,
+                    width: '100%',
+                    height: '80svh',
+                    pointerEvents: 'auto',
+                  }}
+                >
+                  <ExploreIntro />
+                </div>
+              )}
 
-    {/* =========================================================
+              {/* =========================================================
         NORMAL FEED
        ========================================================= */}
 
-    <div
-      className="space-y-3"
-      style={{
-        position: 'relative',
-        zIndex: 2,
+              <div
+                className="space-y-3"
+                style={{
+                  position: 'relative',
+                  zIndex: 2,
 
-        /*
-         * Only create the Explore overlap when
-         * the user has NO college.
-         *
-         * College users get a completely normal feed.
-         */
-        marginTop:
-          showExploreMode
-            ? '-80svh'
-            : 0,
+                  /*
+                   * Only create the Explore overlap when
+                   * the user has NO college.
+                   *
+                   * College users get a completely normal feed.
+                   */
+                  marginTop:
+                    showExploreMode
+                      ? '-80svh'
+                      : 0,
 
-        paddingTop:
-          showExploreMode
-            ? '80svh'
-            : 0,
-      }}
-    >
-      {feedItems.map((item, index) => {
-        if (item.type === 'promotion') {
-          return (
-            <CampusSpotlight
-              key={`promotion-${item.promotion.id}-${index}`}
-              name={item.promotion.creator.name}
-              avatar={item.promotion.creator.avatar_url}
-              category={item.promotion.category}
-              caption={item.promotion.caption}
-              discoveries={item.promotion.discoveries}
-              onClick={() => {
-                console.log(
-                  'Promotion:',
-                  item.promotion
-                )
-
-                openExternal(
-  item.promotion.id,
-  item.promotion.link,
-  notify
-)
-              }}
-            />
-          )
-        }
-
-        const q = item.question
-
-        return (
-          <div
-            key={`${q.id}-${q._missed ? 'missed' : 'normal'}`}
-          >
-            <div
-              data-question-id
-              data-id={q.id}
-              data-created-at={q.created_at}
-            >
-              <QuestionCard
-                q={q}
-                currentUserId={userId}
-                onDelete={(id: string) => {
-                  try {
-                    const deletedIds =
-                      JSON.parse(
-                        localStorage.getItem(
-                          'deleted_questions'
-                        ) || '[]'
-                      )
-
-                    if (
-                      !deletedIds.includes(id)
-                    ) {
-                      localStorage.setItem(
-                        'deleted_questions',
-                        JSON.stringify([
-                          ...deletedIds,
-                          id,
-                        ])
-                      )
-                    }
-                  } catch {}
-
-                  setQuestions((prev) => {
-                    const updated =
-                      prev.filter(
-                        (question) =>
-                          question.id !== id
-                      )
-
-                    try {
-                      if (userId) {
-                        localStorage.setItem(
-                          `feed_cache_${userId}`,
-                          JSON.stringify(
-                            updated.slice(0, 10)
-                          )
-                        )
-                      }
-                    } catch {}
-
-                    return updated
-                  })
-
-                  setNewQuestions((prev) =>
-                    prev.filter(
-                      (question) =>
-                        question.id !== id
-                    )
-                  )
+                  paddingTop:
+                    showExploreMode
+                      ? '80svh'
+                      : 0,
                 }}
-              />
+              >
+                {feedItems.map((item, index) => {
+                  if (item.type === 'promotion') {
+                    return (
+                      <CampusSpotlight
+                        key={`promotion-${item.promotion.id}-${index}`}
+                        name={item.promotion.creator.name}
+                        avatar={item.promotion.creator.avatar_url}
+                        category={item.promotion.category}
+                        caption={item.promotion.caption}
+                        discoveries={item.promotion.discoveries}
+                        onClick={() => {
+                          console.log(
+                            'Promotion:',
+                            item.promotion
+                          )
+
+                          openExternal(
+                            item.promotion.id,
+                            item.promotion.link,
+                            notify
+                          )
+                        }}
+                      />
+                    )
+                  }
+
+                  const q = item.question
+
+                  return (
+                    <div
+                      key={`${q.id}-${q._missed ? 'missed' : 'normal'}`}
+                    >
+                      <div
+                        data-question-id
+                        data-id={q.id}
+                        data-created-at={q.created_at}
+                      >
+                        <QuestionCard
+                          q={q}
+                          currentUserId={userId}
+                          onDelete={(id: string) => {
+                            try {
+                              const deletedIds =
+                                JSON.parse(
+                                  localStorage.getItem(
+                                    'deleted_questions'
+                                  ) || '[]'
+                                )
+
+                              if (
+                                !deletedIds.includes(id)
+                              ) {
+                                localStorage.setItem(
+                                  'deleted_questions',
+                                  JSON.stringify([
+                                    ...deletedIds,
+                                    id,
+                                  ])
+                                )
+                              }
+                            } catch { }
+
+                            setQuestions((prev) => {
+                              const updated =
+                                prev.filter(
+                                  (question) =>
+                                    question.id !== id
+                                )
+
+                              try {
+                                if (userId) {
+                                  localStorage.setItem(
+                                    `feed_cache_${userId}`,
+                                    JSON.stringify(
+                                      updated.slice(0, 10)
+                                    )
+                                  )
+                                }
+                              } catch { }
+
+                              return updated
+                            })
+
+                            setNewQuestions((prev) =>
+                              prev.filter(
+                                (question) =>
+                                  question.id !== id
+                              )
+                            )
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-          </div>
-        )
-      })}
-    </div>
-  </div>
-)}
+          )}
 
           {loadingMore &&
-      hasMore &&
-       visibleQuestions.length > 0 && (
-          <div
-      style={{
-        textAlign: 'center',
-        padding: '16px 0',
-        fontSize: 14,
-        color: '#9CA3AF',
-      }}
-      >
-      Loading more...
-      </div>
-      )}
+            hasMore &&
+            visibleQuestions.length > 0 && (
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '16px 0',
+                  fontSize: 14,
+                  color: '#9CA3AF',
+                }}
+              >
+                Loading more...
+              </div>
+            )}
 
           {/* ✅ FIX 1 + FIX 2: Sentinel is inside <main>, after the list.
                No longer in a position:fixed container.
                Only rendered after load completes so observer
                doesn't fire into empty state. */}
-         {loaded &&
-  hasMore && (
-    <div
-      ref={loadMoreRefEl}
-      style={{ height: 1 }}
-    />
-)}
+          {loaded &&
+            hasMore && (
+              <div
+                ref={loadMoreRefEl}
+                style={{ height: 1 }}
+              />
+            )}
         </main>
 
         {/* RIGHT PANEL */}

@@ -14,22 +14,22 @@ export default function TermsPage() {
     >
       <h1>Terms & Conditions</h1>
 
-<div
-  style={{
-    marginTop: 12,
-    color: "#666",
-    fontSize: 14,
-    lineHeight: 1.7,
-  }}
->
-  <div>
-    <strong>Effective date:</strong> July 13, 2026
-  </div>
+      <div
+        style={{
+          marginTop: 12,
+          color: "#666",
+          fontSize: 14,
+          lineHeight: 1.7,
+        }}
+      >
+        <div>
+          <strong>Effective date:</strong> October 19, 2026
+        </div>
 
-  <div>
-    <strong>Last updated:</strong> July 13, 2026
-  </div>
-</div>
+        <div>
+          <strong>Last updated:</strong> October 19, 2026
+        </div>
+      </div>
 
       <p style={{ marginTop: 24 }}>
         Welcome to EggPuff. By accessing or using EggPuff, you agree to these
@@ -37,14 +37,48 @@ export default function TermsPage() {
         use our platform.
       </p>
 
-      <h2 style={{ marginTop: 36 }}>1. Eligibility</h2>
+
+      <h2 style={{ marginTop: 36 }}>1. Eligibility and Minimum Age</h2>
 
       <p>
         EggPuff is intended for students and members of educational
-        institutions. By using EggPuff, you confirm that the information you
-        provide is accurate and that you are legally permitted to use our
-        services.
+        institutions who are at least eighteen (18) years of age.
+        By accessing or using EggPuff, you confirm that you meet this
+        minimum age requirement and are legally permitted to use our
+        services under applicable law.
       </p>
+
+      <p>
+        Individuals under eighteen (18) years of age are not permitted
+        to create or use an EggPuff account. Users must not attempt to
+        circumvent this eligibility requirement or use another person's
+        identity to access EggPuff.
+      </p>
+
+      <p>
+        If EggPuff has reason to believe that an account does not meet
+        the minimum age requirement, we may take reasonable and legally
+        permissible steps to review the matter. These steps may include
+        requesting relevant information, restricting access, suspending
+        the account, or terminating it, subject to applicable law.
+      </p>
+
+      <p>
+        If you believe that an individual under eighteen (18) years
+        of age is using EggPuff, please contact us at
+        support@eggpuff.in. We may review the report and take
+        appropriate action in accordance with applicable law and
+        our policies.
+      </p>
+
+      <p>
+        Nothing in these Terms excludes or limits any rights,
+        protections, or obligations that cannot lawfully be excluded
+        or limited under applicable law. EggPuff reserves the right
+        to revise its eligibility requirements as its services and
+        applicable legal requirements evolve.
+      </p>
+
 
       <h2 style={{ marginTop: 36 }}>2. Your Account</h2>
 
