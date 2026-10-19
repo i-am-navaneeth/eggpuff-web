@@ -20,19 +20,9 @@ export default function EditorOnChangePlugin({
           const text = $getRoot().getTextContent()
 
           const richContent = JSON.stringify(
-  editorState.toJSON()
-)
-
-console.log(
-  '🔥 EGGPuff RICH:',
-  JSON.stringify(
-    editorState.toJSON(),
-    null,
-    2
-  )
-)
-
-onChange(text, richContent)
+            editorState.toJSON()
+          )
+          onChange(text, richContent)
         })
       }}
     />

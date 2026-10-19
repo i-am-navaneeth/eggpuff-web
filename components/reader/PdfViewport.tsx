@@ -4,8 +4,6 @@ import {
   ReactNode,
 } from 'react'
 
-import usePointerZoom from './usePointerZoom'
-
 type Props = {
   children: ReactNode
 }
@@ -13,49 +11,55 @@ type Props = {
 export default function PdfViewport({
   children,
 }: Props) {
-  const {
-    scale,
-    offset,
-    bind,
-  } = usePointerZoom()
-
   return (
     <div
-      {...bind}
       style={{
         width: '100%',
 
-        overflow: 'hidden',
+        /*
+         * Allow the PDF to become wider than
+         * the viewport when zoomed.
+         */
+        overflowX: 'auto',
+        overflowY: 'visible',
 
-        touchAction: 'none',
+        /*
+         * Let the browser handle normal
+         * scrolling and native pinch zoom.
+         */
+        touchAction:
+          'pan-x pan-y pinch-zoom',
 
         display: 'flex',
 
         justifyContent: 'center',
 
         alignItems: 'flex-start',
+
+        WebkitOverflowScrolling:
+          'touch',
+
+        position: 'relative',
       }}
     >
       <div
         style={{
-          transform: `
-            translate(
-              ${offset.x}px,
-              ${offset.y}px
-            )
-            scale(${scale})
-          `,
+          width: '100%',
+
+          /*
+           * Do NOT use transform: scale()
+           *
+           * PdfViewer now controls the actual
+           * PDF rendering width. This means
+           * zooming creates a larger canvas
+           * instead of enlarging a small canvas.
+           */
+          transform: 'none',
 
           transformOrigin:
             'center top',
 
-          transition:
-            scale === 1
-              ? 'transform .15s ease'
-              : 'none',
-
-          willChange:
-            'transform',
+          willChange: 'auto',
         }}
       >
         {children}
