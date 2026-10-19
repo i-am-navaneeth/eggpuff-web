@@ -17,8 +17,8 @@ import QuestionOverlay from './overlays/QuestionOverlay'
 import EditProfileOverlay from './overlays/EditProfileOverlay'
 
 export default function OverlayRoot() {
- 
-  const pathname = usePathname() 
+
+  const pathname = usePathname()
   const router = useRouter()
 
   const {
@@ -32,48 +32,48 @@ export default function OverlayRoot() {
     } | null>(null)
 
   useEffect(() => {
-  const handler = (e: Event) => {
-    const detail =
-      (e as CustomEvent).detail
+    const handler = (e: Event) => {
+      const detail =
+        (e as CustomEvent).detail
 
-    if (
-      !detail?.resourceId ||
-      !detail?.title
-    ) {
-      return
+      if (
+        !detail?.resourceId ||
+        !detail?.title
+      ) {
+        return
+      }
+
+      // Show the reader transition immediately
+      setReaderTransition({
+        title: detail.title,
+        resourceId: detail.resourceId,
+      })
+
+      // Give the transition time to appear
+      // before navigating to the actual reader.
+      const timer = window.setTimeout(() => {
+        router.push(
+          `/reader/${detail.resourceId}`
+        )
+      }, 320)
+
+      return () => {
+        window.clearTimeout(timer)
+      }
     }
 
-    // Show the reader transition immediately
-    setReaderTransition({
-      title: detail.title,
-      resourceId: detail.resourceId,
-    })
-
-    // Give the transition time to appear
-    // before navigating to the actual reader.
-    const timer = window.setTimeout(() => {
-      router.push(
-        `/reader/${detail.resourceId}`
-      )
-    }, 320)
+    window.addEventListener(
+      'ep-open-reader',
+      handler
+    )
 
     return () => {
-      window.clearTimeout(timer)
+      window.removeEventListener(
+        'ep-open-reader',
+        handler
+      )
     }
-  }
-
-  window.addEventListener(
-  'ep-open-reader',
-  handler
-)
-
-return () => {
-  window.removeEventListener(
-    'ep-open-reader',
-    handler
-  )
-}
-}, [router])
+  }, [router])
 
   useEffect(() => {
 
@@ -142,27 +142,32 @@ return () => {
     )
   }
 
-    /*
-   * ==========================================================
-   * NAVIGATION OVERLAY STACK
-   *
-   * Keep previous overlays mounted.
-   *
-   * /u/john
-   *   ↓
-   * /question/123
-   *
-   * becomes:
-   *
-   * ProfileOverlay
-   * QuestionOverlay
-   *
-   * The question sits above the profile while the profile
-   * remains mounted with its scroll position and state.
-   * ==========================================================
-   */
+  /*
+ * ==========================================================
+ * NAVIGATION OVERLAY STACK
+ *
+ * Keep previous overlays mounted.
+ *
+ * /u/john
+ *   ↓
+ * /question/123
+ *
+ * becomes:
+ *
+ * ProfileOverlay
+ * QuestionOverlay
+ *
+ * The question sits above the profile while the profile
+ * remains mounted with its scroll position and state.
+ * ==========================================================
+ */
 
-  if (navigationStack.length > 0) {
+  const isOverlayRoute =
+    pathname.startsWith('/u/') ||
+    pathname === '/profile' ||
+    pathname.startsWith('/question/')
+
+  if (isOverlayRoute && navigationStack.length > 0) {
     return (
       <>
         {navigationStack.map((entry) => {

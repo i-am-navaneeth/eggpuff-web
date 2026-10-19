@@ -13,22 +13,22 @@ export default function PrivacyPage() {
     >
       <h1>Privacy Policy</h1>
 
-<div
-  style={{
-    marginTop: 12,
-    color: "#666",
-    fontSize: 14,
-    lineHeight: 1.7,
-  }}
->
-  <div>
-    <strong>Effective date:</strong> July 13, 2026
-  </div>
+      <div
+        style={{
+          marginTop: 12,
+          color: "#666",
+          fontSize: 14,
+          lineHeight: 1.7,
+        }}
+      >
+        <div>
+          <strong>Effective date:</strong> October 19, 2026
+        </div>
 
-  <div>
-    <strong>Last updated:</strong> July 13, 2026
-  </div>
-</div>
+        <div>
+          <strong>Last updated:</strong> October 19, 2026
+        </div>
+      </div>
 
       <p style={{ marginTop: 24 }}>
         EggPuff ("we", "our", or "us") values your privacy. This Privacy
@@ -148,14 +148,42 @@ export default function PrivacyPage() {
         security purposes.
       </p>
 
-      <h2 style={{ marginTop: 36 }}>10. Children's Privacy</h2>
+
+      <h2 style={{ marginTop: 36 }}>10. Children's Privacy and Age Eligibility</h2>
 
       <p>
-        EggPuff is intended for students and individuals who meet the minimum
-        legal age required to use our services in their jurisdiction. We do not
-        knowingly collect personal information from children where prohibited
-        by law.
+        EggPuff is intended for individuals who are at least eighteen (18)
+        years of age. Individuals under eighteen (18) years of age are not
+        permitted to create or use an EggPuff account, as described in our
+        Terms & Conditions.
       </p>
+
+      <p>
+        EggPuff does not intentionally seek to collect personal data from
+        individuals under eighteen (18) in connection with account use.
+        If we become aware that an account may belong to an individual
+        under eighteen (18), we may take reasonable and legally permissible
+        steps to review the matter, restrict access, suspend or terminate
+        the account, and handle any associated personal data in accordance
+        with applicable law.
+      </p>
+
+      <p>
+        If you are a parent or legal guardian and believe that an individual
+        under eighteen (18) has created an EggPuff account or provided
+        personal data to us, please contact us at support@eggpuff.in.
+        We may request information reasonably necessary to review and
+        respond to the report, subject to applicable law.
+      </p>
+
+      <p>
+        Nothing in this section limits any rights or protections available
+        under applicable law, or any legal obligations EggPuff may have
+        concerning children's personal data. Where applicable law requires
+        specific consent, safeguards, or other measures, EggPuff will
+        handle personal data in accordance with those legal requirements.
+      </p>
+
 
       <h2 style={{ marginTop: 36 }}>11. Changes to This Policy</h2>
 

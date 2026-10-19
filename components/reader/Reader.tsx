@@ -54,20 +54,50 @@ export default function Reader({
 }: Props) {
 
   const [numPages, setNumPages] =
-  useState(0)
+    useState(0)
 
-const [currentPage, setCurrentPage] =
-  useState(1)
+  const [currentPage, setCurrentPage] =
+    useState(1)
 
-const [pageWidth, setPageWidth] =
-  useState(360)
+  /*
+   * Base PDF width.
+   *
+   * This is the normal reading width.
+   *
+   * IMPORTANT:
+   * Do not make the PDF width respond to
+   * zoom here. Zoom belongs to PdfViewer.
+   */
+  const [pageWidth, setPageWidth] =
+    useState(360)
 
   useEffect(() => {
     const updateWidth = () => {
+      const viewportWidth =
+        window.innerWidth
+
+      /*
+       * Reserve only a small amount of
+       * horizontal space around the PDF.
+       *
+       * Desktop:
+       *   maximum readable width = 820px
+       *
+       * Mobile:
+       *   PDF fits the available viewport.
+       */
+      const availableWidth =
+        viewportWidth <= 768
+          ? viewportWidth - 24
+          : Math.min(
+            viewportWidth - 48,
+            820
+          )
+
       setPageWidth(
-        Math.min(
-          window.innerWidth - 24,
-          820
+        Math.max(
+          280,
+          availableWidth
         )
       )
     }
@@ -79,158 +109,304 @@ const [pageWidth, setPageWidth] =
       updateWidth
     )
 
-    return () =>
+    return () => {
       window.removeEventListener(
         'resize',
         updateWidth
       )
+    }
   }, [])
 
-useEffect(() => {
-  const handleScroll = () => {
-    const pages =
-      document.querySelectorAll(
-        '.react-pdf__Page'
-      )
+  useEffect(() => {
+    const handleScroll = () => {
+      const pages =
+        document.querySelectorAll(
+          '.react-pdf__Page'
+        )
 
-    let active = 1
+      let active = 1
 
-    pages.forEach((page, index) => {
-      const rect =
-        page.getBoundingClientRect()
+      pages.forEach((page, index) => {
+        const rect =
+          page.getBoundingClientRect()
 
-      if (
-        rect.top <=
-        window.innerHeight * 0.35
-      ) {
-        active = index + 1
-      }
-    })
+        if (
+          rect.top <=
+          window.innerHeight * 0.35
+        ) {
+          active = index + 1
+        }
+      })
 
-    setCurrentPage(active)
-  }
+      setCurrentPage(active)
+    }
 
-  window.addEventListener(
-    'scroll',
-    handleScroll
-  )
-
-  handleScroll()
-
-  return () =>
-    window.removeEventListener(
+    window.addEventListener(
       'scroll',
       handleScroll
     )
-}, [numPages])
 
-const progress =
-  numPages > 0
-    ? currentPage / numPages
-    : 0
+    handleScroll()
+
+    return () =>
+      window.removeEventListener(
+        'scroll',
+        handleScroll
+      )
+  }, [numPages])
+
+  const progress =
+    numPages > 0
+      ? currentPage / numPages
+      : 0
 
   return (
-   <main
-  style={{
-    background: '#F5F5F5',
-    minHeight: '100vh',
-    padding: '12px',
-    overflowX: 'auto',
-    touchAction: 'pan-x pan-y',
-  }}
->
+    <main
+      style={{
+        background: '#F5F5F5',
 
-<PdfViewer
-  fileUrl={resource.file_url}
-  numPages={numPages}
-  setNumPages={(pages) => {
-    setNumPages(pages)
-    onPagesChange?.(pages)
-  }}
-  pageWidth={pageWidth}
-/>
+        minHeight: '100vh',
+
+        width: '100%',
+
+        padding: '12px',
+
+        /*
+         * IMPORTANT
+         *
+         * Do NOT hide horizontal overflow here.
+         *
+         * A zoomed PDF can legitimately become
+         * wider than the viewport.
+         */
+        overflowX: 'visible',
+
+        overflowY: 'visible',
+
+        /*
+         * The PDF viewer owns its touch gestures.
+         */
+        touchAction: 'auto',
+
+        boxSizing: 'border-box',
+
+        position: 'relative',
+      }}
+    >
+
+      {/*
+       * ─────────────────────────────────────
+       * PDF VIEWPORT
+       *
+       * This becomes the horizontal viewport
+       * for the document.
+       *
+       * The actual PDF can become wider than
+       * this area when zoomed.
+       * ─────────────────────────────────────
+       */}
 
       <div
-  style={{
-    position: 'fixed',
+        style={{
+          width: '100%',
+          maxWidth: '100%',
 
-    right: 14,
-    bottom: 26,
+          position: 'relative',
 
-    width: 54,
-    height: 54,
+          /*
+           * IMPORTANT:
+           *
+           * Reader itself must NOT become a
+           * scroll container.
+           *
+           * Vertical mouse-wheel scrolling belongs
+           * to the normal document/page.
+           *
+           * Horizontal scrolling for a zoomed PDF
+           * is handled inside PdfViewer.
+           */
+          overflow: 'visible',
 
-    zIndex: 999,
+          minWidth: 0,
 
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+          boxSizing: 'border-box',
 
-    opacity: 0.9,
-  }}
->
-  <svg
-    width="54"
-    height="54"
-    style={{
-      position: 'absolute',
-      transform: 'rotate(-90deg)',
-    }}
-  >
-    <circle
-      cx="27"
-      cy="27"
-      r={22}
-      stroke="#E5E7EB"
-      strokeWidth="3"
-      fill="none"
-    />
+          /*
+           * Keep the PDF attached to the normal
+           * browser scrolling flow.
+           */
+          WebkitOverflowScrolling:
+            'touch',
+        }}
+      >
+        <PdfViewer
+          fileUrl={
+            resource.file_url
+          }
 
-    <circle
-      cx="27"
-      cy="27"
-      r={22}
-      stroke="#F4B860"
-      strokeWidth="3"
-      fill="none"
-      strokeLinecap="round"
-      strokeDasharray={2 * Math.PI * 22}
-      strokeDashoffset={
-        (2 * Math.PI * 22) *
-        (1 - progress)
-      }
-      style={{
-        transition:
-          'stroke-dashoffset .25s ease',
-      }}
-    />
-  </svg>
+          numPages={
+            numPages
+          }
 
-  <div
-    style={{
-      width: 42,
-      height: 42,
+          setNumPages={(
+            pages
+          ) => {
+            setNumPages(
+              pages
+            )
 
-      borderRadius: '50%',
+            onPagesChange?.(
+              pages
+            )
+          }}
 
-      background: 'rgba(255,255,255,.95)',
+          pageWidth={
+            pageWidth
+          }
+        />
 
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
+        <div
+          style={{
+            position: 'fixed',
 
-      fontWeight: 700,
-      fontSize: 12,
+            right: 14,
+            bottom: 14,
 
-      color: '#374151',
+            width: 44,
+            height: 44,
 
-      boxShadow:
-        '0 4px 12px rgba(0,0,0,.08)',
-    }}
-  >
-    {currentPage}/{numPages}
-  </div>
-</div>
+            borderRadius: '50%',
+
+            /*
+             * TRUE GLASS
+             *
+             * Very transparent so the PDF content
+             * underneath remains readable.
+             */
+            background:
+              'rgba(255, 255, 255, 0.18)',
+
+            backdropFilter:
+              'blur(2px) saturate(115%)',
+
+            WebkitBackdropFilter:
+              'blur(2px) saturate(115%)',
+
+            /*
+             * Extremely subtle glass edge.
+             */
+            border:
+              '1px solid rgba(255, 255, 255, 0.48)',
+
+            /*
+             * Keep it floating without making
+             * it visually heavy.
+             */
+            boxShadow:
+              '0 2px 10px rgba(15, 23, 42, 0.08)',
+
+            display: 'flex',
+
+            alignItems: 'center',
+
+            justifyContent: 'center',
+
+            /*
+             * Small because the PDF is the
+             * primary focus.
+             */
+            fontSize: 11,
+
+            fontWeight: 700,
+
+            color: '#334155',
+
+            zIndex: 50,
+
+            boxSizing: 'border-box',
+
+            /*
+             * Never interfere with PDF
+             * scrolling, dragging or zooming.
+             */
+            pointerEvents: 'none',
+          }}
+        >
+          <svg
+            width="44"
+            height="44"
+            viewBox="0 0 44 44"
+            style={{
+              position: 'absolute',
+
+              inset: 0,
+
+              transform:
+                'rotate(-90deg)',
+            }}
+          >
+            {/* Subtle background ring */}
+            <circle
+              cx="22"
+              cy="22"
+              r="19"
+              fill="none"
+              stroke="rgba(148, 163, 184, 0.16)"
+              strokeWidth="2"
+            />
+
+            {/* Progress ring */}
+            <circle
+              cx="22"
+              cy="22"
+              r="19"
+              fill="none"
+              stroke="rgba(244, 185, 66, 0.82)"
+              strokeWidth="2"
+              strokeLinecap="round"
+
+              strokeDasharray={
+                2 * Math.PI * 19
+              }
+
+              strokeDashoffset={
+                2 *
+                Math.PI *
+                19 *
+                (1 - progress)
+              }
+
+              style={{
+                transition:
+                  'stroke-dashoffset .25s ease',
+              }}
+            />
+          </svg>
+
+          <span
+            style={{
+              position: 'relative',
+
+              zIndex: 1,
+
+              lineHeight: 1,
+
+              whiteSpace: 'nowrap',
+
+              /*
+               * Very subtle text separation
+               * without hiding the PDF underneath.
+               */
+              textShadow:
+                '0 1px 2px rgba(255,255,255,0.7)',
+            }}
+          >
+            {numPages > 0
+              ? `${currentPage}/${numPages}`
+              : ''}
+          </span>
+        </div>
+      </div>
     </main>
   )
 }

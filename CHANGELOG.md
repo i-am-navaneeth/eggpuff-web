@@ -2,6 +2,38 @@
 
 All notable changes to EggPuff are documented here.
 
+## [v0.7.1] — Improved PDF viewer and Onboarding(for FTU's)
+
+### Added
+
+- Added Complete profile(to-do list for FTU on Onboarding).
+- Added zooming experience in EP PDF viewer.
+- Added fast load experience for PDF's on first page.
+- Added Glass effect/UI to the page indicator in PDF viewer.
+- Added age restriction to the T&C and PP.
+
+### Improved
+
+- Improved Onboarding experience for FTU.
+
+### Fixed
+
+- Fixed pages states in more than 3 pages overlaying.
+
+### Internal / Technical
+
+- Removed console logs in some files.(AppLayout, NavigationProvider)
+
+### Release Summary
+
+- v0.7.1 is a UX focused update where the most user noticable UX bugs are updated/fixed.
+- This release strengthens EggPuff's UX.
+- No breaking architectural changes were introduced in this release.
+
+# Changelog
+
+All notable changes to EggPuff are documented here.
+
 ## [v0.6.1] — Product UI Upgrade
 
 ### Added
